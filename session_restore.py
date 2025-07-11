@@ -10,6 +10,8 @@ from utils import Utils
 
 
 class SessionRestore(Utils):
+    DELAY_BETWEEN_INSTRUCTIONS = 0.3
+
     def restore_session(self, session_name):
         """Restore a saved session with group support"""
         session_file = self.sessions_dir / f"{session_name}.json"
@@ -51,7 +53,7 @@ class SessionRestore(Utils):
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-                    time.sleep(1.0)
+                    time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
                 except Exception as e:
                     print(f"Error launching {command}: {e}")
 
@@ -86,7 +88,7 @@ class SessionRestore(Utils):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                time.sleep(1.0)
+                time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
             except Exception as e:
                 print(f"Error launching {command}: {e}")
 
@@ -108,7 +110,7 @@ class SessionRestore(Utils):
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                         )
-                        time.sleep(1.0)
+                        time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
                     except Exception as e:
                         print(f"  Error launching {command}: {e}")
                 continue
@@ -126,12 +128,12 @@ class SessionRestore(Utils):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                time.sleep(1.5)  # Wait for window to appear
+                time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)  # Wait for window to appear
 
                 # Make it a group
                 cmd = ["hyprctl", "dispatch", "togglegroup"]
                 subprocess.run(cmd, check=True, capture_output=True)
-                time.sleep(0.3)
+                time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
 
                 # Launch remaining windows (they will auto-join the group)
                 for window in group_windows[1:]:
@@ -145,7 +147,7 @@ class SessionRestore(Utils):
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-                    time.sleep(1.0)
+                    time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
 
                 # After opening all clients in the group, lock the group to prevent other windows from joining
                 cmd = ["hyprctl", "dispatch", "lockactivegroup", "lock"]
