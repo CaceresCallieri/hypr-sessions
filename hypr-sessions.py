@@ -10,13 +10,13 @@ import sys
 from session_delete import SessionDelete
 from session_list import SessionList
 from session_restore import SessionRestore
-from session_save import SessionSave
+from session_save import SessionSaver
 from utils import Utils
 
 
 class HyprlandSessionManager:
     def __init__(self):
-        self.saver = SessionSave()
+        self.saver = SessionSaver()
         self.restorer = SessionRestore()
         self.lister = SessionList()
         self.deleter = SessionDelete()
