@@ -3,11 +3,50 @@ Session capture functionality
 """
 
 import json
+import subprocess
 from datetime import datetime
-from session_manager import SessionManager
+
+from utils import Utils
 
 
-class SessionCapture(SessionManager):
+class SessionCapture(Utils):
+
+    def get_hyprctl_data(self, command):
+        """Execute hyprctl command and return JSON data"""
+        try:
+            result = subprocess.run(
+                ["hyprctl", command, "-j"], capture_output=True, text=True, check=True
+            )
+            return json.loads(result.stdout)
+        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+            print(f"Error executing hyprctl {command}: {e}")
+            return None
+
+    def guess_launch_command(self, window_data):
+        """Guess the launch command based on window class"""
+        class_name = window_data.get("class", "").lower()
+        title = window_data.get("title", "")
+
+        # Common application mappings
+        command_map = {
+            "zen": "zen-browser",
+            "com.mitchellh.ghostty": "ghostty",
+            "firefox": "firefox",
+            "chromium": "chromium",
+            "google-chrome": "google-chrome",
+            "alacritty": "alacritty",
+            "kitty": "kitty",
+            "foot": "foot",
+            "neovim": "nvim",
+            "code": "code",
+            "code-oss": "code-oss",
+            "thunar": "thunar",
+            "nautilus": "nautilus",
+            "dolphin": "dolphin",
+        }
+
+        return command_map.get(class_name, class_name)
+
     def capture_session(self, session_name):
         """Capture current workspace state including groups"""
         print(f"Capturing session: {session_name}")
@@ -20,7 +59,9 @@ class SessionCapture(SessionManager):
 
         # Get current workspace to filter clients
         current_workspace_data = self.get_hyprctl_data("activeworkspace")
-        current_workspace_id = current_workspace_data.get("id") if current_workspace_data else None
+        current_workspace_id = (
+            current_workspace_data.get("id") if current_workspace_data else None
+        )
 
         # Filter clients for current workspace only
         workspace_clients = [

@@ -6,10 +6,10 @@ import json
 import subprocess
 import time
 
-from session_manager import SessionManager
+from utils import Utils
 
 
-class SessionRestore(SessionManager):
+class SessionRestore(Utils):
     def restore_session(self, session_name):
         """Restore a saved session with group support"""
         session_file = self.sessions_dir / f"{session_name}.json"

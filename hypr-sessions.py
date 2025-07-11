@@ -8,15 +8,18 @@ import argparse
 import sys
 
 from session_capture import SessionCapture
-from session_manager import SessionManager
+from session_delete import SessionDelete
+from session_list import SessionList
 from session_restore import SessionRestore
+from utils import Utils
 
 
 class HyprlandSessionManager:
     def __init__(self):
         self.capturer = SessionCapture()
         self.restorer = SessionRestore()
-        self.manager = SessionManager()
+        self.lister = SessionList()
+        self.deleter = SessionDelete()
 
     def capture_session(self, session_name):
         return self.capturer.capture_session(session_name)
@@ -25,10 +28,10 @@ class HyprlandSessionManager:
         return self.restorer.restore_session(session_name)
 
     def list_sessions(self):
-        return self.manager.list_sessions()
+        return self.lister.list_sessions()
 
     def delete_session(self, session_name):
-        return self.manager.delete_session(session_name)
+        return self.deleter.delete_session(session_name)
 
 
 def main():
