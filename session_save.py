@@ -1,5 +1,5 @@
 """
-Session capture functionality
+Session save functionality
 """
 
 import json
@@ -9,7 +9,7 @@ from datetime import datetime
 from utils import Utils
 
 
-class SessionCapture(Utils):
+class SessionSave(Utils):
 
     def get_hyprctl_data(self, command):
         """Execute hyprctl command and return JSON data"""
@@ -47,9 +47,9 @@ class SessionCapture(Utils):
 
         return command_map.get(class_name, class_name)
 
-    def capture_session(self, session_name):
-        """Capture current workspace state including groups"""
-        print(f"Capturing session: {session_name}")
+    def save_session(self, session_name):
+        """Save current workspace state including groups"""
+        print(f"Saving session: {session_name}")
 
         # Get all clients (windows) from current workspace
         clients = self.get_hyprctl_data("clients")
@@ -138,7 +138,7 @@ class SessionCapture(Utils):
             with open(session_file, "w") as f:
                 json.dump(session_data, f, indent=2)
             print(f"Session saved to: {session_file}")
-            print(f"Captured {len(session_data['windows'])} windows")
+            print(f"Saved {len(session_data['windows'])} windows")
             return True
         except Exception as e:
             print(f"Error saving session: {e}")

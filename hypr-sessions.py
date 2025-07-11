@@ -7,22 +7,22 @@ Captures and restores workspace sessions in Hyprland
 import argparse
 import sys
 
-from session_capture import SessionCapture
 from session_delete import SessionDelete
 from session_list import SessionList
 from session_restore import SessionRestore
+from session_save import SessionSave
 from utils import Utils
 
 
 class HyprlandSessionManager:
     def __init__(self):
-        self.capturer = SessionCapture()
+        self.saver = SessionSave()
         self.restorer = SessionRestore()
         self.lister = SessionList()
         self.deleter = SessionDelete()
 
-    def capture_session(self, session_name):
-        return self.capturer.capture_session(session_name)
+    def save_session(self, session_name):
+        return self.saver.save_session(session_name)
 
     def restore_session(self, session_name):
         return self.restorer.restore_session(session_name)
@@ -55,7 +55,7 @@ def main():
         if not args.session_name:
             print("Session name is required for save action")
             sys.exit(1)
-        manager.capture_session(args.session_name)
+        manager.save_session(args.session_name)
 
     elif args.action == "restore":
         if not args.session_name:
