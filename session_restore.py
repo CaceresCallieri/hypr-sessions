@@ -10,7 +10,7 @@ from utils import Utils
 
 
 class SessionRestore(Utils):
-    DELAY_BETWEEN_INSTRUCTIONS = 0.3
+    DELAY_BETWEEN_INSTRUCTIONS = 0.4
 
     def restore_session(self, session_name):
         """Restore a saved session with group support"""
