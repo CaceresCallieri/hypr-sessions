@@ -15,11 +15,12 @@ from utils import Utils
 
 
 class HyprlandSessionManager:
-    def __init__(self):
-        self.saver = SessionSaver()
-        self.restorer = SessionRestore()
-        self.lister = SessionList()
-        self.deleter = SessionDelete()
+    def __init__(self, debug=False):
+        self.debug = debug
+        self.saver = SessionSaver(debug=debug)
+        self.restorer = SessionRestore(debug=debug)
+        self.lister = SessionList(debug=debug)
+        self.deleter = SessionDelete(debug=debug)
 
     def save_session(self, session_name):
         return self.saver.save_session(session_name)
@@ -46,10 +47,15 @@ def main():
         nargs="?",
         help="Name of the session (required for save/restore/delete)",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug output for troubleshooting",
+    )
 
     args = parser.parse_args()
 
-    manager = HyprlandSessionManager()
+    manager = HyprlandSessionManager(debug=args.debug)
 
     if args.action == "save":
         if not args.session_name:
