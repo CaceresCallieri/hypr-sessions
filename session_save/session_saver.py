@@ -9,6 +9,7 @@ from utils import Utils
 from .hyprctl_client import HyprctlClient
 from .launch_commands import LaunchCommandGenerator
 from .terminal_handler import TerminalHandler
+from .neovide_handler import NeovideHandler
 
 
 class SessionSaver(Utils):
@@ -17,6 +18,7 @@ class SessionSaver(Utils):
         self.hyprctl_client = HyprctlClient()
         self.launch_command_generator = LaunchCommandGenerator()
         self.terminal_handler = TerminalHandler()
+        self.neovide_handler = NeovideHandler()
 
     def save_session(self, session_name):
         """Save current workspace state including groups"""
@@ -99,6 +101,21 @@ class SessionSaver(Utils):
                     if working_dir:
                         window_data["working_directory"] = working_dir
                         print(f"  Captured working directory: {working_dir}")
+
+            # For Neovide windows, capture session information
+            if self.neovide_handler.is_neovide_window(window_data):
+                pid = window_data.get("pid")
+                print(f"  Found Neovide window (PID: {pid})")
+                neovide_session_info = self.neovide_handler.get_neovide_session_info(pid)
+                if neovide_session_info:
+                    window_data["neovide_session"] = neovide_session_info
+                    # Try to create/capture session file
+                    session_file = self.neovide_handler.create_session_file(pid, str(self.sessions_dir))
+                    if session_file:
+                        window_data["neovide_session"]["session_file"] = session_file
+                        print(f"  Captured Neovide session: {session_file}")
+                    else:
+                        print(f"  Could not capture Neovide session, will restore with working directory")
 
             # Try to determine launch command based on class
             launch_command = self.launch_command_generator.guess_launch_command(window_data)
