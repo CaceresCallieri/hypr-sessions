@@ -8,9 +8,9 @@ from .neovide_handler import NeovideHandler
 
 
 class LaunchCommandGenerator:
-    def __init__(self):
+    def __init__(self, debug=False):
         self.terminal_handler = TerminalHandler()
-        self.neovide_handler = NeovideHandler()
+        self.neovide_handler = NeovideHandler(debug=debug)
 
     def guess_launch_command(self, window_data):
         """Guess the launch command based on window class"""

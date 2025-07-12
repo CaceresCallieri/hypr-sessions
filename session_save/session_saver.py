@@ -17,7 +17,7 @@ class SessionSaver(Utils):
         super().__init__()
         self.debug = debug
         self.hyprctl_client = HyprctlClient()
-        self.launch_command_generator = LaunchCommandGenerator()
+        self.launch_command_generator = LaunchCommandGenerator(debug=debug)
         self.terminal_handler = TerminalHandler()
         self.neovide_handler = NeovideHandler(debug=debug)
     
