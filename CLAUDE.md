@@ -247,8 +247,21 @@ This file serves as the primary knowledge base for understanding the project's e
 - **System Tools**: htop, btop, top, ps
 - **Custom Scripts**: Any executable program or shell command
 
+### Terminal Persistence Enhancement (2025-07-14)
+
+**✅ RESOLVED**: Implemented shell wrapper approach to keep terminals open after programs exit
+
+- **Shell Wrapper Implementation**: Programs are wrapped with `; exec $SHELL` to return to shell when program exits
+- **Signal Handling**: Added trap for shell commands to handle Ctrl+C gracefully without killing terminal
+- **Multi-word Command Detection**: Enhanced detection for package manager commands (npm run dev, yarn start, etc.)
+- **Proper Quoting**: Fixed command generation with proper shell escaping and quoting
+
+**Technical Details:**
+- **Direct Programs**: `ghostty --working-directory=/path -e sh -c "yazi; exec $SHELL"`
+- **Shell Commands**: `ghostty --working-directory=/path -e sh -c "trap 'echo Program interrupted' INT; npm run dev; exec $SHELL"`
+- **Package Manager Support**: npm, yarn, pnpm, bun commands are automatically treated as shell commands
+- **Argument Filtering**: Removes empty arguments from process cmdline parsing
+
 ### Known Limitations
 
-- **Terminal Persistence**: Programs launched with `-e` flag cause terminal to close when program exits
-- **Future Enhancement**: Need to implement shell wrapper approach to keep terminal open after program exit
-
+- **None currently identified** - Terminal persistence feature is complete and working

@@ -122,6 +122,11 @@ class TerminalHandler:
             if not args:
                 return None
                 
+            # Filter out empty arguments
+            args = [arg for arg in args if arg.strip()]
+            if not args:
+                return None
+                
             program_name = Path(args[0]).name
             if debug:
                 print(f"[DEBUG TerminalHandler] Process {pid}: {program_name} with args {args}")
@@ -181,13 +186,29 @@ class TerminalHandler:
                             return grandchild_result
                 return None
             
-            # For non-shell programs, return the program info
-            return {
-                "name": program_name,
-                "args": args[1:] if len(args) > 1 else [],
-                "full_command": " ".join(args),
-                "shell_command": None
-            }
+            # For non-shell programs, determine if it should be treated as shell command
+            full_command = " ".join(args)
+            
+            # Check if this is a multi-word command that should be treated as shell command
+            if (len(args) > 1 or 
+                program_name in ["npm", "yarn", "pnpm", "bun"] or
+                " " in args[0]):  # Handle cases where the whole command is in args[0]
+                
+                # Package manager and multi-word commands should be shell commands
+                return {
+                    "name": args[0],
+                    "args": [],
+                    "full_command": full_command,
+                    "shell_command": full_command
+                }
+            else:
+                # Direct program execution
+                return {
+                    "name": program_name,
+                    "args": args[1:] if len(args) > 1 else [],
+                    "full_command": full_command,
+                    "shell_command": None
+                }
             
         except (OSError, PermissionError, UnicodeDecodeError) as e:
             if debug:

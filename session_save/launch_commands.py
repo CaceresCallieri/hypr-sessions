@@ -60,15 +60,22 @@ class LaunchCommandGenerator:
             if running_program:
                 command_parts.append("-e")
                 
-                # Handle shell commands vs direct programs
+                # Handle shell commands vs direct programs with shell persistence
                 if running_program.get("shell_command"):
-                    # For shell commands like "npm run dev", execute through shell
-                    command_parts.extend(["sh", "-c", running_program["shell_command"]])
+                    # For shell commands like "npm run dev", use trap to handle signals properly
+                    shell_command = running_program["shell_command"]
+                    wrapper_command = f"trap 'echo Program interrupted' INT; {shell_command}; exec $SHELL"
+                    command_parts.extend(["sh", "-c", f'"{wrapper_command}"'])
                 else:
-                    # For direct programs like "yazi", execute directly
-                    command_parts.append(running_program["name"])
-                    if running_program.get("args"):
-                        command_parts.extend(running_program["args"])
+                    # For direct programs like "yazi", execute with shell persistence  
+                    program_name = running_program["name"]
+                    args = running_program.get("args", [])
+                    if args:
+                        full_program = f"{program_name} {' '.join(args)}"
+                    else:
+                        full_program = program_name
+                    wrapper_command = f"{full_program}; exec $SHELL"
+                    command_parts.extend(["sh", "-c", wrapper_command])
             
             return " ".join(command_parts)
         
