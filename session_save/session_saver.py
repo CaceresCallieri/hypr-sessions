@@ -109,7 +109,7 @@ class SessionSaver(Utils):
                 "group_id": address_to_group.get(address, None),
             }
 
-            # For terminal applications, capture working directory
+            # For terminal applications, capture working directory and running program
             if self.terminal_handler.is_terminal_app(window_data["class"]):
                 pid = window_data.get("pid")
                 if pid:
@@ -117,6 +117,16 @@ class SessionSaver(Utils):
                     if working_dir:
                         window_data["working_directory"] = working_dir
                         print(f"  Captured working directory: {working_dir}")
+                    
+                    # Detect running program in the terminal
+                    self.debug_print(f"Detecting running program for terminal PID {pid}")
+                    running_program = self.terminal_handler.get_running_program(pid, debug=self.debug)
+                    if running_program:
+                        window_data["running_program"] = running_program
+                        print(f"  Captured running program: {running_program['name']}")
+                        self.debug_print(f"Running program details: {running_program}")
+                    else:
+                        self.debug_print("No running program detected (likely just shell)")
 
             # For Neovide windows, capture session information
             if self.neovide_handler.is_neovide_window(window_data):
@@ -141,6 +151,7 @@ class SessionSaver(Utils):
             # Try to determine launch command based on class
             launch_command = self.launch_command_generator.guess_launch_command(window_data)
             window_data["launch_command"] = launch_command
+            self.debug_print(f"Generated launch command: {launch_command}")
 
             session_data["windows"].append(window_data)
 

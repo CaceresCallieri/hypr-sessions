@@ -17,6 +17,7 @@ class LaunchCommandGenerator:
         class_name = window_data.get("class", "").lower()
         title = window_data.get("title", "")
         working_dir = window_data.get("working_directory")
+        running_program = window_data.get("running_program")
 
         # Common application mappings
         command_map = {
@@ -47,11 +48,29 @@ class LaunchCommandGenerator:
             return self.neovide_handler.get_restore_command(window_data, 
                                                          neovide_session.get("session_file"))
 
-        # For Ghostty terminal, add working directory flag
-        if class_name == "com.mitchellh.ghostty" and working_dir:
-            # Properly escape the path for shell safety
-            escaped_dir = shlex.quote(working_dir)
-            return f"{base_command} --working-directory={escaped_dir}"
+        # For Ghostty terminal, add working directory and program execution
+        if class_name == "com.mitchellh.ghostty":
+            command_parts = [base_command]
+            
+            # Add working directory if available
+            if working_dir:
+                command_parts.append(f"--working-directory={working_dir}")
+            
+            # Add program execution if available
+            if running_program:
+                command_parts.append("-e")
+                
+                # Handle shell commands vs direct programs
+                if running_program.get("shell_command"):
+                    # For shell commands like "npm run dev", execute through shell
+                    command_parts.extend(["sh", "-c", running_program["shell_command"]])
+                else:
+                    # For direct programs like "yazi", execute directly
+                    command_parts.append(running_program["name"])
+                    if running_program.get("args"):
+                        command_parts.extend(running_program["args"])
+            
+            return " ".join(command_parts)
         
         # Future terminal support can be added here with similar patterns:
         # elif class_name == "alacritty" and working_dir:

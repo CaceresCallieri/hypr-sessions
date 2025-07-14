@@ -1,20 +1,23 @@
 # Hyprland Session Manager - Claude Context
 
 ## Project Overview
+
 A Python-based session manager for Hyprland that saves and restores workspace sessions manually. Captures window states, groups, and application-specific data like terminal working directories.
 
 ## Architecture
+
 - **CLI Interface**: `hypr-sessions.py` - Main entry point
 - **Commands**: `save`, `restore`, `list`, `delete`
 - **Modular Structure**: Each command in separate files
 - **Utils**: Shared configuration and session directory setup
 
 ## File Structure
+
 ```
 ├── hypr-sessions.py          # Main CLI interface with --debug flag
 ├── session_save/             # Modular save functionality
 │   ├── session_saver.py      # Main orchestration with debug logging
-│   ├── hyprctl_client.py     # Hyprctl data retrieval  
+│   ├── hyprctl_client.py     # Hyprctl data retrieval
 │   ├── launch_commands.py    # Launch command generation
 │   ├── terminal_handler.py   # Terminal working directory capture
 │   └── neovide_handler.py    # Neovide-specific session management
@@ -25,6 +28,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 ```
 
 ## Key Features Implemented
+
 1. **Basic session save/restore** - Captures windows, groups, positions
 2. **Group restoration** - Recreates Hyprland window groups during restore
 3. **Terminal working directories** - Captures and restores terminal CWD
@@ -36,17 +40,20 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 ## Technical Details
 
 ### Session Data Format
+
 - **Location**: `~/.config/hypr-sessions/`
 - **Format**: JSON files with session metadata, windows array, groups object
 - **Window data**: class, title, PID, position, size, launch_command, working_directory (terminals)
 - **Neovide data**: neovide_session object with working_directory and session_file paths
 
 ### Terminal Support
-- **Supported**: alacritty, kitty, foot, ghostty, wezterm, gnome-terminal, etc.
+
+- **Supported**: Only ghostty
 - **Working directory capture**: Reads from `/proc/{pid}/cwd` and child processes
 - **Launch flags**: Terminal-specific directory arguments
 
 ### Neovide Support
+
 - **Detection**: Window class "neovide" for GUI-based Neovim
 - **Working directory**: Captured from Neovide process `/proc/{pid}/cwd`
 - **Session files**: Creates basic session files in `~/.config/hypr-sessions/`
@@ -54,33 +61,39 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 - **Current limitation**: Only restores working directory, not actual Neovim session state
 
 ### Group Restoration Process
+
 1. Launch ungrouped windows normally
 2. For each group: launch leader → togglegroup → launch members → lockactivegroup
 3. Uses natural focus (no focuswindow calls) to avoid workspace switching
 
 ## Constants and Configuration
+
 - **Timing**: `SessionRestore.DELAY_BETWEEN_INSTRUCTIONS = 0.4` seconds
 - **Sessions directory**: `~/.config/hypr-sessions/`
 - **Gitignore**: `__pycache__/` excluded
 
 ## Planned Features
+
 1. **Enhanced Neovim session management** - Use Neovim's API to capture actual session state (open files, cursor position, etc.)
 2. **Browser tab restoration** - Firefox/Chrome tab state
 3. **Better window positioning** - More precise layout restoration
 4. **Qt/QML UI** - Graphical interface for session management
 
 ## Development Notes
+
 - **Python style**: Class constants in UPPER_CASE
-- **Error handling**: Graceful fallbacks for permission/file errors  
+- **Error handling**: Graceful fallbacks for permission/file errors
 - **Shell safety**: Uses `shlex.quote()` for path escaping
 - **Process discovery**: Finds shell children of terminal processes for accurate CWD
 
 ## Testing Notes
+
 - Test grouping with multiple terminal windows
 - Verify working directory capture across different terminals
 - Check workspace isolation (no unintended workspace switching)
 
 ## Debug Mode
+
 The `--debug` flag provides comprehensive troubleshooting output:
 
 ```bash
@@ -98,6 +111,7 @@ The `--debug` flag provides comprehensive troubleshooting output:
 ```
 
 Debug output includes:
+
 - Window detection and classification
 - Process ID and working directory capture
 - Session file creation and validation
@@ -105,11 +119,12 @@ Debug output includes:
 - Group organization and restoration logic
 
 ## Common Commands
+
 ```bash
 # Save current workspace
 ./hypr-sessions.py save work-session
 
-# Restore session  
+# Restore session
 ./hypr-sessions.py restore work-session
 
 # List all sessions
@@ -122,30 +137,32 @@ Debug output includes:
 ## Recent Session Work (2025-07-12)
 
 ### Implemented
+
 1. **Enhanced Neovide Session Management**: Complete implementation using Neovim remote API
-   - **Socket Detection**: Automatically finds Neovim server sockets for running Neovide instances
-   - **Live Session Capture**: Uses `nvim --server --remote-send :mksession` to capture actual session state
-   - **Comprehensive Session Files**: Captures open buffers, cursor positions, window layouts, working directories
-   - **Intelligent Fallback**: Falls back to basic working directory session if remote API fails
-   - **Debug Integration**: Full debug logging for troubleshooting session capture/restore
+    - **Socket Detection**: Automatically finds Neovim server sockets for running Neovide instances
+    - **Live Session Capture**: Uses `nvim --server --remote-send :mksession` to capture actual session state
+    - **Comprehensive Session Files**: Captures open buffers, cursor positions, window layouts, working directories
+    - **Intelligent Fallback**: Falls back to basic working directory session if remote API fails
+    - **Debug Integration**: Full debug logging for troubleshooting session capture/restore
 
-2. **Neovim Remote API Integration**: 
-   - Detects sockets in `/run/user/{uid}/nvim.{pid}.*` and other standard locations
-   - Searches process tree for child Neovim processes if direct PID socket not found
-   - Executes `:mksession!` command remotely to generate comprehensive session files
-   - Validates session file creation with timeout handling
+2. **Neovim Remote API Integration**:
+    - Detects sockets in `/run/user/{uid}/nvim.{pid}.*` and other standard locations
+    - Searches process tree for child Neovim processes if direct PID socket not found
+    - Executes `:mksession!` command remotely to generate comprehensive session files
+    - Validates session file creation with timeout handling
 
-3. **Enhanced Debug Infrastructure**: 
-   - Added debug parameter to all session classes including LaunchCommandGenerator
-   - Detailed logging for socket detection, session capture, and command execution
-   - Process tracking and validation throughout the session management pipeline
+3. **Enhanced Debug Infrastructure**:
+    - Added debug parameter to all session classes including LaunchCommandGenerator
+    - Detailed logging for socket detection, session capture, and command execution
+    - Process tracking and validation throughout the session management pipeline
 
 4. **Robust Session Restoration**:
-   - Prioritizes full Neovim session files over basic working directory restoration
-   - Uses `neovide -- -S session.vim` for comprehensive session restoration
-   - Maintains backward compatibility with existing basic session approach
+    - Prioritizes full Neovim session files over basic working directory restoration
+    - Uses `neovide -- -S session.vim` for comprehensive session restoration
+    - Maintains backward compatibility with existing basic session approach
 
 ### Current Status
+
 - **Neovide Socket Detection**: Automatically finds Neovim server sockets ✅
 - **Live Session Capture**: Captures actual Neovim session state via remote API ✅
 - **Comprehensive Session Files**: Saves buffers, cursor positions, layouts ✅
@@ -153,6 +170,7 @@ Debug output includes:
 - **Fallback Support**: Graceful degradation when remote API unavailable ✅
 
 ### Technical Implementation Details
+
 - **Socket Patterns**: Supports multiple socket location patterns for compatibility
 - **Process Tree Search**: Finds Neovim processes in complex process hierarchies
 - **Timeout Handling**: 10-second timeout for remote commands, 3-second wait for file creation
@@ -160,6 +178,7 @@ Debug output includes:
 - **Error Recovery**: Comprehensive error handling with detailed debug output
 
 ### Next Steps (Future Enhancements)
+
 1. **Session Validation**: Verify session files contain expected Neovim session markers
 2. **Plugin State Capture**: Enhanced session capture for complex plugin configurations
 3. **Multi-instance Support**: Handle multiple Neovide instances with different sessions
@@ -168,11 +187,68 @@ Debug output includes:
 ## Important Development Guidelines
 
 **⚠️ CRITICAL**: After every change to this codebase, update this CLAUDE.md file to reflect:
+
 - **New features implemented** with technical details
-- **Changes made** to existing functionality  
+- **Changes made** to existing functionality
 - **Knowledge gained** about the system behavior
 - **Issues discovered** and their solutions
 - **Future objectives** and implementation approaches
 - **Debugging insights** and troubleshooting notes
 
 This file serves as the primary knowledge base for understanding the project's evolution, current capabilities, and development roadmap. Keep it comprehensive and up-to-date to ensure effective collaboration and debugging.
+
+## Recent Terminal Program Detection Work (2025-07-13)
+
+### Implemented
+
+1. **Running Program Detection in Terminals**: Complete implementation for detecting and restoring active programs
+    - **Process Tree Analysis**: Recursively analyzes terminal process trees to find non-shell programs
+    - **Command Line Parsing**: Extracts program names, arguments, and shell commands from `/proc/{pid}/cmdline`
+    - **Shell Command Detection**: Special handling for shell commands executed with `-c` flag (npm run dev, complex commands)
+    - **Intelligent Filtering**: Skips shell processes unless they're executing specific commands
+
+2. **Enhanced Session Data Format**:
+    - **running_program Object**: Stores detected program information including name, args, full_command, and optional shell_command
+    - **Backward Compatibility**: New data is optional, existing sessions continue to work
+    - **Debug Integration**: Comprehensive logging for program detection and command building
+
+3. **Advanced Launch Command Generation**:
+    - **Ghostty-Specific Execution**: Uses `-e` flag for program execution with working directory
+    - **Shell Command Handling**: Properly executes complex shell commands through `sh -c`
+    - **Direct Program Execution**: Launches simple programs directly without shell intermediary
+    - **Working Directory Integration**: Combines working directory and program execution seamlessly
+
+4. **Fixed Process Detection Issues**:
+    - **Process Stat Parsing**: Fixed parsing of `/proc/*/stat` for processes with spaces in names (like "npm run dev")
+    - **Recursive Process Search**: Enhanced process tree traversal to find programs in complex hierarchies
+    - **Conflict Resolution**: Prevents conflicts between terminal program detection and dedicated neovide session management
+
+### Technical Implementation Details
+
+- **Process Discovery**: Reads `/proc/{pid}/cmdline` for command line information and `/proc/*/stat` for parent-child relationships
+- **Command Parsing**: Handles null-separated arguments with proper Unicode decoding
+- **Shell Detection**: Identifies bash, zsh, fish, sh, dash and analyzes their child processes
+- **Process Filtering**: Skips hypr-sessions save commands, neovide processes, and embedded nvim instances
+- **Launch Command Building**: Constructs proper Ghostty commands with working directory and program execution
+
+### Current Status
+
+- **Program Detection**: Automatically detects running programs in Ghostty terminals ✅
+- **Command Restoration**: Restores terminals with detected programs running ✅
+- **Shell Command Support**: Handles complex shell commands (npm run dev) ✅
+- **Process Tree Analysis**: Recursive search through complex process hierarchies ✅
+- **Conflict Prevention**: Avoids conflicts with neovide session management ✅
+
+### Examples of Supported Programs
+
+- **File Managers**: yazi, ranger, nnn, lf
+- **Development Tools**: npm run dev, yarn start, cargo run
+- **Editors**: vim, nvim (standalone, not embedded)
+- **System Tools**: htop, btop, top, ps
+- **Custom Scripts**: Any executable program or shell command
+
+### Known Limitations
+
+- **Terminal Persistence**: Programs launched with `-e` flag cause terminal to close when program exits
+- **Future Enhancement**: Need to implement shell wrapper approach to keep terminal open after program exit
+
