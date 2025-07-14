@@ -7,20 +7,17 @@ from pathlib import Path
 
 class TerminalHandler:
     def is_terminal_app(self, class_name):
-        """Check if the application is a terminal emulator"""
+        """Check if the application is a terminal emulator (currently only Ghostty supported)"""
+        # Currently only supporting Ghostty terminal
+        # Future terminal support can be added to this set:
         terminal_apps = {
-            "alacritty",
-            "kitty",
-            "foot",
             "com.mitchellh.ghostty",
-            "wezterm",
-            "gnome-terminal",
-            "konsole",
-            "xfce4-terminal",
-            "terminator",
-            "st",
-            "urxvt",
-            "rxvt-unicode",
+            # Future terminals can be added here:
+            # "alacritty",
+            # "kitty", 
+            # "foot",
+            # "wezterm",
+            # "gnome-terminal",
         }
         return class_name.lower() in terminal_apps
 

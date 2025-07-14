@@ -25,9 +25,6 @@ class LaunchCommandGenerator:
             "firefox": "firefox",
             "chromium": "chromium",
             "google-chrome": "google-chrome",
-            "alacritty": "alacritty",
-            "kitty": "kitty",
-            "foot": "foot",
             "neovim": "nvim",
             "neovide": "neovide",
             "code": "code",
@@ -35,6 +32,11 @@ class LaunchCommandGenerator:
             "thunar": "thunar",
             "nautilus": "nautilus",
             "dolphin": "dolphin",
+            # Future terminal support can be added here:
+            # "alacritty": "alacritty",
+            # "kitty": "kitty",
+            # "foot": "foot",
+            # "wezterm": "wezterm",
         }
 
         base_command = command_map.get(class_name, class_name)
@@ -45,23 +47,18 @@ class LaunchCommandGenerator:
             return self.neovide_handler.get_restore_command(window_data, 
                                                          neovide_session.get("session_file"))
 
-        # For terminal applications, add working directory flag
-        if self.terminal_handler.is_terminal_app(class_name) and working_dir:
+        # For Ghostty terminal, add working directory flag
+        if class_name == "com.mitchellh.ghostty" and working_dir:
             # Properly escape the path for shell safety
             escaped_dir = shlex.quote(working_dir)
-
-            if class_name == "alacritty":
-                return f"{base_command} --working-directory={escaped_dir}"
-            elif class_name == "kitty":
-                return f"{base_command} --directory={escaped_dir}"
-            elif class_name == "foot":
-                return f"{base_command} --working-directory={escaped_dir}"
-            elif class_name == "com.mitchellh.ghostty":
-                return f"{base_command} --working-directory={escaped_dir}"
-            elif class_name == "wezterm":
-                return f"{base_command} --cwd={escaped_dir}"
-            else:
-                # Generic fallback - many terminals support --directory
-                return f"{base_command} --directory={escaped_dir}"
+            return f"{base_command} --working-directory={escaped_dir}"
+        
+        # Future terminal support can be added here with similar patterns:
+        # elif class_name == "alacritty" and working_dir:
+        #     escaped_dir = shlex.quote(working_dir)
+        #     return f"{base_command} --working-directory={escaped_dir}"
+        # elif class_name == "kitty" and working_dir:
+        #     escaped_dir = shlex.quote(working_dir)
+        #     return f"{base_command} --directory={escaped_dir}"
 
         return base_command
