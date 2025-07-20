@@ -1,0 +1,9 @@
+{
+  "name": "hypr_sessions_host",
+  "description": "Native messaging host for Hyprland Session Manager",
+  "path": "/home/nomadjc/Dev/hypr-sessions/browser_extension/native_host.py",
+  "type": "stdio",
+  "allowed_extensions": [
+    "hypr-sessions@localhost"
+  ]
+}
