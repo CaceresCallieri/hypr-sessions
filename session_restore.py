@@ -7,6 +7,7 @@ import subprocess
 import time
 
 from utils import Utils
+from session_save.browser_handler import BrowserHandler
 
 
 class SessionRestore(Utils):
@@ -15,6 +16,7 @@ class SessionRestore(Utils):
     def __init__(self, debug=False):
         super().__init__()
         self.debug = debug
+        self.browser_handler = BrowserHandler(debug=debug)
     
     def debug_print(self, message):
         """Print debug message if debug mode is enabled"""

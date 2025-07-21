@@ -116,6 +116,17 @@ class NativeHost:
                 "session_name": message.get("session_name", "unknown")
             }
             
+        elif action == "tabs_captured":
+            # Acknowledge successful tab capture
+            tabs = message.get("tabs", [])
+            filename = message.get("filename", "unknown")
+            return {
+                "status": "tabs_received",
+                "session_name": message.get("session_name", "unknown"),
+                "tab_count": len(tabs),
+                "filename": filename
+            }
+            
         else:
             return {"error": f"Unknown action: {action}"}
     

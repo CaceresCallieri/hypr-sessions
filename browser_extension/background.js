@@ -11,6 +11,7 @@ class HyprSessionsBackground {
         
         this.initializeNativeMessaging();
         this.setupMessageListeners();
+        this.startTriggerFileWatcher();
     }
     
     debugLog(message, data = null) {
@@ -131,11 +132,36 @@ class HyprSessionsBackground {
             
             this.debugLog(`Captured ${tabData.length} tabs`);
             
-            // Send tab data back to native host
+            // Create tab session data
+            const tabSessionData = {
+                session_name: message.session_name,
+                timestamp: Date.now(),
+                tabs: tabData,
+                browser_type: "zen"
+            };
+            
+            // Save tab data to downloads folder (accessible to extensions)
+            const filename = `${message.session_name}-tabs.json`;
+            const blob = new Blob([JSON.stringify(tabSessionData, null, 2)], {
+                type: 'application/json'
+            });
+            
+            // Use downloads API to save file
+            const url = URL.createObjectURL(blob);
+            await browser.downloads.download({
+                url: url,
+                filename: filename,
+                saveAs: false
+            });
+            
+            this.debugLog(`Tab data saved to: ${filename}`);
+            
+            // Send confirmation back to native host
             this.sendToNativeHost({
                 action: "tabs_captured",
                 session_name: message.session_name,
                 tabs: tabData,
+                filename: filename,
                 timestamp: Date.now()
             });
             
@@ -199,6 +225,59 @@ class HyprSessionsBackground {
             
             return true; // Keep message channel open for async response
         });
+    }
+    
+    startTriggerFileWatcher() {
+        this.debugLog("Starting trigger file watcher");
+        
+        // Poll for trigger files every 2 seconds
+        setInterval(() => {
+            this.checkForTriggerFiles();
+        }, 2000);
+    }
+    
+    async checkForTriggerFiles() {
+        try {
+            // Get all downloads to check for trigger files
+            const downloads = await browser.downloads.search({
+                filename: ".hypr-capture-*.trigger",
+                exists: true
+            });
+            
+            for (const download of downloads) {
+                if (download.filename.includes('.hypr-capture-') && download.filename.endsWith('.trigger')) {
+                    this.debugLog(`Found trigger file: ${download.filename}`);
+                    await this.processTriggerFile(download);
+                }
+            }
+        } catch (error) {
+            // Silently ignore errors - downloads API might not find pattern matches
+        }
+    }
+    
+    async processTriggerFile(download) {
+        try {
+            // Extract session name from filename
+            const filename = download.filename;
+            const match = filename.match(/\.hypr-capture-(.+)\.trigger$/);
+            if (!match) return;
+            
+            const sessionName = match[1];
+            this.debugLog(`Processing trigger for session: ${sessionName}`);
+            
+            // Capture tabs for this session
+            await this.handleCaptureRequest({
+                session_name: sessionName,
+                action: "capture_tabs"
+            });
+            
+            // Remove the trigger file
+            await browser.downloads.removeFile(download.id);
+            this.debugLog(`Cleaned up trigger file: ${filename}`);
+            
+        } catch (error) {
+            this.debugLog(`Error processing trigger file: ${error.message}`);
+        }
     }
 }
 

@@ -5,12 +5,14 @@ Launch command generation for different applications
 import shlex
 from .terminal_handler import TerminalHandler
 from .neovide_handler import NeovideHandler
+from .browser_handler import BrowserHandler
 
 
 class LaunchCommandGenerator:
     def __init__(self, debug=False):
         self.terminal_handler = TerminalHandler()
         self.neovide_handler = NeovideHandler(debug=debug)
+        self.browser_handler = BrowserHandler(debug=debug)
 
     def guess_launch_command(self, window_data):
         """Guess the launch command based on window class"""
@@ -42,7 +44,13 @@ class LaunchCommandGenerator:
 
         base_command = command_map.get(class_name, class_name)
 
-        # Check for Neovide session data first
+        # Check for browser session data first
+        browser_session = window_data.get("browser_session")
+        if browser_session:
+            browser_type = browser_session.get("browser_type", "zen")
+            return self.browser_handler.get_restore_command(browser_session, browser_type)
+
+        # Check for Neovide session data
         neovide_session = window_data.get("neovide_session")
         if neovide_session:
             return self.neovide_handler.get_restore_command(window_data, 

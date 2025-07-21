@@ -14,7 +14,8 @@
     "tabs",
     "activeTab",
     "storage",
-    "nativeMessaging"
+    "nativeMessaging",
+    "downloads"
   ],
   
   "background": {

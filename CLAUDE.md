@@ -134,6 +134,84 @@ Debug output includes:
 ./hypr-sessions.py delete work-session
 ```
 
+## Browser Integration (2025-07-21)
+
+### Implemented
+1. **Zen Browser Support**: Complete implementation with native messaging extension
+   - **Extension Architecture**: Firefox/Zen-compatible WebExtension with native messaging support
+   - **Tab Capture**: Captures all tabs in current browser window with URL, title, active/pinned status
+   - **File-based Triggers**: Python script creates trigger files that extension monitors for automatic capture
+   - **Command-line Restoration**: Browser launches with all saved tab URLs as command arguments
+   - **Host Registration**: Automated native messaging host registration for browser communication
+
+2. **Extension Components**:
+   - **Manifest (manifest.json)**: WebExtension configuration with tabs, downloads, nativeMessaging permissions
+   - **Background Script (background.js)**: Main extension logic with native messaging and tab capture
+   - **Popup Interface (popup.html/js)**: User interface for testing connection and manual tab capture
+   - **Native Host (native_host.py)**: Python script handling browser-extension communication protocol
+   - **Host Registration (register_host.py)**: Automated setup for Firefox/Chrome native messaging directories
+
+3. **Communication Flow**:
+   - **Session Save**: Python creates trigger file → Extension detects → Captures tabs → Saves JSON to Downloads
+   - **Session Restore**: Browser launches with tab URLs as command-line arguments (no extension needed)
+   - **Native Messaging**: Extension ↔ Host communication using binary protocol for status/acknowledgments
+
+4. **Integration Points**:
+   - **Browser Detection**: `browser_handler.py` identifies Zen/Firefox windows during session save
+   - **Launch Commands**: `launch_commands.py` generates browser commands with tab URLs for restoration
+   - **Session Data**: Browser session info stored in main session JSON with tab array and metadata
+
+### Current Status
+- **Browser Window Detection**: Automatically identifies Zen Browser and Firefox ✅
+- **Tab Capture**: Extension captures all tabs with full metadata ⚠️ (Code complete, needs testing)
+- **File-based Communication**: Trigger files enable Python→Extension communication ⚠️ (Implemented, needs debugging)
+- **Command-line Restoration**: Tabs restored via browser launch arguments ✅
+- **Native Messaging Setup**: Automated host registration for browsers ✅
+
+### Technical Implementation Details
+- **Supported Browsers**: Zen Browser (zen-alpha, zen), Firefox (future support)
+- **Communication Protocol**: File-based triggers in Downloads folder for Python→Extension
+- **Tab Data Format**: JSON with session_name, timestamp, tabs array, browser_type
+- **Launch Integration**: Browser sessions generate commands with quoted URL arguments
+- **Host Manifest**: Proper native messaging host registration in browser-specific directories
+
+### Setup Instructions
+1. **Register Native Host**: Run `./setup_browser_support.py` to configure native messaging
+2. **Load Extension**: Install extension from `browser_extension/` directory in browser
+3. **Test Connection**: Use extension popup to verify communication with native host
+4. **Use Sessions**: Browser tabs automatically captured during save, restored during restore
+
+### File Structure
+```
+browser_extension/
+├── manifest.json              # Extension configuration
+├── background.js              # Main extension logic  
+├── popup.html/js              # User interface
+├── content.js                 # Content script (minimal)
+├── native_host.py             # Python communication handler
+├── hypr_sessions_host.json    # Host manifest for browser registration
+└── register_host.py           # Automated setup script
+```
+
+### Next Debugging Steps (Extension Not Responding)
+
+**Current Issue**: Extension not detecting trigger files, falling back to basic session data
+
+**Debugging Steps**:
+1. **Register Native Host**: `./setup_browser_support.py` 
+2. **Load Extension**: Install `browser_extension/manifest.json` in Zen Browser via `about:debugging`
+3. **Test Extension Communication**:
+   - Check extension popup shows green "Connected" status
+   - Try "Manual Tab Capture" - should create JSON file in Downloads
+   - Check browser console for extension errors (`Ctrl+Shift+I` → Console)
+4. **Debug Trigger File Detection**:
+   - Verify trigger files created in `~/Downloads/.hypr-capture-*.trigger`
+   - Check extension background script logs for file detection
+   - Ensure Downloads API permissions working properly
+5. **Test Full Cycle**: `./hypr-sessions.py save test --debug` should show tab capture success
+
+**Known Working**: Browser detection, trigger file creation, session fallback, command-line restoration
+
 ## Recent Session Work (2025-07-12)
 
 ### Implemented
