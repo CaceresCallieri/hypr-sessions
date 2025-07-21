@@ -10,6 +10,7 @@ from .hyprctl_client import HyprctlClient
 from .launch_commands import LaunchCommandGenerator
 from .terminal_handler import TerminalHandler
 from .neovide_handler import NeovideHandler
+from .browser_handler import BrowserHandler
 
 
 class SessionSaver(Utils):
@@ -20,6 +21,7 @@ class SessionSaver(Utils):
         self.launch_command_generator = LaunchCommandGenerator(debug=debug)
         self.terminal_handler = TerminalHandler()
         self.neovide_handler = NeovideHandler(debug=debug)
+        self.browser_handler = BrowserHandler(debug=debug)
     
     def debug_print(self, message):
         """Print debug message if debug mode is enabled"""
@@ -147,6 +149,21 @@ class SessionSaver(Utils):
                         print(f"  Could not capture Neovide session, will restore with working directory")
                 else:
                     self.debug_print(f"Failed to get Neovide session info for PID {pid}")
+
+            # For browser windows, capture tab information
+            if self.browser_handler.is_browser_window(window_data):
+                pid = window_data.get("pid")
+                browser_type = self.browser_handler.get_browser_type(window_data)
+                print(f"  Found {browser_type} browser window (PID: {pid})")
+                self.debug_print(f"Detected browser window with class '{client_class}' and PID {pid}")
+                browser_session_info = self.browser_handler.get_enhanced_browser_session_info(window_data, session_name)
+                self.debug_print(f"Browser session info: {browser_session_info}")
+                if browser_session_info:
+                    window_data["browser_session"] = browser_session_info
+                    capture_method = browser_session_info.get("capture_method", "basic")
+                    print(f"  Captured {browser_type} browser session ({capture_method})")
+                else:
+                    self.debug_print(f"Failed to get browser session info for PID {pid}")
 
             # Try to determine launch command based on class
             launch_command = self.launch_command_generator.guess_launch_command(window_data)

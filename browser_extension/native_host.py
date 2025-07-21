@@ -95,11 +95,17 @@ class NativeHost:
             return {"status": "pong", "message": "Native host is working"}
             
         elif action == "capture_tabs":
-            # For now, just acknowledge the request
-            # Later this will trigger actual tab capture
+            # Acknowledge tab capture request and provide session info
+            session_name = message.get("session_name", "unknown")
+            browser_type = message.get("browser_type", "unknown")
+            self.debug_print(f"Tab capture requested for session '{session_name}', browser '{browser_type}'")
+            
             return {
                 "status": "capture_requested", 
-                "session_name": message.get("session_name", "unknown")
+                "session_name": session_name,
+                "browser_type": browser_type,
+                "message": f"Tab capture request received for {browser_type} browser",
+                "timestamp": message.get("timestamp", 0)
             }
             
         elif action == "restore_tabs":
