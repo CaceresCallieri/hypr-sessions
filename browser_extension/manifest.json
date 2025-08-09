@@ -12,9 +12,6 @@
   
   "permissions": [
     "tabs",
-    "activeTab",
-    "storage",
-    "nativeMessaging",
     "downloads"
   ],
   
@@ -34,5 +31,14 @@
   "browser_action": {
     "default_title": "Hyprland Session Manager",
     "default_popup": "popup.html"
+  },
+  
+  "commands": {
+    "capture-tabs": {
+      "suggested_key": {
+        "default": "Alt+U"
+      },
+      "description": "Capture tabs from current browser window"
+    }
   }
 }
