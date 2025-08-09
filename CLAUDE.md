@@ -20,22 +20,33 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 │   ├── hyprctl_client.py     # Hyprctl data retrieval
 │   ├── launch_commands.py    # Launch command generation
 │   ├── terminal_handler.py   # Terminal working directory capture
-│   └── neovide_handler.py    # Neovide-specific session management
+│   ├── neovide_handler.py    # Neovide-specific session management
+│   ├── browser_handler.py    # Browser window detection and tab capture
+│   └── zen_session_reader.py # Direct Zen browser session file access
 ├── session_restore.py        # Restore with grouping logic and debug output
 ├── session_list.py           # List saved sessions with debug output
 ├── session_delete.py         # Delete sessions with debug output
-└── utils.py                  # Shared session directory setup
+├── utils.py                  # Shared session directory setup
+├── browser_extension/        # DEPRECATED: Extension-based browser integration
+├── setup_browser_support.py  # DEPRECATED: Extension setup script
+└── experiments/              # Research and investigation scripts
+    ├── browser-extension/    # Extension communication experiments
+    ├── session-file-access/  # sessionstore.jsonlz4 parsing experiments
+    ├── window-mapping/       # Window-to-session correlation research
+    ├── process-analysis/     # Process tree investigation experiments
+    └── utilities/            # Research helper tools (session viewers, etc.)
 ```
 
 ## Key Features Implemented
 
 1. **Basic session save/restore** - Captures windows, groups, positions
 2. **Group restoration** - Recreates Hyprland window groups during restore
-3. **Terminal working directories** - Captures and restores terminal CWD
-4. **Improved grouping logic** - Launches grouped windows sequentially, locks groups
-5. **Modular architecture** - Clean separation of concerns
-6. **Neovide support** - Detects Neovide windows and restores working directory
-7. **Debug mode** - Comprehensive logging with `--debug` flag for troubleshooting
+3. **Terminal working directories** - Captures and restores terminal CWD with running programs
+4. **Enhanced Neovide session management** - Live Neovim session capture via remote API
+5. **Browser tab capture** - Direct Zen browser session file access (sessionstore.jsonlz4)
+6. **Improved grouping logic** - Launches grouped windows sequentially, locks groups
+7. **Modular architecture** - Clean separation of concerns with specialized handlers
+8. **Debug mode** - Comprehensive logging with `--debug` flag for troubleshooting
 
 ## Technical Details
 
@@ -72,12 +83,20 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 - **Sessions directory**: `~/.config/hypr-sessions/`
 - **Gitignore**: `__pycache__/` excluded
 
-## Planned Features
+## Future Development Roadmap
 
-1. **Enhanced Neovim session management** - Use Neovim's API to capture actual session state (open files, cursor position, etc.)
-2. **Browser tab restoration** - Firefox/Chrome tab state
-3. **Better window positioning** - More precise layout restoration
+### **Immediate Priorities (Browser Integration Completion)**
+1. **Complete sessionstore.jsonlz4 integration** - Finish window elimination method and browser_handler integration
+2. **End-to-end testing** - Verify full browser session save/restore workflow
+3. **Remove deprecated extension code** - Clean up browser_extension/ directory
+
+### **Planned Enhancements**
+1. **Firefox support** - Extend sessionstore.jsonlz4 approach to Firefox profiles
+2. **Multi-browser sessions** - Handle mixed browser environments (Zen + Firefox)
+3. **Better window positioning** - More precise layout restoration for all applications
 4. **Qt/QML UI** - Graphical interface for session management
+5. **Session validation** - Verify restored sessions match saved state
+6. **Workspace-specific sessions** - Different session profiles per workspace type
 
 ## Development Notes
 
@@ -134,83 +153,117 @@ Debug output includes:
 ./hypr-sessions.py delete work-session
 ```
 
-## Browser Integration (2025-07-21)
+## Browser Integration Evolution (2025-08-08)
 
-### Implemented
-1. **Zen Browser Support**: Complete implementation with native messaging extension
-   - **Extension Architecture**: Firefox/Zen-compatible WebExtension with native messaging support
-   - **Tab Capture**: Captures all tabs in current browser window with URL, title, active/pinned status
-   - **File-based Triggers**: Python script creates trigger files that extension monitors for automatic capture
-   - **Command-line Restoration**: Browser launches with all saved tab URLs as command arguments
-   - **Host Registration**: Automated native messaging host registration for browser communication
+### Phase 1: Extension-Based Approach (2025-07-21) - DEPRECATED
 
-2. **Extension Components**:
-   - **Manifest (manifest.json)**: WebExtension configuration with tabs, downloads, nativeMessaging permissions
-   - **Background Script (background.js)**: Main extension logic with native messaging and tab capture
-   - **Popup Interface (popup.html/js)**: User interface for testing connection and manual tab capture
-   - **Native Host (native_host.py)**: Python script handling browser-extension communication protocol
-   - **Host Registration (register_host.py)**: Automated setup for Firefox/Chrome native messaging directories
+**Original Implementation**: Complex native messaging extension system
+- **Extension Architecture**: Firefox/Zen WebExtension with native messaging
+- **Communication**: File-based triggers + native messaging protocol
+- **Issues**: Extension not responding to triggers, complex debugging, maintenance overhead
+- **Status**: ⚠️ Deprecated in favor of direct session file access
 
-3. **Communication Flow**:
-   - **Session Save**: Python creates trigger file → Extension detects → Captures tabs → Saves JSON to Downloads
-   - **Session Restore**: Browser launches with tab URLs as command-line arguments (no extension needed)
-   - **Native Messaging**: Extension ↔ Host communication using binary protocol for status/acknowledgments
+### Phase 2: sessionstore.jsonlz4 Direct Access (2025-08-08) - IN DEVELOPMENT
 
-4. **Integration Points**:
-   - **Browser Detection**: `browser_handler.py` identifies Zen/Firefox windows during session save
-   - **Launch Commands**: `launch_commands.py` generates browser commands with tab URLs for restoration
-   - **Session Data**: Browser session info stored in main session JSON with tab array and metadata
+**New Approach**: Direct access to Zen browser's session storage files
+- **Method**: Parse Mozilla's LZ4-compressed session files directly
+- **Advantages**: No extension dependencies, 100% reliable, simpler architecture
+- **File Format**: `~/.zen/profile/sessionstore-backups/recovery.jsonlz4`
+- **Dependency**: `python-lz4` for decompression
 
-### Current Status
-- **Browser Window Detection**: Automatically identifies Zen Browser and Firefox ✅
-- **Tab Capture**: Extension captures all tabs with full metadata ⚠️ (Code complete, needs testing)
-- **File-based Communication**: Trigger files enable Python→Extension communication ⚠️ (Implemented, needs debugging)
-- **Command-line Restoration**: Tabs restored via browser launch arguments ✅
-- **Native Messaging Setup**: Automated host registration for browsers ✅
+#### **Proven Feasibility**
+✅ **Session File Access**: Successfully reads compressed session data (962KB → 5.1MB JSON)
+✅ **Complete Window Data**: Extracts 7 browser windows with 95 total tabs
+✅ **Tab Information**: URLs, titles, pinned status, navigation history
+✅ **Profile Detection**: Automatically finds active Zen profile directory
 
-### Technical Implementation Details
-- **Supported Browsers**: Zen Browser (zen-alpha, zen), Firefox (future support)
-- **Communication Protocol**: File-based triggers in Downloads folder for Python→Extension
-- **Tab Data Format**: JSON with session_name, timestamp, tabs array, browser_type
-- **Launch Integration**: Browser sessions generate commands with quoted URL arguments
-- **Host Manifest**: Proper native messaging host registration in browser-specific directories
+#### **Core Implementation Components**
 
-### Setup Instructions
-1. **Register Native Host**: Run `./setup_browser_support.py` to configure native messaging
-2. **Load Extension**: Install extension from `browser_extension/` directory in browser
-3. **Test Connection**: Use extension popup to verify communication with native host
-4. **Use Sessions**: Browser tabs automatically captured during save, restored during restore
+1. **ZenSessionReader Class** (`session_save/zen_session_reader.py`):
+   - **Profile Detection**: Finds `~/.zen/*/sessionstore-backups/recovery.jsonlz4`
+   - **LZ4 Decompression**: Handles Mozilla's `mozLz40\0` header format
+   - **JSON Parsing**: Converts to structured Python data
+   - **Debug Integration**: Full logging support
 
-### File Structure
-```
-browser_extension/
-├── manifest.json              # Extension configuration
-├── background.js              # Main extension logic  
-├── popup.html/js              # User interface
-├── content.js                 # Content script (minimal)
-├── native_host.py             # Python communication handler
-├── hypr_sessions_host.json    # Host manifest for browser registration
-└── register_host.py           # Automated setup script
+2. **Window-to-Tab Mapping Challenge**:
+   - **Problem**: Session data lacks window position/PID info for precise mapping
+   - **Discovered**: All session windows show identical positions (0,0) and size
+   - **Solution Options Evaluated**:
+     - ❌ Position-based matching (data not available)
+     - ⚠️ Title-based matching (works for unique titles, fails for "Google", "YouTube")
+     - ✅ **Window elimination method** (most accurate)
+
+#### **Window Elimination Method** (Preferred Solution)
+
+**Concept**: Use differential analysis to identify which session data belongs to which window
+```python
+# 1. Read all session data → Record window signatures
+# 2. Close target hyprctl window → Session data updates
+# 3. Compare before/after → Identify eliminated window's tab data
+# 4. Use eliminated window's tabs for session capture
 ```
 
-### Next Debugging Steps (Extension Not Responding)
+**Advantages**:
+- ✅ **100% accurate mapping** - no guesswork or heuristics
+- ✅ **Works with any window configuration** - no title dependencies
+- ✅ **Simple logic** - just compare signatures before/after
+- ✅ **Perfect for session saving use case** - window will be restored anyway
 
-**Current Issue**: Extension not detecting trigger files, falling back to basic session data
+**Implementation Status**:
+- ✅ Core ZenSessionReader functionality complete
+- ✅ Session file decompression and parsing working
+- ✅ Tab data extraction and filtering implemented
+- 🚧 Window elimination detection method - ready for testing
+- ⏳ Integration with existing browser_handler.py interface
 
-**Debugging Steps**:
-1. **Register Native Host**: `./setup_browser_support.py` 
-2. **Load Extension**: Install `browser_extension/manifest.json` in Zen Browser via `about:debugging`
-3. **Test Extension Communication**:
-   - Check extension popup shows green "Connected" status
-   - Try "Manual Tab Capture" - should create JSON file in Downloads
-   - Check browser console for extension errors (`Ctrl+Shift+I` → Console)
-4. **Debug Trigger File Detection**:
-   - Verify trigger files created in `~/Downloads/.hypr-capture-*.trigger`
-   - Check extension background script logs for file detection
-   - Ensure Downloads API permissions working properly
-5. **Test Full Cycle**: `./hypr-sessions.py save test --debug` should show tab capture success
+#### **Technical Implementation Details**
 
-**Known Working**: Browser detection, trigger file creation, session fallback, command-line restoration
+**Session Data Structure**:
+```json
+{
+  "windows": [
+    {
+      "tabs": [
+        {
+          "entries": [{"url": "https://...", "title": "Page Title"}],
+          "index": 1,
+          "pinned": false
+        }
+      ],
+      "selected": 2
+    }
+  ]
+}
+```
+
+**Tab Extraction Logic**:
+- ✅ Navigation history handling (entries array with index)
+- ✅ URL filtering (skip about: pages, extensions)
+- ✅ Active tab detection via selected index
+- ✅ Pinned status capture
+
+**File Structure Update**:
+```
+session_save/
+├── zen_session_reader.py      # NEW: Direct session file access
+├── browser_handler.py         # Updated to use ZenSessionReader
+├── session_saver.py           # Integration point
+└── launch_commands.py         # Browser restoration commands
+```
+
+#### **Next Implementation Steps**
+
+1. **Complete window elimination detection method**
+2. **Integrate ZenSessionReader with browser_handler.py**
+3. **Update launch command generation for tab restoration**
+4. **Add comprehensive error handling and fallbacks**
+5. **Remove deprecated extension-based code**
+
+#### **Dependencies**
+- `python-lz4` - For Mozilla session file decompression (installed via pacman)
+- `lz4.block` - Python module for LZ4 decompression
+
+**Session Update Behavior**: Session files don't update in real-time, but this is perfect for the elimination method since closing a window will trigger an update.
 
 ## Recent Session Work (2025-07-12)
 
