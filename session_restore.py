@@ -3,21 +3,22 @@ Session restore functionality
 """
 
 import json
+import shlex
 import subprocess
 import time
 
-from utils import Utils
 from session_save.browser_handler import BrowserHandler
+from utils import Utils
 
 
 class SessionRestore(Utils):
     DELAY_BETWEEN_INSTRUCTIONS = 0.4
-    
+
     def __init__(self, debug=False):
         super().__init__()
         self.debug = debug
         self.browser_handler = BrowserHandler(debug=debug)
-    
+
     def debug_print(self, message):
         """Print debug message if debug mode is enabled"""
         if self.debug:
@@ -48,7 +49,9 @@ class SessionRestore(Utils):
 
         windows = session_data.get("windows", [])
         groups = session_data.get("groups", {})
-        self.debug_print(f"Session contains {len(windows)} windows and {len(groups)} groups")
+        self.debug_print(
+            f"Session contains {len(windows)} windows and {len(groups)} groups"
+        )
 
         if groups:
             print(f"Found {len(groups)} groups to restore")
@@ -71,7 +74,7 @@ class SessionRestore(Utils):
                 self.debug_print(f"Executing command: {command}")
                 try:
                     subprocess.Popen(
-                        command.split(),
+                        shlex.split(command),
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
@@ -100,7 +103,9 @@ class SessionRestore(Utils):
             else:
                 ungrouped_windows.append(window)
 
-        self.debug_print(f"Organized into {len(windows_by_group)} groups and {len(ungrouped_windows)} ungrouped windows")
+        self.debug_print(
+            f"Organized into {len(windows_by_group)} groups and {len(ungrouped_windows)} ungrouped windows"
+        )
 
         # Launch ungrouped windows first
         self.debug_print(f"Launching {len(ungrouped_windows)} ungrouped windows")
@@ -112,7 +117,7 @@ class SessionRestore(Utils):
             print(f"Launching: {command}")
             try:
                 subprocess.Popen(
-                    command.split(),
+                    shlex.split(command),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
@@ -126,11 +131,15 @@ class SessionRestore(Utils):
             print(
                 f"Launching group {group_id[:8]}... with {len(group_windows)} windows"
             )
-            self.debug_print(f"Processing group {group_id} with {len(group_windows)} windows")
+            self.debug_print(
+                f"Processing group {group_id} with {len(group_windows)} windows"
+            )
 
             if len(group_windows) < 2:
                 # Single window, launch normally
-                self.debug_print(f"Group {group_id} has only 1 window, launching normally")
+                self.debug_print(
+                    f"Group {group_id} has only 1 window, launching normally"
+                )
                 window = group_windows[0]
                 command = window.get("launch_command", "")
                 if command:
@@ -138,13 +147,15 @@ class SessionRestore(Utils):
                     self.debug_print(f"Launching single window: {command}")
                     try:
                         subprocess.Popen(
-                            command.split(),
+                            shlex.split(command),
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                         )
                         time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
                     except Exception as e:
-                        self.debug_print(f"Error launching single window '{command}': {e}")
+                        self.debug_print(
+                            f"Error launching single window '{command}': {e}"
+                        )
                         print(f"  Error launching {command}: {e}")
                 continue
 
@@ -176,7 +187,7 @@ class SessionRestore(Utils):
 
                     print(f"  Launching group member: {command}")
                     subprocess.Popen(
-                        command.split(),
+                        shlex.split(command),
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
