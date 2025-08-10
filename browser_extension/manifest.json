@@ -20,19 +20,6 @@
     "persistent": false
   },
   
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_start"
-    }
-  ],
-  
-  "browser_action": {
-    "default_title": "Hyprland Session Manager",
-    "default_popup": "popup.html"
-  },
-  
   "commands": {
     "capture-tabs": {
       "suggested_key": {
