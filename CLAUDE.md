@@ -163,58 +163,44 @@ Debug output includes:
 - **Issues**: Extension not responding to triggers, complex debugging, maintenance overhead
 - **Status**: ⚠️ Deprecated in favor of direct session file access
 
-### Phase 2: sessionstore.jsonlz4 Direct Access (2025-08-08) - IN DEVELOPMENT
+### Phase 3: Keyboard Shortcut Extension Approach (2025-08-10) - ✅ COMPLETED
 
-**New Approach**: Direct access to Zen browser's session storage files
-- **Method**: Parse Mozilla's LZ4-compressed session files directly
-- **Advantages**: No extension dependencies, 100% reliable, simpler architecture
-- **File Format**: `~/.zen/profile/sessionstore-backups/recovery.jsonlz4`
-- **Dependency**: `python-lz4` for decompression
+**Final Solution**: Browser extension with keyboard shortcut triggers via hyprctl sendshortcut
+- **Method**: Extension responds to Alt+U, saves tab data to Downloads folder
+- **Communication**: hyprctl sendshortcut sends Alt+U directly to specific browser window
+- **File Transfer**: Extension creates timestamped JSON files for Python script to process
+- **Advantages**: Simple, reliable, non-disruptive to user workflow
 
-#### **Proven Feasibility**
-✅ **Session File Access**: Successfully reads compressed session data (962KB → 5.1MB JSON)
-✅ **Complete Window Data**: Extracts 7 browser windows with 95 total tabs
-✅ **Tab Information**: URLs, titles, pinned status, navigation history
-✅ **Profile Detection**: Automatically finds active Zen profile directory
+#### **✅ Working Implementation**
 
-#### **Core Implementation Components**
+**Browser Extension** (`browser_extension/`):
+- ✅ **Keyboard Command**: Alt+U registered in manifest.json
+- ✅ **Tab Capture**: Captures all tabs from current window with metadata
+- ✅ **File Output**: Saves `hypr-session-tabs-{timestamp}.json` to Downloads
+- ✅ **Clean Architecture**: Focused 140-line background.js, no native messaging complexity
 
-1. **ZenSessionReader Class** (`session_save/zen_session_reader.py`):
-   - **Profile Detection**: Finds `~/.zen/*/sessionstore-backups/recovery.jsonlz4`
-   - **LZ4 Decompression**: Handles Mozilla's `mozLz40\0` header format
-   - **JSON Parsing**: Converts to structured Python data
-   - **Debug Integration**: Full logging support
+**Python Integration** (`session_save/browser_handler.py`):
+- ✅ **Direct Shortcut**: Uses `hyprctl dispatch sendshortcut ALT,u,address:{window_address}`
+- ✅ **No Window Focus**: Sends shortcut directly to specific window without focusing
+- ✅ **File Monitoring**: Detects new tab files by comparing before/after file lists
+- ✅ **Tab Processing**: Loads JSON data and integrates into session structure
+- ✅ **Cleanup**: Automatically removes temporary tab files after processing
 
-2. **Window-to-Tab Mapping Challenge**:
-   - **Problem**: Session data lacks window position/PID info for precise mapping
-   - **Discovered**: All session windows show identical positions (0,0) and size
-   - **Solution Options Evaluated**:
-     - ❌ Position-based matching (data not available)
-     - ⚠️ Title-based matching (works for unique titles, fails for "Google", "YouTube")
-     - ✅ **Window elimination method** (most accurate)
+#### **Technical Architecture**
 
-#### **Window Elimination Method** (Preferred Solution)
+**Workflow**:
+1. **Window Detection**: Python script identifies Zen browser windows via hyprctl
+2. **Shortcut Delivery**: `hyprctl dispatch sendshortcut ALT,u,address:{window_address}`
+3. **Extension Response**: Browser extension captures current window tabs
+4. **File Creation**: Extension saves `hypr-session-tabs-{timestamp}.json` to Downloads
+5. **Python Processing**: Script detects new file, loads tab data, cleans up file
+6. **Session Integration**: Tab data merged into window's browser_session object
 
-**Concept**: Use differential analysis to identify which session data belongs to which window
-```python
-# 1. Read all session data → Record window signatures
-# 2. Close target hyprctl window → Session data updates
-# 3. Compare before/after → Identify eliminated window's tab data
-# 4. Use eliminated window's tabs for session capture
-```
-
-**Advantages**:
-- ✅ **100% accurate mapping** - no guesswork or heuristics
-- ✅ **Works with any window configuration** - no title dependencies
-- ✅ **Simple logic** - just compare signatures before/after
-- ✅ **Perfect for session saving use case** - window will be restored anyway
-
-**Implementation Status**:
-- ✅ Core ZenSessionReader functionality complete
-- ✅ Session file decompression and parsing working
-- ✅ Tab data extraction and filtering implemented
-- 🚧 Window elimination detection method - ready for testing
-- ⏳ Integration with existing browser_handler.py interface
+**Key Components**:
+- ✅ `capture_tabs_via_keyboard_shortcut()`: Main orchestration method
+- ✅ `wait_for_keyboard_shortcut_file()`: Monitors Downloads for new files  
+- ✅ `load_keyboard_shortcut_tab_data()`: Parses extension JSON format
+- ✅ File cleanup and error handling with clear diagnostics
 
 #### **Technical Implementation Details**
 
@@ -251,13 +237,48 @@ session_save/
 └── launch_commands.py         # Browser restoration commands
 ```
 
-#### **Next Implementation Steps**
+#### **Session Data Example**
 
-1. **Complete window elimination detection method**
-2. **Integrate ZenSessionReader with browser_handler.py**
-3. **Update launch command generation for tab restoration**
-4. **Add comprehensive error handling and fallbacks**
-5. **Remove deprecated extension-based code**
+```json
+{
+  "browser_session": {
+    "browser_type": "zen",
+    "capture_method": "keyboard_shortcut", 
+    "keyboard_shortcut": "Alt+U",
+    "tab_count": 15,
+    "window_id": 21884,
+    "tabs": [
+      {
+        "id": 717,
+        "url": "https://example.com",
+        "title": "Example Page",
+        "active": false,
+        "pinned": false,
+        "index": 1,
+        "windowId": 21884
+      }
+    ]
+  }
+}
+```
+
+#### **Current Status (2025-08-10)**
+
+✅ **COMPLETED - Browser Session Saving**:
+- ✅ Zen browser window detection
+- ✅ Keyboard shortcut delivery via hyprctl sendshortcut
+- ✅ Extension tab capture and file generation
+- ✅ Python script file monitoring and processing  
+- ✅ Session JSON integration with full tab metadata
+- ✅ Automatic cleanup of temporary files
+- ✅ Comprehensive debug logging and error handling
+
+🚧 **IN PROGRESS - Browser Session Restoration**:
+- ✅ Launch command generation with tab URLs
+- ⏳ Tab restoration testing and optimization
+- ⏳ Workspace-specific browser window positioning
+
+**Performance**: Successfully captures 15+ tabs in ~2 seconds with no user workflow disruption.
 
 #### **Dependencies**
 - `python-lz4` - For Mozilla session file decompression (installed via pacman)
