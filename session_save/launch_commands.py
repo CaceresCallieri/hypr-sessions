@@ -3,18 +3,21 @@ Launch command generation for different applications
 """
 
 import shlex
+from typing import Dict, List
+
+from session_types import WindowInfo
 from .terminal_handler import TerminalHandler
 from .neovide_handler import NeovideHandler
 from .browser_handler import BrowserHandler
 
 
 class LaunchCommandGenerator:
-    def __init__(self, debug=False):
-        self.terminal_handler = TerminalHandler()
-        self.neovide_handler = NeovideHandler(debug=debug)
-        self.browser_handler = BrowserHandler(debug=debug)
+    def __init__(self, debug: bool = False) -> None:
+        self.terminal_handler: TerminalHandler = TerminalHandler()
+        self.neovide_handler: NeovideHandler = NeovideHandler(debug=debug)
+        self.browser_handler: BrowserHandler = BrowserHandler(debug=debug)
 
-    def guess_launch_command(self, window_data):
+    def guess_launch_command(self, window_data: WindowInfo) -> str:
         """Guess the launch command based on window class"""
         class_name = window_data.get("class", "").lower()
         title = window_data.get("title", "")
@@ -22,7 +25,7 @@ class LaunchCommandGenerator:
         running_program = window_data.get("running_program")
 
         # Common application mappings
-        command_map = {
+        command_map: Dict[str, str] = {
             "zen": "zen-browser",
             "com.mitchellh.ghostty": "ghostty",
             "firefox": "firefox",

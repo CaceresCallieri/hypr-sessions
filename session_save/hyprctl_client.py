@@ -4,10 +4,11 @@ Hyprctl client for retrieving window and workspace data
 
 import json
 import subprocess
+from typing import Optional, Any
 
 
 class HyprctlClient:
-    def get_hyprctl_data(self, command):
+    def get_hyprctl_data(self, command: str) -> Optional[Any]:
         """Execute hyprctl command and return JSON data"""
         try:
             result = subprocess.run(

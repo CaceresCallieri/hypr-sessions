@@ -6,6 +6,7 @@ Captures and restores workspace sessions in Hyprland
 
 import argparse
 import sys
+from typing import Optional
 
 from session_delete import SessionDelete
 from session_list import SessionList
@@ -15,27 +16,27 @@ from utils import Utils
 
 
 class HyprlandSessionManager:
-    def __init__(self, debug=False):
-        self.debug = debug
-        self.saver = SessionSaver(debug=debug)
-        self.restorer = SessionRestore(debug=debug)
-        self.lister = SessionList(debug=debug)
-        self.deleter = SessionDelete(debug=debug)
+    def __init__(self, debug: bool = False) -> None:
+        self.debug: bool = debug
+        self.saver: SessionSaver = SessionSaver(debug=debug)
+        self.restorer: SessionRestore = SessionRestore(debug=debug)
+        self.lister: SessionList = SessionList(debug=debug)
+        self.deleter: SessionDelete = SessionDelete(debug=debug)
 
-    def save_session(self, session_name):
+    def save_session(self, session_name: str) -> bool:
         return self.saver.save_session(session_name)
 
-    def restore_session(self, session_name):
+    def restore_session(self, session_name: str) -> bool:
         return self.restorer.restore_session(session_name)
 
-    def list_sessions(self):
+    def list_sessions(self) -> None:
         return self.lister.list_sessions()
 
-    def delete_session(self, session_name):
+    def delete_session(self, session_name: str) -> bool:
         return self.deleter.delete_session(session_name)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Hyprland Session Manager")
     parser.add_argument(
         "action",

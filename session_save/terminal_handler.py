@@ -3,10 +3,13 @@ Terminal-specific functionality for working directory capture
 """
 
 from pathlib import Path
+from typing import Set, List, Optional
+
+from session_types import RunningProgram
 
 
 class TerminalHandler:
-    def is_terminal_app(self, class_name):
+    def is_terminal_app(self, class_name: str) -> bool:
         """Check if the application is a terminal emulator (currently only Ghostty supported)"""
         # Currently only supporting Ghostty terminal
         # Future terminal support can be added to this set:
@@ -21,7 +24,7 @@ class TerminalHandler:
         }
         return class_name.lower() in terminal_apps
 
-    def get_working_directory(self, pid):
+    def get_working_directory(self, pid: int) -> Optional[str]:
         """Get the working directory of a terminal process by finding its shell child"""
         try:
             # First try the process itself

@@ -6,6 +6,6 @@ from pathlib import Path
 
 
 class Utils:
-    def __init__(self):
-        self.sessions_dir = Path.home() / ".config" / "hypr-sessions"
+    def __init__(self) -> None:
+        self.sessions_dir: Path = Path.home() / ".config" / "hypr-sessions"
         self.sessions_dir.mkdir(parents=True, exist_ok=True)

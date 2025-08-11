@@ -2,22 +2,22 @@
 Session delete functionality
 """
 
-from config import get_config
+from config import get_config, SessionConfig
 from utils import Utils
 
 
 class SessionDelete(Utils):
-    def __init__(self, debug=False):
+    def __init__(self, debug: bool = False) -> None:
         super().__init__()
-        self.debug = debug
-        self.config = get_config()
+        self.debug: bool = debug
+        self.config: SessionConfig = get_config()
     
-    def debug_print(self, message):
+    def debug_print(self, message: str) -> None:
         """Print debug message if debug mode is enabled"""
         if self.debug:
             print(f"[DEBUG SessionDelete] {message}")
     
-    def delete_session(self, session_name):
+    def delete_session(self, session_name: str) -> bool:
         """Delete a saved session"""
         self.debug_print(f"Attempting to delete session: {session_name}")
         session_file = self.config.get_session_file_path(session_name)

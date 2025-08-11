@@ -7,21 +7,24 @@ import json
 import os
 import subprocess
 import time
-from config import get_config
+from typing import Dict, List, Optional, Any, Set
+
+from config import get_config, SessionConfig
+from session_types import WindowInfo, BrowserSession, BrowserTabs
 
 
 class BrowserHandler:
-    def __init__(self, debug=False):
-        self.debug = debug
-        self.config = get_config()
-        self.supported_browsers = self.config.supported_browsers
+    def __init__(self, debug: bool = False) -> None:
+        self.debug: bool = debug
+        self.config: SessionConfig = get_config()
+        self.supported_browsers: Set[str] = self.config.supported_browsers
 
-    def debug_print(self, message):
+    def debug_print(self, message: str) -> None:
         """Print debug message if debug mode is enabled"""
         if self.debug:
             print(f"[DEBUG BrowserHandler] {message}")
 
-    def is_browser_window(self, window_data):
+    def is_browser_window(self, window_data: WindowInfo) -> bool:
         """Check if a window is running a supported browser"""
         class_name = window_data.get("class", "").lower()
         is_browser = class_name in self.supported_browsers
@@ -38,7 +41,7 @@ class BrowserHandler:
         self.debug_print(f"Checking window class '{class_name}' -> is_zen: {is_zen}")
         return is_zen
 
-    def get_browser_type(self, window_data):
+    def get_browser_type(self, window_data: WindowInfo) -> str:
         """Determine the specific browser type from window data"""
         class_name = window_data.get("class", "").lower()
 

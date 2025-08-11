@@ -6,25 +6,27 @@ import json
 import shlex
 import subprocess
 import time
+from typing import Dict, List, Any
 
-from config import get_config
+from config import get_config, SessionConfig
 from session_save.browser_handler import BrowserHandler
+from session_types import SessionData, WindowInfo, GroupMapping
 from utils import Utils
 
 
 class SessionRestore(Utils):
-    def __init__(self, debug=False):
+    def __init__(self, debug: bool = False) -> None:
         super().__init__()
-        self.debug = debug
-        self.config = get_config()
-        self.browser_handler = BrowserHandler(debug=debug)
+        self.debug: bool = debug
+        self.config: SessionConfig = get_config()
+        self.browser_handler: BrowserHandler = BrowserHandler(debug=debug)
 
-    def debug_print(self, message):
+    def debug_print(self, message: str) -> None:
         """Print debug message if debug mode is enabled"""
         if self.debug:
             print(f"[DEBUG SessionRestore] {message}")
 
-    def restore_session(self, session_name):
+    def restore_session(self, session_name: str) -> bool:
         """Restore a saved session with group support"""
         self.debug_print(f"Starting restoration of session: {session_name}")
         session_file = self.config.get_session_file_path(session_name)
@@ -87,12 +89,12 @@ class SessionRestore(Utils):
         print(f"Restored {len(session_data.get('windows', []))} applications")
         return True
 
-    def launch_with_groups(self, windows, groups):
+    def launch_with_groups(self, windows: List[WindowInfo], groups: GroupMapping) -> None:
         """Launch applications and create groups during the process"""
         self.debug_print(f"Starting grouped launch with {len(windows)} windows")
         # Group windows by group_id
-        windows_by_group = {}
-        ungrouped_windows = []
+        windows_by_group: Dict[str, List[WindowInfo]] = {}
+        ungrouped_windows: List[WindowInfo] = []
 
         for window in windows:
             group_id = window.get("group_id")

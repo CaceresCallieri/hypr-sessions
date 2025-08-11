@@ -6,7 +6,9 @@ Centralizes all constants and provides environment variable support
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Set
+from typing import Dict, Set, Optional
+
+from session_types import TimeoutSeconds
 
 
 @dataclass
@@ -17,28 +19,28 @@ class SessionConfig:
     sessions_dir: Path = Path.home() / ".config" / "hypr-sessions"
 
     # Timing Configuration
-    delay_between_instructions: float = 0.4  # Seconds between window operations
+    delay_between_instructions: TimeoutSeconds = 0.4  # Seconds between window operations
 
     # Browser Integration
     browser_keyboard_shortcut: str = "Alt+U"
-    browser_tab_file_timeout: int = 10  # Seconds to wait for tab capture file
-    browser_tab_file_poll_interval: float = 0.25  # Seconds between file checks
+    browser_tab_file_timeout: TimeoutSeconds = 10  # Seconds to wait for tab capture file
+    browser_tab_file_poll_interval: TimeoutSeconds = 0.25  # Seconds between file checks
     downloads_dir: Path = Path.home() / "Downloads"
 
     # Supported Applications
-    supported_browsers: Set[str] = None
-    supported_terminals: Set[str] = None
-    application_commands: Dict[str, str] = None
+    supported_browsers: Optional[Set[str]] = None
+    supported_terminals: Optional[Set[str]] = None
+    application_commands: Optional[Dict[str, str]] = None
 
     # Neovide Integration
-    neovide_socket_timeout: int = 5  # Seconds for socket operations
-    neovide_session_timeout: int = 10  # Seconds for session capture
-    neovide_file_wait_timeout: int = 3  # Seconds to wait for session file creation
+    neovide_socket_timeout: TimeoutSeconds = 5  # Seconds for socket operations
+    neovide_session_timeout: TimeoutSeconds = 10  # Seconds for session capture
+    neovide_file_wait_timeout: TimeoutSeconds = 3  # Seconds to wait for session file creation
 
     # Debug Configuration
     debug_enabled: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize default values that can't be set as dataclass defaults"""
         if self.supported_browsers is None:
             self.supported_browsers = {
@@ -108,7 +110,7 @@ class SessionConfig:
 
 # Global configuration instance
 # This can be imported and used throughout the application
-_config: SessionConfig = None
+_config: Optional[SessionConfig] = None
 
 
 def get_config() -> SessionConfig:

@@ -4,8 +4,10 @@ Main session saving orchestration
 
 import json
 from datetime import datetime
+from typing import Dict, List, Optional, Any
 
 from utils import Utils
+from session_types import SessionData, WindowInfo
 from .hyprctl_client import HyprctlClient
 from .launch_commands import LaunchCommandGenerator
 from .terminal_handler import TerminalHandler
@@ -14,21 +16,21 @@ from .browser_handler import BrowserHandler
 
 
 class SessionSaver(Utils):
-    def __init__(self, debug=False):
+    def __init__(self, debug: bool = False) -> None:
         super().__init__()
-        self.debug = debug
-        self.hyprctl_client = HyprctlClient()
-        self.launch_command_generator = LaunchCommandGenerator(debug=debug)
-        self.terminal_handler = TerminalHandler()
-        self.neovide_handler = NeovideHandler(debug=debug)
-        self.browser_handler = BrowserHandler(debug=debug)
+        self.debug: bool = debug
+        self.hyprctl_client: HyprctlClient = HyprctlClient()
+        self.launch_command_generator: LaunchCommandGenerator = LaunchCommandGenerator(debug=debug)
+        self.terminal_handler: TerminalHandler = TerminalHandler()
+        self.neovide_handler: NeovideHandler = NeovideHandler(debug=debug)
+        self.browser_handler: BrowserHandler = BrowserHandler(debug=debug)
     
-    def debug_print(self, message):
+    def debug_print(self, message: str) -> None:
         """Print debug message if debug mode is enabled"""
         if self.debug:
             print(f"[DEBUG SessionSaver] {message}")
 
-    def save_session(self, session_name):
+    def save_session(self, session_name: str) -> bool:
         """Save current workspace state including groups"""
         print(f"Saving session: {session_name}")
         self.debug_print(f"Starting session save for: {session_name}")
@@ -62,8 +64,8 @@ class SessionSaver(Utils):
             return False
 
         # Process groups - build group mapping
-        groups = {}  # group_id -> list of window addresses
-        address_to_group = {}  # window address -> group_id
+        groups: Dict[str, List[str]] = {}  # group_id -> list of window addresses
+        address_to_group: Dict[str, str] = {}  # window address -> group_id
 
         for client in workspace_clients:
             address = client.get("address", "")
