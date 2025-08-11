@@ -4,6 +4,7 @@ Session list functionality
 
 import json
 
+from config import get_config
 from utils import Utils
 
 
@@ -11,6 +12,7 @@ class SessionList(Utils):
     def __init__(self, debug=False):
         super().__init__()
         self.debug = debug
+        self.config = get_config()
     
     def debug_print(self, message):
         """Print debug message if debug mode is enabled"""
@@ -19,8 +21,8 @@ class SessionList(Utils):
     
     def list_sessions(self):
         """List all saved sessions"""
-        self.debug_print(f"Searching for session files in: {self.sessions_dir}")
-        session_files = list(self.sessions_dir.glob("*.json"))
+        self.debug_print(f"Searching for session files in: {self.config.sessions_dir}")
+        session_files = list(self.config.sessions_dir.glob("*.json"))
         self.debug_print(f"Found {len(session_files)} session files")
 
         if not session_files:

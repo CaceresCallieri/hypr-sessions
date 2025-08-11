@@ -7,16 +7,14 @@ import json
 import os
 import subprocess
 import time
+from config import get_config
 
 
 class BrowserHandler:
     def __init__(self, debug=False):
         self.debug = debug
-        self.supported_browsers = [
-            "zen-alpha",  # Zen Browser (alpha)
-            "zen",  # Zen Browser (stable)
-            "firefox",  # Firefox (future support)
-        ]
+        self.config = get_config()
+        self.supported_browsers = self.config.supported_browsers
 
     def debug_print(self, message):
         """Print debug message if debug mode is enabled"""
@@ -35,7 +33,8 @@ class BrowserHandler:
     def is_zen_browser_window(self, window_data):
         """Check if a window is specifically running Zen Browser"""
         class_name = window_data.get("class", "").lower()
-        is_zen = class_name in ["zen-alpha", "zen"]
+        zen_browsers = {"zen-alpha", "zen"}
+        is_zen = class_name in zen_browsers
         self.debug_print(f"Checking window class '{class_name}' -> is_zen: {is_zen}")
         return is_zen
 
@@ -43,7 +42,8 @@ class BrowserHandler:
         """Determine the specific browser type from window data"""
         class_name = window_data.get("class", "").lower()
 
-        if class_name in ["zen-alpha", "zen"]:
+        zen_browsers = {"zen-alpha", "zen"}
+        if class_name in zen_browsers:
             return "zen"
         elif class_name == "firefox":
             return "firefox"
@@ -92,12 +92,15 @@ class BrowserHandler:
             "note": "Extension required for tab capture",
         }
 
-    def wait_for_keyboard_shortcut_file(self, timeout=10):
+    def wait_for_keyboard_shortcut_file(self, timeout=None):
         """Wait for keyboard shortcut extension to create hypr-session-tabs file"""
         import glob
         import time
 
-        downloads_dir = os.path.expanduser("~/Downloads")
+        if timeout is None:
+            timeout = self.config.browser_tab_file_timeout
+        
+        downloads_dir = str(self.config.downloads_dir)
         self.debug_print(f"Monitoring {downloads_dir} for keyboard shortcut tab files")
 
         # Get initial file list to detect new files
@@ -109,8 +112,10 @@ class BrowserHandler:
         except Exception as e:
             self.debug_print(f"Error getting initial file list: {e}")
 
-        # Wait for new file to appear
-        for attempt in range(timeout * 4):  # Check every 0.25 seconds
+        # Wait for new file to appear  
+        poll_interval = self.config.browser_tab_file_poll_interval
+        max_attempts = int(timeout / poll_interval)
+        for attempt in range(max_attempts):
             try:
                 pattern = os.path.join(downloads_dir, "hypr-session-tabs-*.json")
                 current_files = set(glob.glob(pattern))
@@ -138,7 +143,7 @@ class BrowserHandler:
             except Exception as e:
                 self.debug_print(f"Error checking for new files: {e}")
 
-            time.sleep(0.25)
+            time.sleep(poll_interval)
 
         self.debug_print(
             f"No keyboard shortcut tab file appeared after {timeout} seconds"
@@ -161,7 +166,7 @@ class BrowserHandler:
             return {
                 "tabs": tabs,
                 "capture_method": "keyboard_shortcut",
-                "keyboard_shortcut": tab_data.get("keyboardShortcut", "Alt+U"),
+                "keyboard_shortcut": tab_data.get("keyboardShortcut", self.config.browser_keyboard_shortcut),
                 "window_id": tab_data.get("windowId"),
                 "timestamp": tab_data.get("timestamp"),
                 "tab_count": len(tabs),
@@ -179,16 +184,21 @@ class BrowserHandler:
                 self.debug_print("No window address available for sendshortcut")
                 return None
 
-            # Send Alt+U keyboard shortcut using hyprctl sendshortcut (no focus needed)
+            # Send keyboard shortcut using hyprctl sendshortcut (no focus needed)
+            shortcut = self.config.browser_keyboard_shortcut
             self.debug_print(
-                "Sending Alt+U keyboard shortcut to capture tabs via sendshortcut"
+                f"Sending {shortcut} keyboard shortcut to capture tabs via sendshortcut"
             )
+            # Convert shortcut format (Alt+U -> ALT,u)
+            shortcut_parts = shortcut.lower().replace('+', ',')
+            hyprctl_shortcut = f"{shortcut_parts},address:{window_address}"
+            
             shortcut_result = subprocess.run(
                 [
                     "hyprctl",
                     "dispatch",
                     "sendshortcut",
-                    f"ALT,u,address:{window_address}",
+                    hyprctl_shortcut,
                 ],
                 capture_output=True,
                 text=True,
@@ -205,7 +215,7 @@ class BrowserHandler:
                 return None
 
             # Wait for extension to create tab file
-            tab_file = self.wait_for_keyboard_shortcut_file(timeout=10)
+            tab_file = self.wait_for_keyboard_shortcut_file()
             if tab_file:
                 # Load tab data from file
                 tab_data = self.load_keyboard_shortcut_tab_data(tab_file)
@@ -268,13 +278,17 @@ class BrowserHandler:
         """Generate restore command for browser with tab URLs"""
         self.debug_print(f"Generating restore command for browser type: {browser_type}")
 
-        base_command = "zen-browser"
-        if browser_type == "firefox":
-            base_command = "firefox"
-        elif browser_type != "zen":
-            self.debug_print(
-                f"Unknown browser type: {browser_type}, using zen as default"
-            )
+        # Get command from config
+        zen_command = self.config.application_commands.get("zen", "zen-browser") 
+        firefox_command = self.config.application_commands.get("firefox", "firefox")
+        
+        if browser_type == "zen":
+            base_command = zen_command
+        elif browser_type == "firefox":
+            base_command = firefox_command
+        else:
+            self.debug_print(f"Unknown browser type: {browser_type}, using zen as default")
+            base_command = zen_command
 
         # Add tab URLs as arguments if available
         tabs = browser_data.get("tabs", [])

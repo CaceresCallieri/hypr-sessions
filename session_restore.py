@@ -7,16 +7,16 @@ import shlex
 import subprocess
 import time
 
+from config import get_config
 from session_save.browser_handler import BrowserHandler
 from utils import Utils
 
 
 class SessionRestore(Utils):
-    DELAY_BETWEEN_INSTRUCTIONS = 0.4
-
     def __init__(self, debug=False):
         super().__init__()
         self.debug = debug
+        self.config = get_config()
         self.browser_handler = BrowserHandler(debug=debug)
 
     def debug_print(self, message):
@@ -27,7 +27,7 @@ class SessionRestore(Utils):
     def restore_session(self, session_name):
         """Restore a saved session with group support"""
         self.debug_print(f"Starting restoration of session: {session_name}")
-        session_file = self.sessions_dir / f"{session_name}.json"
+        session_file = self.config.get_session_file_path(session_name)
         self.debug_print(f"Session file path: {session_file}")
 
         if not session_file.exists():
@@ -78,7 +78,7 @@ class SessionRestore(Utils):
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-                    time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
+                    time.sleep(self.config.delay_between_instructions)
                 except Exception as e:
                     self.debug_print(f"Error launching command '{command}': {e}")
                     print(f"Error launching {command}: {e}")
@@ -121,7 +121,7 @@ class SessionRestore(Utils):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
+                time.sleep(self.config.delay_between_instructions)
             except Exception as e:
                 print(f"Error launching {command}: {e}")
 
@@ -151,7 +151,7 @@ class SessionRestore(Utils):
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                         )
-                        time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
+                        time.sleep(self.config.delay_between_instructions)
                     except Exception as e:
                         self.debug_print(
                             f"Error launching single window '{command}': {e}"
@@ -172,12 +172,12 @@ class SessionRestore(Utils):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)  # Wait for window to appear
+                time.sleep(self.config.delay_between_instructions)  # Wait for window to appear
 
                 # Make it a group
                 cmd = ["hyprctl", "dispatch", "togglegroup"]
                 subprocess.run(cmd, check=True, capture_output=True)
-                time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
+                time.sleep(self.config.delay_between_instructions)
 
                 # Launch remaining windows (they will auto-join the group)
                 for window in group_windows[1:]:
@@ -191,7 +191,7 @@ class SessionRestore(Utils):
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-                    time.sleep(self.DELAY_BETWEEN_INSTRUCTIONS)
+                    time.sleep(self.config.delay_between_instructions)
 
                 # After opening all clients in the group, lock the group to prevent other windows from joining
                 cmd = ["hyprctl", "dispatch", "lockactivegroup", "lock"]
