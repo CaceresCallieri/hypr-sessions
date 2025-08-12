@@ -6,12 +6,12 @@ import json
 import shlex
 import subprocess
 import time
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
-from config import get_config, SessionConfig
+from config import SessionConfig, get_config
 from session_save.browser_handler import BrowserHandler
 from session_save.hyprctl_client import HyprctlClient
-from session_types import SessionData, WindowInfo, GroupMapping
+from session_types import GroupMapping, SessionData, WindowInfo
 from utils import Utils
 
 
@@ -28,38 +28,48 @@ class SessionRestore(Utils):
         if self.debug:
             print(f"[DEBUG SessionRestore] {message}")
 
-    def detect_swallowing_relationships(self, windows: List[WindowInfo]) -> Dict[str, Dict[str, WindowInfo]]:
+    def detect_swallowing_relationships(
+        self, windows: List[WindowInfo]
+    ) -> Dict[str, Dict[str, WindowInfo]]:
         """
         Detect swallowing relationships from session data using the saved swallowing property.
         Returns dict mapping swallowing_address -> {'swallowing': window, 'swallowed': window}
         """
         self.debug_print("Detecting swallowing relationships from saved session data")
-        
+
         swallowing_relationships = {}
         windows_by_address = {w.get("address"): w for w in windows if w.get("address")}
-        
+
         for window in windows:
             swallowing_address = window.get("swallowing", "")
             window_address = window.get("address", "")
-            
+
             # Check if this window is swallowing another (swallowing != "0x0")
             if swallowing_address and swallowing_address != "0x0":
                 swallowed_window = windows_by_address.get(swallowing_address)
-                
+
                 if swallowed_window:
-                    self.debug_print(f"Found swallowing relationship: {window.get('class')} ({window_address[:10]}...) swallowing {swallowed_window.get('class')} ({swallowing_address[:10]}...)")
-                    
+                    self.debug_print(
+                        f"Found swallowing relationship: {window.get('class')} ({window_address[:10]}...) swallowing {swallowed_window.get('class')} ({swallowing_address[:10]}...)"
+                    )
+
                     swallowing_relationships[window_address] = {
-                        'swallowing': window,
-                        'swallowed': swallowed_window
+                        "swallowing": window,
+                        "swallowed": swallowed_window,
                     }
                 else:
-                    self.debug_print(f"Warning: Window {window_address[:10]}... claims to swallow {swallowing_address[:10]}... but swallowed window not found in session")
-        
-        self.debug_print(f"Detected {len(swallowing_relationships)} swallowing relationships from session data")
+                    self.debug_print(
+                        f"Warning: Window {window_address[:10]}... claims to swallow {swallowing_address[:10]}... but swallowed window not found in session"
+                    )
+
+        self.debug_print(
+            f"Detected {len(swallowing_relationships)} swallowing relationships from session data"
+        )
         return swallowing_relationships
 
-    def create_swallowing_command(self, swallowing_window: WindowInfo, swallowed_window: WindowInfo) -> str:
+    def create_swallowing_command(
+        self, swallowing_window: WindowInfo, swallowed_window: WindowInfo
+    ) -> str:
         """
         Create a combined launch command for swallowing behavior.
         Takes the terminal (swallowed) and GUI app (swallowing) and combines them.
@@ -68,33 +78,34 @@ class SessionRestore(Utils):
         terminal_command = swallowed_window.get("launch_command", "")
         terminal_class = swallowed_window.get("class", "")
         terminal_working_dir = swallowed_window.get("working_directory", "")
-        
+
         # Get the GUI app command
         gui_command = swallowing_window.get("launch_command", "")
         gui_class = swallowing_window.get("class", "")
-        
+
         self.debug_print(f"Creating swallowing command:")
         self.debug_print(f"  Terminal: {terminal_class} -> {terminal_command}")
         self.debug_print(f"  GUI App: {gui_class} -> {gui_command}")
-        
+
         # For now, only handle ghostty terminals
         if terminal_class != "com.mitchellh.ghostty":
-            self.debug_print(f"Unsupported terminal class: {terminal_class}, falling back to separate launches")
+            self.debug_print(
+                f"Unsupported terminal class: {terminal_class}, falling back to separate launches"
+            )
             return None
-        
+
         # Extract GUI command from the launch_command
         # This might be something like "neovide -- -S /path/to/session.vim"
         gui_executable_and_args = gui_command
-        
-        # For Neovide specifically, we might want to remove certain arguments that don't make sense
-        # in the terminal launch context, but for now let's use the full command
-        
+
         # Build the combined command with shell persistence
         if terminal_working_dir:
-            combined_command = f"ghostty --working-directory={shlex.quote(terminal_working_dir)} -e sh -c {shlex.quote(f'{gui_executable_and_args}; exec $SHELL')}"
+            combined_command = f"ghostty --working-directory={shlex.quote(terminal_working_dir)} -e sh -c '{gui_executable_and_args}; exec $SHELL'"
         else:
-            combined_command = f"ghostty -e sh -c {shlex.quote(f'{gui_executable_and_args}; exec $SHELL')}"
-        
+            combined_command = (
+                f"ghostty -e sh -c '{gui_executable_and_args}; exec $SHELL'"
+            )
+
         self.debug_print(f"Created combined swallowing command: {combined_command}")
         return combined_command
 
@@ -135,7 +146,9 @@ class SessionRestore(Utils):
         # Detect swallowing relationships
         swallowing_relationships = self.detect_swallowing_relationships(windows)
         if swallowing_relationships:
-            print(f"Found {len(swallowing_relationships)} swallowing relationships to restore")
+            print(
+                f"Found {len(swallowing_relationships)} swallowing relationships to restore"
+            )
 
         if groups:
             print(f"Found {len(groups)} groups to restore")
@@ -144,55 +157,73 @@ class SessionRestore(Utils):
         if groups:
             print("Launching applications with groups...")
             self.debug_print(f"Using grouped launch method")
-            self.launch_with_groups(session_data.get("windows", []), groups, swallowing_relationships)
+            self.launch_with_groups(
+                session_data.get("windows", []), groups, swallowing_relationships
+            )
         else:
             print("Launching applications...")
             self.debug_print(f"Using simple launch method (no groups)")
-            self.launch_windows_simple(session_data.get("windows", []), swallowing_relationships)
+            self.launch_windows_simple(
+                session_data.get("windows", []), swallowing_relationships
+            )
 
         self.debug_print(f"Session restoration completed")
         print(f"Restored {len(session_data.get('windows', []))} applications")
         return True
 
-    def launch_windows_simple(self, windows: List[WindowInfo], swallowing_relationships: Dict[str, Dict[str, WindowInfo]]) -> None:
+    def launch_windows_simple(
+        self,
+        windows: List[WindowInfo],
+        swallowing_relationships: Dict[str, Dict[str, WindowInfo]],
+    ) -> None:
         """Launch windows without groups, handling swallowing relationships"""
         self.debug_print(f"Starting simple launch for {len(windows)} windows")
-        
+
         # Keep track of which windows we've already launched via swallowing
         launched_addresses = set()
-        
+
         # Build a set of addresses that are being swallowed (should not be launched separately)
         swallowed_addresses = set()
         for relationship in swallowing_relationships.values():
-            swallowed_addresses.add(relationship['swallowed'].get("address", ""))
-        
-        self.debug_print(f"Found {len(swallowed_addresses)} windows that are swallowed and should not be launched separately")
-        
+            swallowed_addresses.add(relationship["swallowed"].get("address", ""))
+
+        self.debug_print(
+            f"Found {len(swallowed_addresses)} windows that are swallowed and should not be launched separately"
+        )
+
         for window in windows:
             window_address = window.get("address", "")
-            
+
             # Skip if this window was already launched as part of a swallowing relationship
             if window_address in launched_addresses:
-                self.debug_print(f"Skipping {window.get('class')} - already launched via swallowing")
+                self.debug_print(
+                    f"Skipping {window.get('class')} - already launched via swallowing"
+                )
                 continue
-            
+
             # Skip if this window is being swallowed by another window
             if window_address in swallowed_addresses:
-                self.debug_print(f"Skipping {window.get('class')} - will be launched as part of swallowing relationship")
+                self.debug_print(
+                    f"Skipping {window.get('class')} - will be launched as part of swallowing relationship"
+                )
                 continue
-            
+
             # Check if this window is swallowing another window
             if window_address in swallowing_relationships:
                 # This window is swallowing another - create combined command
                 relationship = swallowing_relationships[window_address]
-                swallowing_window = relationship['swallowing']
-                swallowed_window = relationship['swallowed']
-                
-                combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
+                swallowing_window = relationship["swallowing"]
+                swallowed_window = relationship["swallowed"]
+
+                combined_command = self.create_swallowing_command(
+                    swallowing_window, swallowed_window
+                )
                 if combined_command:
-                    print(f"Launching swallowing pair: {swallowing_window.get('class')} + {swallowed_window.get('class')}")
+                    print(
+                        f"Launching swallowing pair: {swallowing_window.get('class')} + {swallowed_window.get('class')}"
+                    )
                     self.debug_print(f"Combined swallowing command: {combined_command}")
-                    
+
                     try:
                         subprocess.Popen(
                             shlex.split(combined_command),
@@ -200,13 +231,15 @@ class SessionRestore(Utils):
                             stderr=subprocess.DEVNULL,
                         )
                         time.sleep(self.get_swallowing_delay())
-                        
+
                         # Mark both windows as launched
                         launched_addresses.add(swallowing_window.get("address", ""))
                         launched_addresses.add(swallowed_window.get("address", ""))
-                        
+
                     except Exception as e:
-                        self.debug_print(f"Error launching swallowing command '{combined_command}': {e}")
+                        self.debug_print(
+                            f"Error launching swallowing command '{combined_command}': {e}"
+                        )
                         print(f"Error launching swallowing pair: {e}")
                         # Fall back to separate launches
                         self._launch_single_window(swallowing_window)
@@ -215,7 +248,9 @@ class SessionRestore(Utils):
                         launched_addresses.add(swallowed_window.get("address", ""))
                 else:
                     # Fall back to separate launches
-                    self.debug_print(f"Could not create swallowing command, launching separately")
+                    self.debug_print(
+                        f"Could not create swallowing command, launching separately"
+                    )
                     self._launch_single_window(swallowing_window)
                     self._launch_single_window(swallowed_window)
                     launched_addresses.add(swallowing_window.get("address", ""))
@@ -245,7 +280,12 @@ class SessionRestore(Utils):
             self.debug_print(f"Error launching command '{command}': {e}")
             print(f"Error launching {command}: {e}")
 
-    def launch_with_groups(self, windows: List[WindowInfo], groups: GroupMapping, swallowing_relationships: Dict[str, Dict[str, WindowInfo]]) -> None:
+    def launch_with_groups(
+        self,
+        windows: List[WindowInfo],
+        groups: GroupMapping,
+        swallowing_relationships: Dict[str, Dict[str, WindowInfo]],
+    ) -> None:
         """Launch applications and create groups during the process"""
         self.debug_print(f"Starting grouped launch with {len(windows)} windows")
         # Group windows by group_id
@@ -317,7 +357,9 @@ class SessionRestore(Utils):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                time.sleep(self.config.delay_between_instructions)  # Wait for window to appear
+                time.sleep(
+                    self.config.delay_between_instructions
+                )  # Wait for window to appear
 
                 # Make it a group
                 cmd = ["hyprctl", "dispatch", "togglegroup"]
