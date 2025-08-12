@@ -111,6 +111,7 @@ class SessionSaver(Utils):
                 "initialTitle": client.get("initialTitle", ""),
                 "grouped": client.get("grouped", []),
                 "group_id": address_to_group.get(address, None),
+                "swallowing": client.get("swallowing", "0x0"),  # Capture swallowing property
             }
 
             # For terminal applications, capture working directory and running program
