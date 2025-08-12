@@ -280,6 +280,143 @@ class SessionRestore(Utils):
             self.debug_print(f"Error launching command '{command}': {e}")
             print(f"Error launching {command}: {e}")
 
+    def launch_group_with_swallowing(self, group_windows: List[WindowInfo], swallowing_relationships: Dict[str, Dict[str, WindowInfo]]) -> None:
+        """Launch a group of windows with swallowing relationship support"""
+        self.debug_print(f"Starting group launch with swallowing support for {len(group_windows)} windows")
+        
+        if len(group_windows) < 2:
+            # Single window group, use simple launch logic
+            self.debug_print("Single window group, using simple launch logic")
+            self.launch_windows_simple(group_windows, swallowing_relationships)
+            return
+        
+        # Build sets for swallowing detection
+        swallowed_addresses = set()
+        for relationship in swallowing_relationships.values():
+            swallowed_addresses.add(relationship["swallowed"].get("address", ""))
+        
+        # Filter out swallowed windows from group membership since they'll be launched as part of swallowing pairs
+        effective_group_windows = []
+        for window in group_windows:
+            window_address = window.get("address", "")
+            if window_address not in swallowed_addresses:
+                effective_group_windows.append(window)
+            else:
+                self.debug_print(f"Excluding swallowed window {window.get('class')} from group membership")
+        
+        if len(effective_group_windows) < 2:
+            # After filtering swallowed windows, we don't have enough for a group
+            self.debug_print("After filtering swallowed windows, not enough windows for a group")
+            self.launch_windows_simple(group_windows, swallowing_relationships)
+            return
+        
+        self.debug_print(f"Launching group with {len(effective_group_windows)} effective windows (filtered from {len(group_windows)})")
+        
+        # Launch first effective window (group leader)
+        first_window = effective_group_windows[0]
+        first_window_address = first_window.get("address", "")
+        
+        # Check if the first window is involved in swallowing
+        if first_window_address in swallowing_relationships:
+            # Group leader is swallowing another window
+            relationship = swallowing_relationships[first_window_address]
+            swallowing_window = relationship["swallowing"]
+            swallowed_window = relationship["swallowed"]
+            
+            combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
+            if combined_command:
+                print(f"  Launching group leader (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
+                self.debug_print(f"Group leader swallowing command: {combined_command}")
+                command = combined_command
+                use_swallowing_delay = True
+            else:
+                # Fall back to separate launch
+                command = first_window.get("launch_command", "")
+                use_swallowing_delay = False
+        else:
+            # Regular group leader
+            command = first_window.get("launch_command", "")
+            use_swallowing_delay = False
+        
+        if not command:
+            self.debug_print("No command for group leader, skipping group creation")
+            return
+        
+        # Launch group leader
+        print(f"  Launching group leader: {command}")
+        try:
+            subprocess.Popen(
+                shlex.split(command),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            
+            # Use appropriate delay
+            if use_swallowing_delay:
+                time.sleep(self.get_swallowing_delay())
+            else:
+                time.sleep(self.config.delay_between_instructions)
+
+            # Make it a group
+            cmd = ["hyprctl", "dispatch", "togglegroup"]
+            subprocess.run(cmd, check=True, capture_output=True)
+            time.sleep(self.config.delay_between_instructions)
+
+            # Launch remaining effective windows (they will auto-join the group)
+            for window in effective_group_windows[1:]:
+                window_address = window.get("address", "")
+                
+                # Check if this window is involved in swallowing
+                if window_address in swallowing_relationships:
+                    # This window is swallowing another
+                    relationship = swallowing_relationships[window_address]
+                    swallowing_window = relationship["swallowing"]
+                    swallowed_window = relationship["swallowed"]
+                    
+                    combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
+                    if combined_command:
+                        print(f"  Launching group member (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
+                        self.debug_print(f"Group member swallowing command: {combined_command}")
+                        member_command = combined_command
+                        use_member_swallowing_delay = True
+                    else:
+                        # Fall back to separate launch
+                        member_command = window.get("launch_command", "")
+                        use_member_swallowing_delay = False
+                else:
+                    # Regular group member
+                    member_command = window.get("launch_command", "")
+                    use_member_swallowing_delay = False
+                
+                if not member_command:
+                    self.debug_print(f"No command for group member, skipping")
+                    continue
+
+                print(f"  Launching group member: {member_command}")
+                subprocess.Popen(
+                    shlex.split(member_command),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                
+                # Use appropriate delay
+                if use_member_swallowing_delay:
+                    time.sleep(self.get_swallowing_delay())
+                else:
+                    time.sleep(self.config.delay_between_instructions)
+
+            # Lock the group to prevent other windows from joining
+            cmd = ["hyprctl", "dispatch", "lockactivegroup", "lock"]
+            subprocess.run(cmd, check=True, capture_output=True)
+            print(f"  Successfully created and locked group with {len(effective_group_windows)} windows")
+
+        except subprocess.CalledProcessError as e:
+            self.debug_print(f"Error creating group: {e}")
+            print(f"  Error creating group: {e}")
+        except Exception as e:
+            self.debug_print(f"Unexpected error during group creation: {e}")
+            print(f"  Unexpected error during group creation: {e}")
+
     def launch_with_groups(
         self,
         windows: List[WindowInfo],
@@ -310,7 +447,7 @@ class SessionRestore(Utils):
         if ungrouped_windows:
             self.launch_windows_simple(ungrouped_windows, swallowing_relationships)
 
-        # Launch grouped windows
+        # Launch grouped windows with swallowing support
         self.debug_print(f"Launching {len(windows_by_group)} groups")
         for group_id, group_windows in windows_by_group.items():
             print(
@@ -319,75 +456,6 @@ class SessionRestore(Utils):
             self.debug_print(
                 f"Processing group {group_id} with {len(group_windows)} windows"
             )
-
-            if len(group_windows) < 2:
-                # Single window, launch normally
-                self.debug_print(
-                    f"Group {group_id} has only 1 window, launching normally"
-                )
-                window = group_windows[0]
-                command = window.get("launch_command", "")
-                if command:
-                    print(f"  Launching: {command}")
-                    self.debug_print(f"Launching single window: {command}")
-                    try:
-                        subprocess.Popen(
-                            shlex.split(command),
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
-                        time.sleep(self.config.delay_between_instructions)
-                    except Exception as e:
-                        self.debug_print(
-                            f"Error launching single window '{command}': {e}"
-                        )
-                        print(f"  Error launching {command}: {e}")
-                continue
-
-            # Launch first window of the group
-            first_window = group_windows[0]
-            command = first_window.get("launch_command", "")
-            if not command:
-                continue
-
-            print(f"  Launching group leader: {command}")
-            try:
-                subprocess.Popen(
-                    command.split(),
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                time.sleep(
-                    self.config.delay_between_instructions
-                )  # Wait for window to appear
-
-                # Make it a group
-                cmd = ["hyprctl", "dispatch", "togglegroup"]
-                subprocess.run(cmd, check=True, capture_output=True)
-                time.sleep(self.config.delay_between_instructions)
-
-                # Launch remaining windows (they will auto-join the group)
-                for window in group_windows[1:]:
-                    command = window.get("launch_command", "")
-                    if not command:
-                        continue
-
-                    print(f"  Launching group member: {command}")
-                    subprocess.Popen(
-                        shlex.split(command),
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                    time.sleep(self.config.delay_between_instructions)
-
-                # After opening all clients in the group, lock the group to prevent other windows from joining
-                cmd = ["hyprctl", "dispatch", "lockactivegroup", "lock"]
-                subprocess.run(cmd, check=True, capture_output=True)
-                print(
-                    f"  Successfully created and locked group with {len(group_windows)} windows"
-                )
-
-            except subprocess.CalledProcessError as e:
-                print(f"  Error creating group: {e}")
-            except Exception as e:
-                print(f"  Unexpected error during group creation: {e}")
+            
+            # Launch this group with swallowing support
+            self.launch_group_with_swallowing(group_windows, swallowing_relationships)
