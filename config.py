@@ -100,11 +100,28 @@ class SessionConfig:
         )
 
     def get_session_file_path(self, session_name: str) -> Path:
-        """Get the full path for a session file"""
+        """Get the full path for a session file in the new folder structure"""
+        session_dir = self.sessions_dir / session_name
+        session_dir.mkdir(parents=True, exist_ok=True)
+        return session_dir / "session.json"
+
+    def get_session_directory(self, session_name: str) -> Path:
+        """Get the session directory path"""
+        session_dir = self.sessions_dir / session_name
+        session_dir.mkdir(parents=True, exist_ok=True)
+        return session_dir
+
+    def get_neovide_session_file_path(self, session_name: str, pid: int) -> Path:
+        """Get the path for a Neovide session file within a session directory"""
+        session_dir = self.get_session_directory(session_name)
+        return session_dir / f"neovide-session-{pid}.vim"
+
+    def get_legacy_session_file_path(self, session_name: str) -> Path:
+        """Get the legacy session file path (for migration purposes)"""
         return self.sessions_dir / f"{session_name}.json"
 
-    def get_neovide_session_file_path(self, pid: int) -> Path:
-        """Get the path for a Neovide session file"""
+    def get_legacy_neovide_session_file_path(self, pid: int) -> Path:
+        """Get the legacy Neovide session file path (for migration purposes)"""
         return self.sessions_dir / f"neovide-session-{pid}.vim"
 
 

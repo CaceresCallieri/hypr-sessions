@@ -39,6 +39,7 @@ class LaunchCommandGenerator:
             "thunar": "thunar",
             "nautilus": "nautilus",
             "dolphin": "dolphin",
+            "org.kde.dolphin": "dolphin",
             # Future terminal support can be added here:
             # "alacritty": "alacritty",
             # "kitty": "kitty",

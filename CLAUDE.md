@@ -21,8 +21,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 │   ├── launch_commands.py    # Launch command generation
 │   ├── terminal_handler.py   # Terminal working directory capture
 │   ├── neovide_handler.py    # Neovide-specific session management
-│   ├── browser_handler.py    # Browser window detection and tab capture
-│   └── zen_session_reader.py # Direct Zen browser session file access
+│   └── browser_handler.py    # Browser window detection and tab capture
 ├── session_restore.py        # Restore with grouping logic and debug output
 ├── session_list.py           # List saved sessions with debug output
 ├── session_delete.py         # Delete sessions with debug output
@@ -43,19 +42,28 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 2. **Group restoration** - Recreates Hyprland window groups during restore
 3. **Terminal working directories** - Captures and restores terminal CWD with running programs
 4. **Enhanced Neovide session management** - Live Neovim session capture via remote API
-5. **Browser tab capture** - Direct Zen browser session file access (sessionstore.jsonlz4)
+5. **Browser tab capture** - Zen browser extension with keyboard shortcut integration
 6. **Improved grouping logic** - Launches grouped windows sequentially, locks groups
 7. **Modular architecture** - Clean separation of concerns with specialized handlers
 8. **Debug mode** - Comprehensive logging with `--debug` flag for troubleshooting
 
 ## Technical Details
 
-### Session Data Format
+### Session Data Format (2025-08-13)
 
 - **Location**: `~/.config/hypr-sessions/`
-- **Format**: JSON files with session metadata, windows array, groups object
+- **Structure**: **Folder-based storage** - each session is a self-contained directory
+- **Format**: 
+  ```
+  ~/.config/hypr-sessions/
+  ├── session_name/
+  │   ├── session.json           # Main session metadata and windows
+  │   ├── neovide-session-*.vim  # Neovide session files
+  │   └── (future: browser-*.json, other app data)
+  ```
+- **Benefits**: Self-contained sessions, easier cleanup, no file conflicts, extensible
 - **Window data**: class, title, PID, position, size, launch_command, working_directory (terminals)
-- **Neovide data**: neovide_session object with working_directory and session_file paths
+- **Neovide data**: neovide_session object with working_directory and session_file paths within session directory
 
 ### Terminal Support
 
@@ -85,18 +93,16 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 
 ## Future Development Roadmap
 
-### **Immediate Priorities (Browser Integration Completion)**
-1. **Complete sessionstore.jsonlz4 integration** - Finish window elimination method and browser_handler integration
-2. **End-to-end testing** - Verify full browser session save/restore workflow
-3. **Remove deprecated extension code** - Clean up browser_extension/ directory
+### **Immediate Priorities (Current Work)**
+1. **Firefox browser support** - Extend extension approach to Firefox
+2. **Better window positioning** - More precise layout restoration for all applications
 
 ### **Planned Enhancements**
-1. **Firefox support** - Extend sessionstore.jsonlz4 approach to Firefox profiles
-2. **Multi-browser sessions** - Handle mixed browser environments (Zen + Firefox)
-3. **Better window positioning** - More precise layout restoration for all applications
-4. **Qt/QML UI** - Graphical interface for session management
-5. **Session validation** - Verify restored sessions match saved state
-6. **Workspace-specific sessions** - Different session profiles per workspace type
+1. **Multi-browser sessions** - Handle mixed browser environments (Zen + Firefox)
+2. **Better window positioning** - More precise layout restoration for all applications
+3. **Qt/QML UI** - Graphical interface for session management
+4. **Session validation** - Verify restored sessions match saved state
+5. **Workspace-specific sessions** - Different session profiles per workspace type
 
 ## Development Notes
 
@@ -155,15 +161,22 @@ Debug output includes:
 
 ## Browser Integration Evolution (2025-08-08)
 
-### Phase 1: Extension-Based Approach (2025-07-21) - DEPRECATED
+### Phase 1: Native Messaging Extension Approach (2025-07-21) - DEPRECATED
 
 **Original Implementation**: Complex native messaging extension system
 - **Extension Architecture**: Firefox/Zen WebExtension with native messaging
 - **Communication**: File-based triggers + native messaging protocol
 - **Issues**: Extension not responding to triggers, complex debugging, maintenance overhead
-- **Status**: ⚠️ Deprecated in favor of direct session file access
+- **Status**: ⚠️ Deprecated in favor of sessionstore.jsonlz4 direct access
 
-### Phase 3: Keyboard Shortcut Extension Approach (2025-08-10) - ✅ COMPLETED
+### Phase 2: sessionstore.jsonlz4 Direct Access (2025-08-08) - ABANDONED
+
+**Attempted Implementation**: Direct access to Zen browser's session storage files
+- **Method**: Parse Mozilla's LZ4-compressed session files directly
+- **Issues**: Session files don't update in real-time, window-to-tab mapping complexity
+- **Status**: ⚠️ Abandoned due to unreliable session data correlation
+
+### Phase 3: Keyboard Shortcut Extension Approach (2025-08-10) - ✅ CURRENT
 
 **Final Solution**: Browser extension with keyboard shortcut triggers via hyprctl sendshortcut
 - **Method**: Extension responds to Alt+U, saves tab data to Downloads folder
@@ -228,13 +241,15 @@ Debug output includes:
 - ✅ Active tab detection via selected index
 - ✅ Pinned status capture
 
-**File Structure Update**:
+**File Structure**:
 ```
 session_save/
-├── zen_session_reader.py      # NEW: Direct session file access
-├── browser_handler.py         # Updated to use ZenSessionReader
-├── session_saver.py           # Integration point
+├── browser_handler.py         # Keyboard shortcut integration
+├── session_saver.py           # Main session orchestration
 └── launch_commands.py         # Browser restoration commands
+browser_extension/             # Zen browser extension
+├── manifest.json              # Extension configuration
+└── background.js              # Tab capture logic
 ```
 
 #### **Session Data Example**
@@ -281,10 +296,59 @@ session_save/
 **Performance**: Successfully captures 15+ tabs in ~2 seconds with no user workflow disruption.
 
 #### **Dependencies**
-- `python-lz4` - For Mozilla session file decompression (installed via pacman)
-- `lz4.block` - Python module for LZ4 decompression
+- Zen browser with installed hypr-sessions extension
+- Extension must be loaded and keyboard shortcuts enabled
+- Downloads folder write permissions for tab data files
 
-**Session Update Behavior**: Session files don't update in real-time, but this is perfect for the elimination method since closing a window will trigger an update.
+## Recent Session Directory Reorganization (2025-08-13)
+
+### Implemented
+
+1. **Folder-Based Session Storage**: Complete restructuring from flat files to directory-based organization
+    - **Self-Contained Sessions**: Each session stored in its own directory with all related files
+    - **Collision Prevention**: No more conflicts between session file names across different sessions
+    - **Easier Management**: Single directory deletion removes entire session including all artifacts
+    - **Future Extensibility**: Ready for additional per-session files (browser data, custom configs)
+
+2. **Updated Configuration System**:
+    - **New Path Methods**: `get_session_directory()`, `get_session_file_path()` with automatic directory creation
+    - **Legacy Support Methods**: Migration helpers for development transition (not used in production)
+    - **Backward Compatibility**: All existing code updated to use new folder structure seamlessly
+
+3. **Enhanced Session Operations**:
+    - **Save**: Creates session directory and stores session.json plus neovide session files within directory
+    - **List**: Shows folder-based sessions with file count and comprehensive metadata
+    - **Delete**: Removes entire session directory with user feedback on files deleted
+    - **Restore**: Works seamlessly with new folder paths, including swallowing and grouping
+
+4. **Cleanup and Migration**:
+    - **Deprecated Files Removed**: zen-browser-backups directory and old flat session files cleaned up
+    - **Application Command Fixes**: Fixed org.kde.dolphin -> dolphin mapping for proper restoration
+    - **Testing Verified**: Full end-to-end testing of save/list/delete/restore with complex sessions
+
+### Technical Implementation Details
+
+- **Directory Structure**: `~/.config/hypr-sessions/session_name/session.json` + auxiliary files
+- **Automatic Creation**: Session directories created on-demand during save operations
+- **Neovide Integration**: Session files now stored within session directory using session name context
+- **Error Handling**: Comprehensive error handling for directory operations and file management
+
+### Current Status (2025-08-13)
+
+✅ **COMPLETED - Folder-Based Session Storage**:
+- ✅ Configuration system updated with new path methods
+- ✅ Session saving to individual directories with all files contained
+- ✅ Session listing showing directory-based sessions with metadata
+- ✅ Session deletion removing entire directories safely
+- ✅ Session restoration working with new folder paths
+- ✅ Swallowing and grouping functionality fully compatible
+- ✅ Legacy file cleanup and application command fixes
+
+**Benefits Realized**:
+- **Cleaner Organization**: Session directories clearly show what belongs to each session
+- **Safer Operations**: Deleting a session removes only that session's files
+- **Development Friendly**: Easier to debug and inspect session contents
+- **Future Ready**: Architecture supports additional per-session data files
 
 ## Recent Session Work (2025-07-12)
 
@@ -337,6 +401,12 @@ session_save/
 4. **Session Merging**: Combine multiple Neovim sessions into workspace-level sessions
 
 ## Important Development Guidelines
+
+**⚠️ CRITICAL**: Documentation and development workflow requirements:
+
+1. After every change to this codebase, update this CLAUDE.md file to reflect:
+2. Going forward, always update CLAUDE.md with relevant implementation details during development
+3. Include CLAUDE.md updates in commits when making changes
 
 **⚠️ CRITICAL**: After every change to this codebase, update this CLAUDE.md file to reflect:
 

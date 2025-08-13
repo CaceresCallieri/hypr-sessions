@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from utils import Utils
+from config import get_config
 from session_types import SessionData, WindowInfo
 from .hyprctl_client import HyprctlClient
 from .launch_commands import LaunchCommandGenerator
@@ -19,6 +20,8 @@ class SessionSaver(Utils):
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
         self.debug: bool = debug
+        self.config = get_config()
+        self.current_session_name: Optional[str] = None
         self.hyprctl_client: HyprctlClient = HyprctlClient()
         self.launch_command_generator: LaunchCommandGenerator = LaunchCommandGenerator(debug=debug)
         self.terminal_handler: TerminalHandler = TerminalHandler()
@@ -32,6 +35,8 @@ class SessionSaver(Utils):
 
     def save_session(self, session_name: str) -> bool:
         """Save current workspace state including groups"""
+        # Store session name for use in other methods
+        self.current_session_name = session_name
         print(f"Saving session: {session_name}")
         self.debug_print(f"Starting session save for: {session_name}")
 
@@ -142,8 +147,9 @@ class SessionSaver(Utils):
                 self.debug_print(f"Neovide session info: {neovide_session_info}")
                 if neovide_session_info:
                     window_data["neovide_session"] = neovide_session_info
-                    # Try to create/capture session file
-                    session_file = self.neovide_handler.create_session_file(pid, str(self.sessions_dir))
+                    # Try to create/capture session file in session directory
+                    session_dir = str(self.config.get_session_directory(self.current_session_name))
+                    session_file = self.neovide_handler.create_session_file(pid, session_dir)
                     self.debug_print(f"Created session file: {session_file}")
                     if session_file:
                         window_data["neovide_session"]["session_file"] = session_file
@@ -181,8 +187,8 @@ class SessionSaver(Utils):
             for group_id, addresses in groups.items():
                 print(f"  Group {group_id[:8]}... has {len(addresses)} windows")
 
-        # Save session to file
-        session_file = self.sessions_dir / f"{session_name}.json"
+        # Save session to file in new folder structure
+        session_file = self.config.get_session_file_path(session_name)
         try:
             with open(session_file, "w") as f:
                 json.dump(session_data, f, indent=2)
