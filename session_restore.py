@@ -99,12 +99,14 @@ class SessionRestore(Utils):
         gui_executable_and_args = gui_command
 
         # Build the combined command with shell persistence
+        # Properly escape the GUI command to prevent shell interpretation issues
+        escaped_gui_command = shlex.quote(gui_executable_and_args)
+        shell_command = f"{escaped_gui_command}; exec $SHELL"
+        
         if terminal_working_dir:
-            combined_command = f"ghostty --working-directory={shlex.quote(terminal_working_dir)} -e sh -c '{gui_executable_and_args}; exec $SHELL'"
+            combined_command = f"ghostty --working-directory={shlex.quote(terminal_working_dir)} -e sh -c {shlex.quote(shell_command)}"
         else:
-            combined_command = (
-                f"ghostty -e sh -c '{gui_executable_and_args}; exec $SHELL'"
-            )
+            combined_command = f"ghostty -e sh -c {shlex.quote(shell_command)}"
 
         self.debug_print(f"Created combined swallowing command: {combined_command}")
         return combined_command
