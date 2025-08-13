@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Any
 from utils import Utils
 from config import get_config
 from session_types import SessionData, WindowInfo
+from validation import SessionValidator, SessionAlreadyExistsError, SessionValidationError
 from .hyprctl_client import HyprctlClient
 from .launch_commands import LaunchCommandGenerator
 from .terminal_handler import TerminalHandler
@@ -35,10 +36,32 @@ class SessionSaver(Utils):
 
     def save_session(self, session_name: str) -> bool:
         """Save current workspace state including groups"""
-        # Store session name for use in other methods
-        self.current_session_name = session_name
-        print(f"Saving session: {session_name}")
-        self.debug_print(f"Starting session save for: {session_name}")
+        try:
+            # Validate session name (already done in CLI, but adding here for direct usage)
+            SessionValidator.validate_session_name(session_name)
+            
+            # Validate sessions directory is writable
+            SessionValidator.validate_directory_writable(self.config.sessions_dir)
+            
+            # Check if session already exists
+            session_path = self.config.get_session_directory(session_name)
+            if session_path.exists():
+                session_file = session_path / "session.json"
+                if session_file.exists():
+                    raise SessionAlreadyExistsError(
+                        f"Session '{session_name}' already exists. "
+                        f"Delete it first or use a different name."
+                    )
+            
+            # Store session name for use in other methods
+            self.current_session_name = session_name
+            print(f"Saving session: {session_name}")
+            self.debug_print(f"Starting session save for: {session_name}")
+            
+        except (SessionValidationError, SessionAlreadyExistsError) as e:
+            self.debug_print(f"Validation error: {e}")
+            print(f"Error: {e}")
+            return False
 
         # Get all clients (windows) from current workspace
         clients = self.hyprctl_client.get_hyprctl_data("clients")

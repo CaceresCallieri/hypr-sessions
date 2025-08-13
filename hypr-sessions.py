@@ -13,6 +13,10 @@ from session_list import SessionList
 from session_restore import SessionRestore
 from session_save import SessionSaver
 from utils import Utils
+from validation import (
+    SessionValidationError, InvalidSessionNameError, SessionNotFoundError,
+    SessionAlreadyExistsError, validate_session_name
+)
 
 
 class HyprlandSessionManager:
@@ -24,16 +28,31 @@ class HyprlandSessionManager:
         self.deleter: SessionDelete = SessionDelete(debug=debug)
 
     def save_session(self, session_name: str) -> bool:
-        return self.saver.save_session(session_name)
+        try:
+            validate_session_name(session_name)
+            return self.saver.save_session(session_name)
+        except SessionValidationError as e:
+            print(f"Error: {e}")
+            return False
 
     def restore_session(self, session_name: str) -> bool:
-        return self.restorer.restore_session(session_name)
+        try:
+            validate_session_name(session_name)
+            return self.restorer.restore_session(session_name)
+        except SessionValidationError as e:
+            print(f"Error: {e}")
+            return False
 
     def list_sessions(self) -> None:
         return self.lister.list_sessions()
 
     def delete_session(self, session_name: str) -> bool:
-        return self.deleter.delete_session(session_name)
+        try:
+            validate_session_name(session_name)
+            return self.deleter.delete_session(session_name)
+        except SessionValidationError as e:
+            print(f"Error: {e}")
+            return False
 
 
 def main() -> None:

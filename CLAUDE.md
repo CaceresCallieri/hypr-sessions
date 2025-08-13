@@ -350,6 +350,65 @@ browser_extension/             # Zen browser extension
 - **Development Friendly**: Easier to debug and inspect session contents
 - **Future Ready**: Architecture supports additional per-session data files
 
+## Recent Input Validation Implementation (2025-08-13)
+
+### Implemented
+
+1. **Comprehensive Input Validation System**: Complete validation framework for session operations
+    - **Custom Exception Classes**: Specific exception types for different validation failures
+    - **Session Name Validation**: Filesystem-safe names with comprehensive character and pattern checks
+    - **Existence Validation**: Proper session existence checking without creating directories
+    - **Directory Permission Validation**: Ensures write access to sessions directory
+
+2. **Validation Module** (`validation.py`):
+    - **SessionValidator Class**: Centralized validation logic with comprehensive checks
+    - **Custom Exceptions**: `SessionValidationError`, `InvalidSessionNameError`, `SessionNotFoundError`, `SessionAlreadyExistsError`
+    - **Input Sanitization**: Prevents invalid characters, control characters, reserved names
+    - **Boundary Validation**: Length limits, whitespace trimming, pattern enforcement
+
+3. **Enhanced Error Handling**:
+    - **CLI Integration**: All session operations validate inputs before execution
+    - **Component-Level Validation**: Each session component includes validation for direct usage
+    - **User-Friendly Messages**: Clear, actionable error messages with specific guidance
+    - **Early Failure**: Validates inputs before performing expensive operations
+
+4. **Validation Rules Implemented**:
+    - **Character Restrictions**: No filesystem-unsafe characters (`<>:"/\\|?*`)
+    - **Length Limits**: Maximum 200 characters for cross-platform compatibility
+    - **Pattern Validation**: No leading/trailing whitespace, no consecutive spaces
+    - **Reserved Names**: Prevents use of system directories (`.`, `..`)
+    - **Control Characters**: Blocks non-printable characters that could cause issues
+
+### Technical Implementation Details
+
+- **Validation Points**: CLI entry, component entry, and operation-specific validation
+- **Directory Creation Prevention**: Checks existence before auto-creating directories
+- **Exception Hierarchy**: Structured exception types for specific error handling
+- **Convenience Functions**: Simple validation functions for common use cases
+
+### Current Status (2025-08-13)
+
+✅ **COMPLETED - Input Validation System**:
+- ✅ Custom exception classes for validation scenarios
+- ✅ Comprehensive session name validation with filesystem safety
+- ✅ Session existence validation without side effects
+- ✅ Integration across all session operations (save/restore/list/delete)
+- ✅ Edge case testing with invalid inputs, control characters, length limits
+- ✅ User-friendly error messages with actionable guidance
+
+**Validation Examples**:
+- **Invalid Characters**: `Error: Session name contains invalid characters: '/'. Invalid characters: <>:"/\|?*`
+- **Reserved Names**: `Error: '..' is a reserved name and cannot be used`
+- **Length Limits**: `Error: Session name too long (201 chars). Maximum length is 200`
+- **Existence Checks**: `Error: Session 'nonexistent' not found`
+- **Duplicate Detection**: `Error: Session 'existing' already exists. Delete it first or use a different name.`
+
+**Benefits Realized**:
+- **Prevented Errors**: Invalid inputs caught before operations begin
+- **Better UX**: Clear error messages guide users to valid inputs
+- **System Safety**: Filesystem-safe names prevent directory traversal and corruption
+- **Development Quality**: Consistent validation across all components
+
 ## Recent Session Work (2025-07-12)
 
 ### Implemented

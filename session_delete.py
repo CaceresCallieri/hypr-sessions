@@ -5,6 +5,7 @@ Session delete functionality
 import shutil
 from config import get_config, SessionConfig
 from utils import Utils
+from validation import SessionValidator, SessionNotFoundError, SessionValidationError
 
 
 class SessionDelete(Utils):
@@ -20,13 +21,23 @@ class SessionDelete(Utils):
     
     def delete_session(self, session_name: str) -> bool:
         """Delete a saved session directory and all its contents"""
-        self.debug_print(f"Attempting to delete session: {session_name}")
-        session_dir = self.config.get_session_directory(session_name)
-        self.debug_print(f"Session directory path: {session_dir}")
-
-        if not session_dir.exists():
-            self.debug_print(f"Session directory does not exist: {session_dir}")
-            print(f"Session not found: {session_name}")
+        try:
+            # Validate session name (already done in CLI, but adding here for direct usage)
+            SessionValidator.validate_session_name(session_name)
+            
+            self.debug_print(f"Attempting to delete session: {session_name}")
+            
+            # Check if session exists BEFORE calling get_session_directory (which creates directory)
+            session_dir = self.config.sessions_dir / session_name
+            SessionValidator.validate_session_exists(session_dir, session_name)
+            
+            # Now get the session directory (it won't create since it exists)
+            session_dir = self.config.get_session_directory(session_name)
+            self.debug_print(f"Session directory path: {session_dir}")
+            
+        except (SessionValidationError, SessionNotFoundError) as e:
+            self.debug_print(f"Validation error: {e}")
+            print(f"Error: {e}")
             return False
 
         self.debug_print(f"Session directory exists, proceeding with deletion")

@@ -13,6 +13,7 @@ from session_save.browser_handler import BrowserHandler
 from session_save.hyprctl_client import HyprctlClient
 from session_types import GroupMapping, SessionData, WindowInfo
 from utils import Utils
+from validation import SessionValidator, SessionNotFoundError, SessionValidationError
 
 
 class SessionRestore(Utils):
@@ -118,13 +119,22 @@ class SessionRestore(Utils):
 
     def restore_session(self, session_name: str) -> bool:
         """Restore a saved session with group support"""
-        self.debug_print(f"Starting restoration of session: {session_name}")
-        session_file = self.config.get_session_file_path(session_name)
-        self.debug_print(f"Session file path: {session_file}")
-
-        if not session_file.exists():
-            self.debug_print(f"Session file does not exist: {session_file}")
-            print(f"Session file not found: {session_file}")
+        try:
+            # Validate session name (already done in CLI, but adding here for direct usage)
+            SessionValidator.validate_session_name(session_name)
+            
+            self.debug_print(f"Starting restoration of session: {session_name}")
+            
+            # Check if session exists BEFORE calling get_session_file_path (which creates directory)
+            session_dir = self.config.sessions_dir / session_name
+            SessionValidator.validate_session_exists(session_dir, session_name)
+            
+            session_file = self.config.get_session_file_path(session_name)
+            self.debug_print(f"Session file path: {session_file}")
+            
+        except (SessionValidationError, SessionNotFoundError) as e:
+            self.debug_print(f"Validation error: {e}")
+            print(f"Error: {e}")
             return False
 
         try:
