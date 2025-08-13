@@ -30,7 +30,23 @@ class HyprlandSessionManager:
     def save_session(self, session_name: str) -> bool:
         try:
             validate_session_name(session_name)
-            return self.saver.save_session(session_name)
+            result = self.saver.save_session(session_name)
+            
+            # Print detailed results for debugging
+            if self.debug:
+                result.print_detailed_result()
+            else:
+                # Print summary for normal operation
+                if result.success:
+                    print(f"✓ Session saved successfully")
+                    if result.has_warnings:
+                        print(f"  ⚠ {result.warning_count} warnings occurred during save")
+                else:
+                    print(f"✗ Session save failed")
+                    for error in result.errors:
+                        print(f"  Error: {error.message}")
+            
+            return result.success
         except SessionValidationError as e:
             print(f"Error: {e}")
             return False
@@ -38,18 +54,62 @@ class HyprlandSessionManager:
     def restore_session(self, session_name: str) -> bool:
         try:
             validate_session_name(session_name)
-            return self.restorer.restore_session(session_name)
+            result = self.restorer.restore_session(session_name)
+            
+            # Print detailed results for debugging
+            if self.debug:
+                result.print_detailed_result()
+            else:
+                # Print summary for normal operation
+                if result.success:
+                    print(f"✓ Session restored successfully")
+                    if result.has_warnings:
+                        print(f"  ⚠ {result.warning_count} warnings occurred during restore")
+                else:
+                    print(f"✗ Session restore failed")
+                    for error in result.errors:
+                        print(f"  Error: {error.message}")
+            
+            return result.success
         except SessionValidationError as e:
             print(f"Error: {e}")
             return False
 
     def list_sessions(self) -> None:
-        return self.lister.list_sessions()
+        result = self.lister.list_sessions()
+        
+        # Print detailed results for debugging
+        if self.debug:
+            result.print_detailed_result()
+        else:
+            # For normal operation, just show warnings/errors if any
+            if result.has_warnings:
+                print(f"⚠ {result.warning_count} warnings occurred")
+            if result.has_errors:
+                print(f"✗ {result.error_count} errors occurred")
+                for error in result.errors:
+                    print(f"  Error: {error.message}")
 
     def delete_session(self, session_name: str) -> bool:
         try:
             validate_session_name(session_name)
-            return self.deleter.delete_session(session_name)
+            result = self.deleter.delete_session(session_name)
+            
+            # Print detailed results for debugging
+            if self.debug:
+                result.print_detailed_result()
+            else:
+                # Print summary for normal operation
+                if result.success:
+                    print(f"✓ Session deleted successfully")
+                    if result.has_warnings:
+                        print(f"  ⚠ {result.warning_count} warnings occurred during deletion")
+                else:
+                    print(f"✗ Session deletion failed")
+                    for error in result.errors:
+                        print(f"  Error: {error.message}")
+            
+            return result.success
         except SessionValidationError as e:
             print(f"Error: {e}")
             return False

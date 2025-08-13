@@ -9,6 +9,7 @@ import time
 from typing import Any, Dict, List
 
 from config import SessionConfig, get_config
+from operation_result import OperationResult
 from session_save.browser_handler import BrowserHandler
 from session_save.hyprctl_client import HyprctlClient
 from session_types import GroupMapping, SessionData, WindowInfo
@@ -117,34 +118,39 @@ class SessionRestore(Utils):
         # Swallowing commands might take longer to complete, so use a longer delay
         return self.config.delay_between_instructions * 2.0
 
-    def restore_session(self, session_name: str) -> bool:
+    def restore_session(self, session_name: str) -> OperationResult:
         """Restore a saved session with group support"""
+        result = OperationResult(operation_name=f"Restore session '{session_name}'")
+        
         try:
             # Validate session name (already done in CLI, but adding here for direct usage)
             SessionValidator.validate_session_name(session_name)
+            result.add_success("Session name validated")
             
             self.debug_print(f"Starting restoration of session: {session_name}")
             
             # Check if session exists BEFORE calling get_session_file_path (which creates directory)
             session_dir = self.config.sessions_dir / session_name
             SessionValidator.validate_session_exists(session_dir, session_name)
+            result.add_success("Session exists and is accessible")
             
             session_file = self.config.get_session_file_path(session_name)
             self.debug_print(f"Session file path: {session_file}")
             
         except (SessionValidationError, SessionNotFoundError) as e:
             self.debug_print(f"Validation error: {e}")
-            print(f"Error: {e}")
-            return False
+            result.add_error(str(e))
+            return result
 
         try:
             with open(session_file, "r") as f:
                 session_data = json.load(f)
             self.debug_print(f"Successfully loaded session data")
+            result.add_success("Session data loaded successfully")
         except Exception as e:
             self.debug_print(f"Error loading session data: {e}")
-            print(f"Error loading session: {e}")
-            return False
+            result.add_error(f"Failed to load session data: {e}")
+            return result
 
         print(f"Restoring session: {session_name}")
         print(f"Timestamp: {session_data.get('timestamp')}")
@@ -154,6 +160,7 @@ class SessionRestore(Utils):
         self.debug_print(
             f"Session contains {len(windows)} windows and {len(groups)} groups"
         )
+        result.add_success(f"Found {len(windows)} windows and {len(groups)} groups to restore")
 
         # Detect swallowing relationships
         swallowing_relationships = self.detect_swallowing_relationships(windows)
@@ -161,27 +168,52 @@ class SessionRestore(Utils):
             print(
                 f"Found {len(swallowing_relationships)} swallowing relationships to restore"
             )
+            result.add_success(f"Detected {len(swallowing_relationships)} swallowing relationships")
 
         if groups:
             print(f"Found {len(groups)} groups to restore")
 
         # Step 1: Launch applications and create groups during launch
-        if groups:
-            print("Launching applications with groups...")
-            self.debug_print(f"Using grouped launch method")
-            self.launch_with_groups(
-                session_data.get("windows", []), groups, swallowing_relationships
-            )
-        else:
-            print("Launching applications...")
-            self.debug_print(f"Using simple launch method (no groups)")
-            self.launch_windows_simple(
-                session_data.get("windows", []), swallowing_relationships
-            )
+        launch_result = None
+        try:
+            if groups:
+                print("Launching applications with groups...")
+                self.debug_print(f"Using grouped launch method")
+                launch_result = self.launch_with_groups(
+                    session_data.get("windows", []), groups, swallowing_relationships
+                )
+            else:
+                print("Launching applications...")
+                self.debug_print(f"Using simple launch method (no groups)")
+                launch_result = self.launch_windows_simple(
+                    session_data.get("windows", []), swallowing_relationships
+                )
+            
+            # Merge launch results
+            if launch_result:
+                result.messages.extend(launch_result.messages)
+                if not launch_result.success:
+                    result.success = False
+            else:
+                result.add_success("Applications launched successfully")
+                
+        except Exception as e:
+            self.debug_print(f"Error during launch: {e}")
+            result.add_error(f"Failed to launch applications: {e}")
+            return result
 
         self.debug_print(f"Session restoration completed")
         print(f"Restored {len(session_data.get('windows', []))} applications")
-        return True
+        result.add_success(f"Restored {len(windows)} applications")
+        
+        result.data = {
+            "windows_restored": len(windows),
+            "groups_restored": len(groups),
+            "swallowing_relationships": len(swallowing_relationships),
+            "session_file": str(session_file)
+        }
+        
+        return result
 
     def launch_windows_simple(
         self,

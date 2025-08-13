@@ -10,6 +10,7 @@ from utils import Utils
 from config import get_config
 from session_types import SessionData, WindowInfo
 from validation import SessionValidator, SessionAlreadyExistsError, SessionValidationError
+from operation_result import OperationResult
 from .hyprctl_client import HyprctlClient
 from .launch_commands import LaunchCommandGenerator
 from .terminal_handler import TerminalHandler
@@ -34,14 +35,18 @@ class SessionSaver(Utils):
         if self.debug:
             print(f"[DEBUG SessionSaver] {message}")
 
-    def save_session(self, session_name: str) -> bool:
+    def save_session(self, session_name: str) -> OperationResult:
         """Save current workspace state including groups"""
+        result = OperationResult(operation_name=f"Save session '{session_name}'")
+        
         try:
             # Validate session name (already done in CLI, but adding here for direct usage)
             SessionValidator.validate_session_name(session_name)
+            result.add_success("Session name validated")
             
             # Validate sessions directory is writable
             SessionValidator.validate_directory_writable(self.config.sessions_dir)
+            result.add_success("Sessions directory accessible")
             
             # Check if session already exists
             session_path = self.config.get_session_directory(session_name)
@@ -60,36 +65,44 @@ class SessionSaver(Utils):
             
         except (SessionValidationError, SessionAlreadyExistsError) as e:
             self.debug_print(f"Validation error: {e}")
-            print(f"Error: {e}")
-            return False
+            result.add_error(str(e))
+            return result
 
         # Get all clients (windows) from current workspace
-        clients = self.hyprctl_client.get_hyprctl_data("clients")
-        if not clients:
-            print("No clients found")
-            return False
-        
-        self.debug_print(f"Found {len(clients)} total clients")
+        try:
+            clients = self.hyprctl_client.get_hyprctl_data("clients")
+            if not clients:
+                result.add_error("No clients found in Hyprland")
+                return result
+            
+            self.debug_print(f"Found {len(clients)} total clients")
+            result.add_success(f"Found {len(clients)} total windows")
 
-        # Get current workspace to filter clients
-        current_workspace_data = self.hyprctl_client.get_hyprctl_data("activeworkspace")
-        current_workspace_id = (
-            current_workspace_data.get("id") if current_workspace_data else None
-        )
-        self.debug_print(f"Current workspace ID: {current_workspace_id}")
+            # Get current workspace to filter clients
+            current_workspace_data = self.hyprctl_client.get_hyprctl_data("activeworkspace")
+            current_workspace_id = (
+                current_workspace_data.get("id") if current_workspace_data else None
+            )
+            self.debug_print(f"Current workspace ID: {current_workspace_id}")
 
-        # Filter clients for current workspace only
-        workspace_clients = [
-            client
-            for client in clients
-            if client.get("workspace", {}).get("id") == current_workspace_id
-        ]
-        
-        self.debug_print(f"Filtered to {len(workspace_clients)} clients in current workspace")
+            # Filter clients for current workspace only
+            workspace_clients = [
+                client
+                for client in clients
+                if client.get("workspace", {}).get("id") == current_workspace_id
+            ]
+            
+            self.debug_print(f"Filtered to {len(workspace_clients)} clients in current workspace")
 
-        if not workspace_clients:
-            print(f"No clients found in current workspace")
-            return False
+            if not workspace_clients:
+                result.add_error(f"No windows found in current workspace ({current_workspace_id})")
+                return result
+            
+            result.add_success(f"Found {len(workspace_clients)} windows in current workspace")
+            
+        except Exception as e:
+            result.add_error(f"Failed to get window information: {e}")
+            return result
 
         # Process groups - build group mapping
         groups: Dict[str, List[str]] = {}  # group_id -> list of window addresses
@@ -118,6 +131,9 @@ class SessionSaver(Utils):
             "windows": [],
             "groups": groups,  # Store group information
         }
+        
+        captured_windows = 0
+        failed_windows = 0
 
         for client in workspace_clients:
             address = client.get("address", "")
@@ -125,90 +141,129 @@ class SessionSaver(Utils):
             client_pid = client.get("pid")
 
             self.debug_print(f"Processing client: {client_class} (PID: {client_pid})")
+            
+            try:
+                window_data = {
+                    "address": address,
+                    "class": client_class,
+                    "title": client.get("title", ""),
+                    "pid": client_pid,
+                    "at": client.get("at", [0, 0]),  # [x, y] position
+                    "size": client.get("size", [800, 600]),  # [width, height]
+                    "floating": client.get("floating", False),
+                    "fullscreen": client.get("fullscreen", False),
+                    "initialClass": client.get("initialClass", ""),
+                    "initialTitle": client.get("initialTitle", ""),
+                    "grouped": client.get("grouped", []),
+                    "group_id": address_to_group.get(address, None),
+                    "swallowing": client.get("swallowing", "0x0"),  # Capture swallowing property
+                }
 
-            window_data = {
-                "address": address,
-                "class": client_class,
-                "title": client.get("title", ""),
-                "pid": client_pid,
-                "at": client.get("at", [0, 0]),  # [x, y] position
-                "size": client.get("size", [800, 600]),  # [width, height]
-                "floating": client.get("floating", False),
-                "fullscreen": client.get("fullscreen", False),
-                "initialClass": client.get("initialClass", ""),
-                "initialTitle": client.get("initialTitle", ""),
-                "grouped": client.get("grouped", []),
-                "group_id": address_to_group.get(address, None),
-                "swallowing": client.get("swallowing", "0x0"),  # Capture swallowing property
-            }
+                # For terminal applications, capture working directory and running program
+                if self.terminal_handler.is_terminal_app(window_data["class"]):
+                    pid = window_data.get("pid")
+                    if pid:
+                        try:
+                            working_dir = self.terminal_handler.get_working_directory(pid)
+                            if working_dir:
+                                window_data["working_directory"] = working_dir
+                                print(f"  Captured working directory: {working_dir}")
+                                result.add_success(f"Captured working directory for {client_class}")
+                            else:
+                                result.add_warning(f"Could not capture working directory for {client_class} (PID: {pid})")
+                        except Exception as e:
+                            result.add_warning(f"Failed to get working directory for {client_class}: {e}")
+                        
+                        # Detect running program in the terminal
+                        try:
+                            self.debug_print(f"Detecting running program for terminal PID {pid}")
+                            running_program = self.terminal_handler.get_running_program(pid, debug=self.debug)
+                            if running_program:
+                                window_data["running_program"] = running_program
+                                print(f"  Captured running program: {running_program['name']}")
+                                self.debug_print(f"Running program details: {running_program}")
+                                result.add_success(f"Captured running program '{running_program['name']}' for {client_class}")
+                            else:
+                                self.debug_print("No running program detected (likely just shell)")
+                        except Exception as e:
+                            result.add_warning(f"Failed to detect running program for {client_class}: {e}")
 
-            # For terminal applications, capture working directory and running program
-            if self.terminal_handler.is_terminal_app(window_data["class"]):
-                pid = window_data.get("pid")
-                if pid:
-                    working_dir = self.terminal_handler.get_working_directory(pid)
-                    if working_dir:
-                        window_data["working_directory"] = working_dir
-                        print(f"  Captured working directory: {working_dir}")
-                    
-                    # Detect running program in the terminal
-                    self.debug_print(f"Detecting running program for terminal PID {pid}")
-                    running_program = self.terminal_handler.get_running_program(pid, debug=self.debug)
-                    if running_program:
-                        window_data["running_program"] = running_program
-                        print(f"  Captured running program: {running_program['name']}")
-                        self.debug_print(f"Running program details: {running_program}")
-                    else:
-                        self.debug_print("No running program detected (likely just shell)")
+                # For Neovide windows, capture session information
+                if self.neovide_handler.is_neovide_window(window_data):
+                    pid = window_data.get("pid")
+                    print(f"  Found Neovide window (PID: {pid})")
+                    self.debug_print(f"Detected Neovide window with class '{client_class}' and PID {pid}")
+                    try:
+                        neovide_session_info = self.neovide_handler.get_neovide_session_info(pid)
+                        self.debug_print(f"Neovide session info: {neovide_session_info}")
+                        if neovide_session_info:
+                            window_data["neovide_session"] = neovide_session_info
+                            # Try to create/capture session file in session directory
+                            session_dir = str(self.config.get_session_directory(self.current_session_name))
+                            session_file = self.neovide_handler.create_session_file(pid, session_dir)
+                            self.debug_print(f"Created session file: {session_file}")
+                            if session_file:
+                                window_data["neovide_session"]["session_file"] = session_file
+                                print(f"  Captured Neovide session: {session_file}")
+                                result.add_success(f"Captured Neovide session file for {client_class}")
+                            else:
+                                print(f"  Could not capture Neovide session, will restore with working directory")
+                                result.add_warning(f"Could not capture Neovide session for {client_class}, using working directory fallback")
+                        else:
+                            self.debug_print(f"Failed to get Neovide session info for PID {pid}")
+                            result.add_warning(f"Could not get Neovide session info for {client_class}")
+                    except Exception as e:
+                        result.add_warning(f"Failed to capture Neovide session for {client_class}: {e}")
 
-            # For Neovide windows, capture session information
-            if self.neovide_handler.is_neovide_window(window_data):
-                pid = window_data.get("pid")
-                print(f"  Found Neovide window (PID: {pid})")
-                self.debug_print(f"Detected Neovide window with class '{client_class}' and PID {pid}")
-                neovide_session_info = self.neovide_handler.get_neovide_session_info(pid)
-                self.debug_print(f"Neovide session info: {neovide_session_info}")
-                if neovide_session_info:
-                    window_data["neovide_session"] = neovide_session_info
-                    # Try to create/capture session file in session directory
-                    session_dir = str(self.config.get_session_directory(self.current_session_name))
-                    session_file = self.neovide_handler.create_session_file(pid, session_dir)
-                    self.debug_print(f"Created session file: {session_file}")
-                    if session_file:
-                        window_data["neovide_session"]["session_file"] = session_file
-                        print(f"  Captured Neovide session: {session_file}")
-                    else:
-                        print(f"  Could not capture Neovide session, will restore with working directory")
-                else:
-                    self.debug_print(f"Failed to get Neovide session info for PID {pid}")
+                # For browser windows, capture tab information
+                if self.browser_handler.is_browser_window(window_data):
+                    pid = window_data.get("pid")
+                    browser_type = self.browser_handler.get_browser_type(window_data)
+                    print(f"  Found {browser_type} browser window (PID: {pid})")
+                    self.debug_print(f"Detected browser window with class '{client_class}' and PID {pid}")
+                    try:
+                        browser_session_info = self.browser_handler.get_enhanced_browser_session_info(window_data, session_name)
+                        self.debug_print(f"Browser session info: {browser_session_info}")
+                        if browser_session_info:
+                            window_data["browser_session"] = browser_session_info
+                            capture_method = browser_session_info.get("capture_method", "basic")
+                            print(f"  Captured {browser_type} browser session ({capture_method})")
+                            result.add_success(f"Captured {browser_type} browser session using {capture_method} method")
+                        else:
+                            self.debug_print(f"Failed to get browser session info for PID {pid}")
+                            result.add_warning(f"Could not capture browser session for {browser_type}")
+                    except Exception as e:
+                        result.add_warning(f"Failed to capture browser session for {browser_type}: {e}")
 
-            # For browser windows, capture tab information
-            if self.browser_handler.is_browser_window(window_data):
-                pid = window_data.get("pid")
-                browser_type = self.browser_handler.get_browser_type(window_data)
-                print(f"  Found {browser_type} browser window (PID: {pid})")
-                self.debug_print(f"Detected browser window with class '{client_class}' and PID {pid}")
-                browser_session_info = self.browser_handler.get_enhanced_browser_session_info(window_data, session_name)
-                self.debug_print(f"Browser session info: {browser_session_info}")
-                if browser_session_info:
-                    window_data["browser_session"] = browser_session_info
-                    capture_method = browser_session_info.get("capture_method", "basic")
-                    print(f"  Captured {browser_type} browser session ({capture_method})")
-                else:
-                    self.debug_print(f"Failed to get browser session info for PID {pid}")
+                # Try to determine launch command based on class
+                try:
+                    launch_command = self.launch_command_generator.guess_launch_command(window_data)
+                    window_data["launch_command"] = launch_command
+                    self.debug_print(f"Generated launch command: {launch_command}")
+                    result.add_success(f"Generated launch command for {client_class}")
+                except Exception as e:
+                    result.add_warning(f"Failed to generate launch command for {client_class}: {e}")
+                    window_data["launch_command"] = client_class  # Fallback to class name
 
-            # Try to determine launch command based on class
-            launch_command = self.launch_command_generator.guess_launch_command(window_data)
-            window_data["launch_command"] = launch_command
-            self.debug_print(f"Generated launch command: {launch_command}")
+                session_data["windows"].append(window_data)
+                captured_windows += 1
+                
+            except Exception as e:
+                self.debug_print(f"Failed to process window {client_class} (PID: {client_pid}): {e}")
+                result.add_error(f"Failed to process window {client_class}: {e}")
+                failed_windows += 1
 
-            session_data["windows"].append(window_data)
+        # Add summary information
+        result.add_success(f"Processed {captured_windows} windows successfully")
+        if failed_windows > 0:
+            result.add_warning(f"Failed to process {failed_windows} windows")
 
         # Debug: Print group information
         if groups:
             print(f"Found {len(groups)} groups:")
             for group_id, addresses in groups.items():
                 print(f"  Group {group_id[:8]}... has {len(addresses)} windows")
+            result.add_success(f"Detected {len(groups)} window groups")
 
         # Save session to file in new folder structure
         session_file = self.config.get_session_file_path(session_name)
@@ -217,7 +272,16 @@ class SessionSaver(Utils):
                 json.dump(session_data, f, indent=2)
             print(f"Session saved to: {session_file}")
             print(f"Saved {len(session_data['windows'])} windows")
-            return True
+            result.add_success(f"Session saved to {session_file}")
+            result.data = {
+                "session_file": str(session_file),
+                "windows_saved": len(session_data['windows']),
+                "groups_detected": len(groups),
+                "captured_windows": captured_windows,
+                "failed_windows": failed_windows
+            }
+            return result
         except Exception as e:
-            print(f"Error saving session: {e}")
-            return False
+            self.debug_print(f"Error saving session file: {e}")
+            result.add_error(f"Failed to save session file: {e}")
+            return result

@@ -409,6 +409,96 @@ browser_extension/             # Zen browser extension
 - **System Safety**: Filesystem-safe names prevent directory traversal and corruption
 - **Development Quality**: Consistent validation across all components
 
+## Recent Structured Error Results Implementation (2025-08-13)
+
+### Implemented
+
+1. **Comprehensive OperationResult System**: Complete structured error tracking implementation
+    - **OperationResult Class**: Centralized result tracking with success/warning/error categorization
+    - **Rich Message Context**: Detailed operation feedback with contextual information
+    - **Partial Failure Support**: Operations can succeed with warnings, enabling graceful degradation
+    - **User-Friendly Display**: Smart formatting for debug vs normal operation modes
+
+2. **Enhanced Session Operations with Structured Results**:
+    - **SessionSaver**: Returns OperationResult with detailed window capture tracking, validation results, and file operation status
+    - **SessionRestore**: Tracks validation, file loading, application launching with granular success/failure reporting
+    - **SessionList**: Provides structured session scanning with invalid session warnings and detailed metadata
+    - **SessionDelete**: File-by-file deletion tracking with comprehensive validation and cleanup reporting
+
+3. **CLI Integration with Smart Result Display**:
+    - **Debug Mode**: Full detailed results showing all success/warning/error messages for troubleshooting
+    - **Normal Mode**: Concise summaries with error details when operations fail
+    - **Consistent Formatting**: Unified ✓/⚠/✗ symbols for immediate status recognition
+    - **Graceful Error Handling**: Clear failure messages without technical stack traces
+
+4. **Individual Window Processing with Error Recovery**:
+    - **Granular Exception Handling**: Each window capture wrapped in try-catch for isolation
+    - **Partial Success Tracking**: Failed windows don't abort entire session save operation
+    - **Detailed Failure Context**: Specific error messages for terminal, neovide, and browser window failures
+    - **Fallback Mechanisms**: Graceful degradation when specialized handlers fail
+
+### Current Status
+
+- **Structured Error Results**: Complete implementation across all session operations ✅
+- **Partial Failure Handling**: Operations continue despite individual component failures ✅
+- **Rich Debugging Information**: Comprehensive logging and result tracking ✅
+- **User Experience**: Clean error reporting with actionable feedback ✅
+- **Backward Compatibility**: Existing CLI behavior preserved with enhanced feedback ✅
+
+### Technical Implementation Details
+
+- **OperationResult Architecture**: Dataclass-based result system with typed message categorization
+- **Message Aggregation**: Centralized collection of operation events with context preservation
+- **CLI Response Adaptation**: Different output verbosity based on debug flag state
+- **Exception Integration**: Seamless conversion of validation errors to structured results
+- **Data Preservation**: Operation results include structured data for programmatic access
+
+### Error Handling Improvements Completed
+
+1. **Input Validation System**: Comprehensive session name and directory validation ✅
+2. **Structured Error Results**: Rich operation feedback with partial failure support ✅
+3. **Remaining Improvement Options**:
+   - **Retry Mechanisms**: Automatic retry for transient failures
+   - **Configuration Validation**: Startup-time environment and dependency checking
+   - **Recovery Suggestions**: Contextual hints for resolving common issues
+   - **Operation Rollback**: Undo capability for failed operations
+
+### Debug Output Examples
+
+```bash
+# Detailed structured results in debug mode
+./hypr-sessions.py save work-session --debug
+✓ Save session 'work-session': 15 succeeded, 2 warnings
+  ✓ Session name validated
+  ✓ Sessions directory accessible
+  ✓ Found 8 windows in current workspace
+  ✓ Captured working directory for com.mitchellh.ghostty
+  ⚠ Could not capture running program for com.mitchellh.ghostty
+  ✓ Session saved to /home/user/.config/hypr-sessions/work-session/session.json
+
+# Concise results in normal mode
+./hypr-sessions.py save work-session
+✓ Session saved successfully
+  ⚠ 2 warnings occurred during save
+
+# Error case handling
+./hypr-sessions.py restore nonexistent-session
+✗ Session restore failed
+  Error: Session 'nonexistent-session' not found
+```
+
+### File Structure Updates
+
+```
+├── operation_result.py           # NEW: Structured result system
+├── session_save/
+│   └── session_saver.py          # Updated: Returns OperationResult with window tracking
+├── session_restore.py            # Updated: Structured restore feedback
+├── session_list.py               # Updated: Session validation and metadata tracking
+├── session_delete.py             # Updated: File-by-file deletion tracking
+└── hypr-sessions.py              # Updated: Smart result display based on debug mode
+```
+
 ## Recent Session Work (2025-07-12)
 
 ### Implemented
