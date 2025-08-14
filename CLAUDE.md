@@ -26,7 +26,11 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 ├── session_list.py           # List saved sessions with debug output
 ├── session_delete.py         # Delete sessions with debug output
 ├── utils.py                  # Shared session directory setup
-├── browser_extension/        # DEPRECATED: Extension-based browser integration
+├── fabric-ui/                # Fabric-based graphical user interface
+│   ├── session_manager.py    # Main UI layer widget implementation
+│   ├── session_manager.css   # External stylesheet for UI styling
+│   └── venv/                 # Virtual environment with Fabric framework
+├── browser_extension/        # Extension-based browser integration
 ├── setup_browser_support.py  # DEPRECATED: Extension setup script
 └── experiments/              # Research and investigation scripts
     ├── browser-extension/    # Extension communication experiments
@@ -53,14 +57,14 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 
 - **Location**: `~/.config/hypr-sessions/`
 - **Structure**: **Folder-based storage** - each session is a self-contained directory
-- **Format**: 
-  ```
-  ~/.config/hypr-sessions/
-  ├── session_name/
-  │   ├── session.json           # Main session metadata and windows
-  │   ├── neovide-session-*.vim  # Neovide session files
-  │   └── (future: browser-*.json, other app data)
-  ```
+- **Format**:
+    ```
+    ~/.config/hypr-sessions/
+    ├── session_name/
+    │   ├── session.json           # Main session metadata and windows
+    │   ├── neovide-session-*.vim  # Neovide session files
+    │   └── (future: browser-*.json, other app data)
+    ```
 - **Benefits**: Self-contained sessions, easier cleanup, no file conflicts, extensible
 - **Window data**: class, title, PID, position, size, launch_command, working_directory (terminals)
 - **Neovide data**: neovide_session object with working_directory and session_file paths within session directory
@@ -94,10 +98,12 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 ## Future Development Roadmap
 
 ### **Immediate Priorities (Current Work)**
+
 1. **Firefox browser support** - Extend extension approach to Firefox
 2. **Better window positioning** - More precise layout restoration for all applications
 
 ### **Planned Enhancements**
+
 1. **Multi-browser sessions** - Handle mixed browser environments (Zen + Firefox)
 2. **Better window positioning** - More precise layout restoration for all applications
 3. **Qt/QML UI** - Graphical interface for session management
@@ -116,6 +122,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 - Test grouping with multiple terminal windows
 - Verify working directory capture across different terminals
 - Check workspace isolation (no unintended workspace switching)
+- **IMPORTANT**: Always test restore commands in workspace 4 using: `hyprctl dispatch workspace 4 && ./hypr-sessions.py restore session-name`
 
 ## Debug Mode
 
@@ -164,6 +171,7 @@ Debug output includes:
 ### Phase 1: Native Messaging Extension Approach (2025-07-21) - DEPRECATED
 
 **Original Implementation**: Complex native messaging extension system
+
 - **Extension Architecture**: Firefox/Zen WebExtension with native messaging
 - **Communication**: File-based triggers + native messaging protocol
 - **Issues**: Extension not responding to triggers, complex debugging, maintenance overhead
@@ -172,6 +180,7 @@ Debug output includes:
 ### Phase 2: sessionstore.jsonlz4 Direct Access (2025-08-08) - ABANDONED
 
 **Attempted Implementation**: Direct access to Zen browser's session storage files
+
 - **Method**: Parse Mozilla's LZ4-compressed session files directly
 - **Issues**: Session files don't update in real-time, window-to-tab mapping complexity
 - **Status**: ⚠️ Abandoned due to unreliable session data correlation
@@ -179,6 +188,7 @@ Debug output includes:
 ### Phase 3: Keyboard Shortcut Extension Approach (2025-08-10) - ✅ CURRENT
 
 **Final Solution**: Browser extension with keyboard shortcut triggers via hyprctl sendshortcut
+
 - **Method**: Extension responds to Alt+U, saves tab data to Downloads folder
 - **Communication**: hyprctl sendshortcut sends Alt+U directly to specific browser window
 - **File Transfer**: Extension creates timestamped JSON files for Python script to process
@@ -187,12 +197,14 @@ Debug output includes:
 #### **✅ Working Implementation**
 
 **Browser Extension** (`browser_extension/`):
+
 - ✅ **Keyboard Command**: Alt+U registered in manifest.json
 - ✅ **Tab Capture**: Captures all tabs from current window with metadata
 - ✅ **File Output**: Saves `hypr-session-tabs-{timestamp}.json` to Downloads
 - ✅ **Clean Architecture**: Focused 140-line background.js, no native messaging complexity
 
 **Python Integration** (`session_save/browser_handler.py`):
+
 - ✅ **Direct Shortcut**: Uses `hyprctl dispatch sendshortcut ALT,u,address:{window_address}`
 - ✅ **No Window Focus**: Sends shortcut directly to specific window without focusing
 - ✅ **File Monitoring**: Detects new tab files by comparing before/after file lists
@@ -202,6 +214,7 @@ Debug output includes:
 #### **Technical Architecture**
 
 **Workflow**:
+
 1. **Window Detection**: Python script identifies Zen browser windows via hyprctl
 2. **Shortcut Delivery**: `hyprctl dispatch sendshortcut ALT,u,address:{window_address}`
 3. **Extension Response**: Browser extension captures current window tabs
@@ -210,38 +223,42 @@ Debug output includes:
 6. **Session Integration**: Tab data merged into window's browser_session object
 
 **Key Components**:
+
 - ✅ `capture_tabs_via_keyboard_shortcut()`: Main orchestration method
-- ✅ `wait_for_keyboard_shortcut_file()`: Monitors Downloads for new files  
+- ✅ `wait_for_keyboard_shortcut_file()`: Monitors Downloads for new files
 - ✅ `load_keyboard_shortcut_tab_data()`: Parses extension JSON format
 - ✅ File cleanup and error handling with clear diagnostics
 
 #### **Technical Implementation Details**
 
 **Session Data Structure**:
+
 ```json
 {
-  "windows": [
-    {
-      "tabs": [
-        {
-          "entries": [{"url": "https://...", "title": "Page Title"}],
-          "index": 1,
-          "pinned": false
-        }
-      ],
-      "selected": 2
-    }
-  ]
+	"windows": [
+		{
+			"tabs": [
+				{
+					"entries": [{ "url": "https://...", "title": "Page Title" }],
+					"index": 1,
+					"pinned": false
+				}
+			],
+			"selected": 2
+		}
+	]
 }
 ```
 
 **Tab Extraction Logic**:
+
 - ✅ Navigation history handling (entries array with index)
 - ✅ URL filtering (skip about: pages, extensions)
 - ✅ Active tab detection via selected index
 - ✅ Pinned status capture
 
 **File Structure**:
+
 ```
 session_save/
 ├── browser_handler.py         # Keyboard shortcut integration
@@ -256,39 +273,41 @@ browser_extension/             # Zen browser extension
 
 ```json
 {
-  "browser_session": {
-    "browser_type": "zen",
-    "capture_method": "keyboard_shortcut", 
-    "keyboard_shortcut": "Alt+U",
-    "tab_count": 15,
-    "window_id": 21884,
-    "tabs": [
-      {
-        "id": 717,
-        "url": "https://example.com",
-        "title": "Example Page",
-        "active": false,
-        "pinned": false,
-        "index": 1,
-        "windowId": 21884
-      }
-    ]
-  }
+	"browser_session": {
+		"browser_type": "zen",
+		"capture_method": "keyboard_shortcut",
+		"keyboard_shortcut": "Alt+U",
+		"tab_count": 15,
+		"window_id": 21884,
+		"tabs": [
+			{
+				"id": 717,
+				"url": "https://example.com",
+				"title": "Example Page",
+				"active": false,
+				"pinned": false,
+				"index": 1,
+				"windowId": 21884
+			}
+		]
+	}
 }
 ```
 
 #### **Current Status (2025-08-10)**
 
 ✅ **COMPLETED - Browser Session Saving**:
+
 - ✅ Zen browser window detection
 - ✅ Keyboard shortcut delivery via hyprctl sendshortcut
 - ✅ Extension tab capture and file generation
-- ✅ Python script file monitoring and processing  
+- ✅ Python script file monitoring and processing
 - ✅ Session JSON integration with full tab metadata
 - ✅ Automatic cleanup of temporary files
 - ✅ Comprehensive debug logging and error handling
 
 🚧 **IN PROGRESS - Browser Session Restoration**:
+
 - ✅ Launch command generation with tab URLs
 - ⏳ Tab restoration testing and optimization
 - ⏳ Workspace-specific browser window positioning
@@ -296,6 +315,7 @@ browser_extension/             # Zen browser extension
 **Performance**: Successfully captures 15+ tabs in ~2 seconds with no user workflow disruption.
 
 #### **Dependencies**
+
 - Zen browser with installed hypr-sessions extension
 - Extension must be loaded and keyboard shortcuts enabled
 - Downloads folder write permissions for tab data files
@@ -336,6 +356,7 @@ browser_extension/             # Zen browser extension
 ### Current Status (2025-08-13)
 
 ✅ **COMPLETED - Folder-Based Session Storage**:
+
 - ✅ Configuration system updated with new path methods
 - ✅ Session saving to individual directories with all files contained
 - ✅ Session listing showing directory-based sessions with metadata
@@ -345,6 +366,7 @@ browser_extension/             # Zen browser extension
 - ✅ Legacy file cleanup and application command fixes
 
 **Benefits Realized**:
+
 - **Cleaner Organization**: Session directories clearly show what belongs to each session
 - **Safer Operations**: Deleting a session removes only that session's files
 - **Development Friendly**: Easier to debug and inspect session contents
@@ -389,6 +411,7 @@ browser_extension/             # Zen browser extension
 ### Current Status (2025-08-13)
 
 ✅ **COMPLETED - Input Validation System**:
+
 - ✅ Custom exception classes for validation scenarios
 - ✅ Comprehensive session name validation with filesystem safety
 - ✅ Session existence validation without side effects
@@ -397,6 +420,7 @@ browser_extension/             # Zen browser extension
 - ✅ User-friendly error messages with actionable guidance
 
 **Validation Examples**:
+
 - **Invalid Characters**: `Error: Session name contains invalid characters: '/'. Invalid characters: <>:"/\|?*`
 - **Reserved Names**: `Error: '..' is a reserved name and cannot be used`
 - **Length Limits**: `Error: Session name too long (201 chars). Maximum length is 200`
@@ -404,6 +428,7 @@ browser_extension/             # Zen browser extension
 - **Duplicate Detection**: `Error: Session 'existing' already exists. Delete it first or use a different name.`
 
 **Benefits Realized**:
+
 - **Prevented Errors**: Invalid inputs caught before operations begin
 - **Better UX**: Clear error messages guide users to valid inputs
 - **System Safety**: Filesystem-safe names prevent directory traversal and corruption
@@ -458,10 +483,10 @@ browser_extension/             # Zen browser extension
 1. **Input Validation System**: Comprehensive session name and directory validation ✅
 2. **Structured Error Results**: Rich operation feedback with partial failure support ✅
 3. **Remaining Improvement Options**:
-   - **Retry Mechanisms**: Automatic retry for transient failures
-   - **Configuration Validation**: Startup-time environment and dependency checking
-   - **Recovery Suggestions**: Contextual hints for resolving common issues
-   - **Operation Rollback**: Undo capability for failed operations
+    - **Retry Mechanisms**: Automatic retry for transient failures
+    - **Configuration Validation**: Startup-time environment and dependency checking
+    - **Recovery Suggestions**: Contextual hints for resolving common issues
+    - **Operation Rollback**: Undo capability for failed operations
 
 ### Debug Output Examples
 
@@ -599,39 +624,42 @@ This file serves as the primary knowledge base for understanding the project's e
 ### Technical Implementation Details
 
 **JSON Output Format**:
+
 ```json
 {
-  "success": true,
-  "operation": "Save session 'work-session'",
-  "data": {
-    "session_file": "/path/to/session.json",
-    "windows_saved": 5,
-    "groups_detected": 1
-  },
-  "messages": [
-    {
-      "status": "success",
-      "message": "Session saved successfully",
-      "context": null
-    }
-  ],
-  "summary": {
-    "success_count": 15,
-    "warning_count": 2,
-    "error_count": 0
-  }
+	"success": true,
+	"operation": "Save session 'work-session'",
+	"data": {
+		"session_file": "/path/to/session.json",
+		"windows_saved": 5,
+		"groups_detected": 1
+	},
+	"messages": [
+		{
+			"status": "success",
+			"message": "Session saved successfully",
+			"context": null
+		}
+	],
+	"summary": {
+		"success_count": 15,
+		"warning_count": 2,
+		"error_count": 0
+	}
 }
 ```
 
 **CLI Architecture Changes**:
-- **_output_json_result()**: Dedicated JSON output method in main CLI
-- **_print_session_list()**: Structured presentation for normal mode
+
+- **\_output_json_result()**: Dedicated JSON output method in main CLI
+- **\_print_session_list()**: Structured presentation for normal mode
 - **Pure Session Classes**: No presentation logic, only data operations
 - **Debug Coexistence**: Debug output appears before JSON, doesn't contaminate structure
 
 ### Current Status
 
 ✅ **COMPLETED - JSON API Implementation**:
+
 - ✅ Clean JSON output without print statement contamination
 - ✅ Proper separation of data operations and presentation logic
 - ✅ All session operations support --json flag (save, restore, list, delete)
@@ -640,21 +668,23 @@ This file serves as the primary knowledge base for understanding the project's e
 - ✅ Comprehensive testing of all commands with --json and --debug flags
 
 **Usage Examples**:
+
 ```bash
 # UI-ready JSON output
 ./hypr-sessions.py list --json
 ./hypr-sessions.py save work-session --json
-./hypr-sessions.py restore work-session --json
+hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json
 ./hypr-sessions.py delete work-session --json
 
 # Debug output with JSON structure
-./hypr-sessions.py restore work-session --json --debug
+hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json --debug
 
 # Error cases return structured JSON
 ./hypr-sessions.py restore nonexistent-session --json
 ```
 
 **UI Integration Benefits**:
+
 - **Simple Implementation**: No complex library imports or API integration
 - **Reliable Output**: Guaranteed clean JSON structure for parsing
 - **Error Handling**: Structured error responses with actionable messages
@@ -733,6 +763,7 @@ This file serves as the primary knowledge base for understanding the project's e
 - **Proper Quoting**: Fixed command generation with proper shell escaping and quoting
 
 **Technical Details:**
+
 - **Direct Programs**: `ghostty --working-directory=/path -e sh -c "yazi; exec $SHELL"`
 - **Shell Commands**: `ghostty --working-directory=/path -e sh -c "trap 'echo Program interrupted' INT; npm run dev; exec $SHELL"`
 - **Package Manager Support**: npm, yarn, pnpm, bun commands are automatically treated as shell commands
@@ -741,3 +772,86 @@ This file serves as the primary knowledge base for understanding the project's e
 ### Known Limitations
 
 - **None currently identified** - Terminal persistence feature is complete and working
+
+## Fabric UI Implementation (2025-08-14)
+
+### Implemented
+
+1. **Fabric-based Layer Widget**: Complete graphical user interface implementation
+    - **Wayland Layer Shell**: Native layer widget using WaylandWindow for overlay display
+    - **Centered Display**: Layer widget appears centered on screen as overlay
+    - **Keyboard Navigation**: Esc key support for closing the widget
+    - **Clean Architecture**: Separated Python logic from CSS styling
+
+2. **Session List Display**:
+    - **Automatic Discovery**: Scans `~/.config/hypr-sessions/` for available sessions
+    - **Interactive Buttons**: Each session displayed as clickable button in vertical list
+    - **Dynamic Content**: Shows "No sessions found" when no sessions exist
+    - **Session Detection**: Validates session directories contain session.json files
+
+3. **UI Structure and Styling**:
+    - **External CSS**: Clean separation with session_manager.css stylesheet
+    - **GTK-Compatible Styling**: Proper CSS without unsupported properties
+    - **Responsive Design**: Appropriate sizing and spacing for session lists
+    - **Clean Typography**: Readable fonts without problematic emoji rendering
+
+4. **Framework Integration**:
+    - **Virtual Environment**: Isolated Fabric installation in fabric-ui/venv/
+    - **Import Structure**: Proper module imports and path handling
+    - **Error Handling**: Graceful handling of missing sessions and CSS issues
+
+### Technical Implementation Details
+
+**File Structure**:
+
+```
+fabric-ui/
+├── session_manager.py      # Main UI widget implementation
+├── session_manager.css     # External stylesheet
+└── venv/                   # Fabric framework virtual environment
+```
+
+**Key Components**:
+
+- **SessionManagerWidget**: Main WaylandWindow class extending Fabric widgets
+- **Session Discovery**: Method to scan and validate session directories
+- **Button Generation**: Dynamic creation of session buttons with click handlers
+- **CSS Integration**: External stylesheet loading with error handling
+
+**UI Features**:
+
+- **Title Display**: "Hypr Sessions Manager" with subtitle
+- **Session List**: "Available Sessions:" header with button list below
+- **Keyboard Support**: Esc key closes the widget (keyboard_mode="on-demand")
+- **Button Interaction**: Click handlers prepared for future restore functionality
+
+### Current Status (2025-08-14)
+
+✅ **COMPLETED - Fabric UI Foundation**:
+
+- ✅ Working layer widget with proper Wayland integration
+- ✅ Session discovery and display functionality
+- ✅ Clean UI structure with external CSS styling
+- ✅ Interactive elements with keyboard navigation
+- ✅ Stable codebase without CSS or rendering errors
+
+**Usage**:
+
+```bash
+cd fabric-ui
+source venv/bin/activate
+python session_manager.py
+```
+
+**Next Steps**:
+
+- **Button Functionality**: Connect session buttons to actual restore operations
+- **Additional Features**: Save session functionality, refresh capability
+- **Enhanced UI**: Session metadata display, deletion options
+
+**Benefits Realized**:
+
+- **User-Friendly Interface**: Graphical alternative to CLI operations
+- **Native Integration**: Proper Wayland layer shell implementation
+- **Maintainable Code**: Clean separation of logic and styling
+- **Extensible Foundation**: Ready for additional session management features

@@ -1,0 +1,77 @@
+/* Hypr Sessions Manager - Fabric Layer Widget Styles */
+
+* {
+    all: unset;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+}
+
+window {
+    background-color: rgba(30, 30, 46, 0.95);
+    border: 3px solid #cba6f7;
+    border-radius: 12px;
+    padding: 30px;
+    margin: 20px;
+    min-width: 300px;
+    min-height: 150px;
+}
+
+#hello-label {
+    color: #cba6f7;
+    font-weight: bold;
+    font-size: 18px;
+    margin: 10px;
+    padding: 5px;
+}
+
+#subtitle-label {
+    color: #a6adc8;
+    font-size: 14px;
+    margin: 5px;
+    padding: 5px;
+}
+
+label {
+    color: #ffffff;
+    background-color: transparent;
+}
+
+
+#content-box {
+    background-color: transparent;
+    padding: 10px;
+}
+
+/* Sessions section */
+#sessions-header {
+    color: #fab387;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+#sessions-container {
+    background-color: rgba(49, 50, 68, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 80px;
+}
+
+#session-button {
+    background-color: rgba(69, 71, 90, 0.6);
+    color: #cdd6f4;
+    border: 1px solid #585b70;
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin: 2px 0;
+    min-width: 250px;
+}
+
+#session-button:hover {
+    background-color: rgba(69, 71, 90, 0.9);
+    border-color: #89b4fa;
+}
+
+#no-sessions-label {
+    color: #6c7086;
+    padding: 20px;
+}
