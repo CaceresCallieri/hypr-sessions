@@ -59,7 +59,6 @@ class SessionDelete(Utils):
             # Remove entire session directory
             shutil.rmtree(session_dir)
             self.debug_print(f"Successfully deleted session directory: {session_dir}")
-            print(f"Session deleted: {session_name} ({file_count} files removed)")
             result.add_success(f"Deleted session directory and {file_count} files")
             result.data = {
                 "session_name": session_name,

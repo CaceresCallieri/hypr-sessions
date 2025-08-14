@@ -152,8 +152,8 @@ class SessionRestore(Utils):
             result.add_error(f"Failed to load session data: {e}")
             return result
 
-        print(f"Restoring session: {session_name}")
-        print(f"Timestamp: {session_data.get('timestamp')}")
+        self.debug_print(f"Restoring session: {session_name}")
+        self.debug_print(f"Timestamp: {session_data.get('timestamp')}")
 
         windows = session_data.get("windows", [])
         groups = session_data.get("groups", {})
@@ -165,25 +165,25 @@ class SessionRestore(Utils):
         # Detect swallowing relationships
         swallowing_relationships = self.detect_swallowing_relationships(windows)
         if swallowing_relationships:
-            print(
+            self.debug_print(
                 f"Found {len(swallowing_relationships)} swallowing relationships to restore"
             )
             result.add_success(f"Detected {len(swallowing_relationships)} swallowing relationships")
 
         if groups:
-            print(f"Found {len(groups)} groups to restore")
+            self.debug_print(f"Found {len(groups)} groups to restore")
 
         # Step 1: Launch applications and create groups during launch
         launch_result = None
         try:
             if groups:
-                print("Launching applications with groups...")
+                self.debug_print("Launching applications with groups...")
                 self.debug_print(f"Using grouped launch method")
                 launch_result = self.launch_with_groups(
                     session_data.get("windows", []), groups, swallowing_relationships
                 )
             else:
-                print("Launching applications...")
+                self.debug_print("Launching applications...")
                 self.debug_print(f"Using simple launch method (no groups)")
                 launch_result = self.launch_windows_simple(
                     session_data.get("windows", []), swallowing_relationships
@@ -203,7 +203,6 @@ class SessionRestore(Utils):
             return result
 
         self.debug_print(f"Session restoration completed")
-        print(f"Restored {len(session_data.get('windows', []))} applications")
         result.add_success(f"Restored {len(windows)} applications")
         
         result.data = {
@@ -263,7 +262,7 @@ class SessionRestore(Utils):
                     swallowing_window, swallowed_window
                 )
                 if combined_command:
-                    print(
+                    self.debug_print(
                         f"Launching swallowing pair: {swallowing_window.get('class')} + {swallowed_window.get('class')}"
                     )
                     self.debug_print(f"Combined swallowing command: {combined_command}")
@@ -284,7 +283,7 @@ class SessionRestore(Utils):
                         self.debug_print(
                             f"Error launching swallowing command '{combined_command}': {e}"
                         )
-                        print(f"Error launching swallowing pair: {e}")
+                        self.debug_print(f"Error launching swallowing pair: {e}")
                         # Fall back to separate launches
                         self._launch_single_window(swallowing_window)
                         self._launch_single_window(swallowed_window)
@@ -311,7 +310,7 @@ class SessionRestore(Utils):
             self.debug_print(f"Skipping window with no launch command")
             return
 
-        print(f"Launching: {command}")
+        self.debug_print(f"Launching: {command}")
         self.debug_print(f"Executing command: {command}")
         try:
             subprocess.Popen(
@@ -322,7 +321,6 @@ class SessionRestore(Utils):
             time.sleep(self.config.delay_between_instructions)
         except Exception as e:
             self.debug_print(f"Error launching command '{command}': {e}")
-            print(f"Error launching {command}: {e}")
 
     def launch_group_with_swallowing(self, group_windows: List[WindowInfo], swallowing_relationships: Dict[str, Dict[str, WindowInfo]]) -> None:
         """Launch a group of windows with swallowing relationship support"""
@@ -369,7 +367,7 @@ class SessionRestore(Utils):
             
             combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
             if combined_command:
-                print(f"  Launching group leader (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
+                self.debug_print(f"Launching group leader (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
                 self.debug_print(f"Group leader swallowing command: {combined_command}")
                 command = combined_command
                 use_swallowing_delay = True
@@ -387,7 +385,7 @@ class SessionRestore(Utils):
             return
         
         # Launch group leader
-        print(f"  Launching group leader: {command}")
+        self.debug_print(f"Launching group leader: {command}")
         try:
             subprocess.Popen(
                 shlex.split(command),
@@ -419,7 +417,7 @@ class SessionRestore(Utils):
                     
                     combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
                     if combined_command:
-                        print(f"  Launching group member (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
+                        self.debug_print(f"Launching group member (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
                         self.debug_print(f"Group member swallowing command: {combined_command}")
                         member_command = combined_command
                         use_member_swallowing_delay = True
@@ -436,7 +434,7 @@ class SessionRestore(Utils):
                     self.debug_print(f"No command for group member, skipping")
                     continue
 
-                print(f"  Launching group member: {member_command}")
+                self.debug_print(f"Launching group member: {member_command}")
                 subprocess.Popen(
                     shlex.split(member_command),
                     stdout=subprocess.DEVNULL,
@@ -452,14 +450,14 @@ class SessionRestore(Utils):
             # Lock the group to prevent other windows from joining
             cmd = ["hyprctl", "dispatch", "lockactivegroup", "lock"]
             subprocess.run(cmd, check=True, capture_output=True)
-            print(f"  Successfully created and locked group with {len(effective_group_windows)} windows")
+            self.debug_print(f"Successfully created and locked group with {len(effective_group_windows)} windows")
 
         except subprocess.CalledProcessError as e:
             self.debug_print(f"Error creating group: {e}")
-            print(f"  Error creating group: {e}")
+            self.debug_print(f"Error creating group: {e}")
         except Exception as e:
             self.debug_print(f"Unexpected error during group creation: {e}")
-            print(f"  Unexpected error during group creation: {e}")
+            self.debug_print(f"Unexpected error during group creation: {e}")
 
     def launch_with_groups(
         self,
@@ -494,7 +492,7 @@ class SessionRestore(Utils):
         # Launch grouped windows with swallowing support
         self.debug_print(f"Launching {len(windows_by_group)} groups")
         for group_id, group_windows in windows_by_group.items():
-            print(
+            self.debug_print(
                 f"Launching group {group_id[:8]}... with {len(group_windows)} windows"
             )
             self.debug_print(

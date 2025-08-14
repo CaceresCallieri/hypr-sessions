@@ -38,12 +38,8 @@ class SessionList(Utils):
         result.add_success(f"Found {len(session_dirs)} session directories")
 
         if not session_dirs:
-            print("No saved sessions found")
             result.data = {"sessions": [], "session_count": 0}
             return result
-
-        print("Saved sessions:")
-        print("-" * 40)
 
         sessions_data = []
         valid_sessions = 0
@@ -68,12 +64,6 @@ class SessionList(Utils):
                     file_count = len(all_files)
                     
                     self.debug_print(f"Session '{session_name}': {window_count} windows, {file_count} files, saved {timestamp}")
-
-                    print(f"  {session_name}")
-                    print(f"    Windows: {window_count}")
-                    print(f"    Files: {file_count}")
-                    print(f"    Saved: {timestamp}")
-                    print()
                     
                     sessions_data.append({
                         "name": session_name,
@@ -87,8 +77,6 @@ class SessionList(Utils):
 
                 except Exception as e:
                     self.debug_print(f"Error reading session file {session_file}: {e}")
-                    print(f"  {session_name} (Error reading: {e})")
-                    print()
                     
                     sessions_data.append({
                         "name": session_name,
@@ -99,8 +87,6 @@ class SessionList(Utils):
                     result.add_warning(f"Failed to read session '{session_name}': {e}")
             else:
                 self.debug_print(f"Session directory {session_dir} missing session.json")
-                print(f"  {session_name} (Incomplete - missing session.json)")
-                print()
                 
                 sessions_data.append({
                     "name": session_name,

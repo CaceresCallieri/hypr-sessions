@@ -60,7 +60,6 @@ class SessionSaver(Utils):
             
             # Store session name for use in other methods
             self.current_session_name = session_name
-            print(f"Saving session: {session_name}")
             self.debug_print(f"Starting session save for: {session_name}")
             
         except (SessionValidationError, SessionAlreadyExistsError) as e:
@@ -167,7 +166,6 @@ class SessionSaver(Utils):
                             working_dir = self.terminal_handler.get_working_directory(pid)
                             if working_dir:
                                 window_data["working_directory"] = working_dir
-                                print(f"  Captured working directory: {working_dir}")
                                 result.add_success(f"Captured working directory for {client_class}")
                             else:
                                 result.add_warning(f"Could not capture working directory for {client_class} (PID: {pid})")
@@ -180,7 +178,6 @@ class SessionSaver(Utils):
                             running_program = self.terminal_handler.get_running_program(pid, debug=self.debug)
                             if running_program:
                                 window_data["running_program"] = running_program
-                                print(f"  Captured running program: {running_program['name']}")
                                 self.debug_print(f"Running program details: {running_program}")
                                 result.add_success(f"Captured running program '{running_program['name']}' for {client_class}")
                             else:
@@ -191,7 +188,6 @@ class SessionSaver(Utils):
                 # For Neovide windows, capture session information
                 if self.neovide_handler.is_neovide_window(window_data):
                     pid = window_data.get("pid")
-                    print(f"  Found Neovide window (PID: {pid})")
                     self.debug_print(f"Detected Neovide window with class '{client_class}' and PID {pid}")
                     try:
                         neovide_session_info = self.neovide_handler.get_neovide_session_info(pid)
@@ -204,10 +200,8 @@ class SessionSaver(Utils):
                             self.debug_print(f"Created session file: {session_file}")
                             if session_file:
                                 window_data["neovide_session"]["session_file"] = session_file
-                                print(f"  Captured Neovide session: {session_file}")
                                 result.add_success(f"Captured Neovide session file for {client_class}")
                             else:
-                                print(f"  Could not capture Neovide session, will restore with working directory")
                                 result.add_warning(f"Could not capture Neovide session for {client_class}, using working directory fallback")
                         else:
                             self.debug_print(f"Failed to get Neovide session info for PID {pid}")
@@ -219,7 +213,6 @@ class SessionSaver(Utils):
                 if self.browser_handler.is_browser_window(window_data):
                     pid = window_data.get("pid")
                     browser_type = self.browser_handler.get_browser_type(window_data)
-                    print(f"  Found {browser_type} browser window (PID: {pid})")
                     self.debug_print(f"Detected browser window with class '{client_class}' and PID {pid}")
                     try:
                         browser_session_info = self.browser_handler.get_enhanced_browser_session_info(window_data, session_name)
@@ -227,7 +220,6 @@ class SessionSaver(Utils):
                         if browser_session_info:
                             window_data["browser_session"] = browser_session_info
                             capture_method = browser_session_info.get("capture_method", "basic")
-                            print(f"  Captured {browser_type} browser session ({capture_method})")
                             result.add_success(f"Captured {browser_type} browser session using {capture_method} method")
                         else:
                             self.debug_print(f"Failed to get browser session info for PID {pid}")
@@ -260,9 +252,9 @@ class SessionSaver(Utils):
 
         # Debug: Print group information
         if groups:
-            print(f"Found {len(groups)} groups:")
+            self.debug_print(f"Found {len(groups)} groups:")
             for group_id, addresses in groups.items():
-                print(f"  Group {group_id[:8]}... has {len(addresses)} windows")
+                self.debug_print(f"  Group {group_id[:8]}... has {len(addresses)} windows")
             result.add_success(f"Detected {len(groups)} window groups")
 
         # Save session to file in new folder structure
@@ -270,8 +262,6 @@ class SessionSaver(Utils):
         try:
             with open(session_file, "w") as f:
                 json.dump(session_data, f, indent=2)
-            print(f"Session saved to: {session_file}")
-            print(f"Saved {len(session_data['windows'])} windows")
             result.add_success(f"Session saved to {session_file}")
             result.data = {
                 "session_file": str(session_file),

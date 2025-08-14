@@ -5,6 +5,7 @@ Captures and restores workspace sessions in Hyprland
 """
 
 import argparse
+import json
 import sys
 from typing import Optional
 
@@ -20,8 +21,9 @@ from validation import (
 
 
 class HyprlandSessionManager:
-    def __init__(self, debug: bool = False) -> None:
+    def __init__(self, debug: bool = False, json_output: bool = False) -> None:
         self.debug: bool = debug
+        self.json_output: bool = json_output
         self.saver: SessionSaver = SessionSaver(debug=debug)
         self.restorer: SessionRestore = SessionRestore(debug=debug)
         self.lister: SessionList = SessionList(debug=debug)
@@ -32,7 +34,11 @@ class HyprlandSessionManager:
             validate_session_name(session_name)
             result = self.saver.save_session(session_name)
             
-            # Print detailed results for debugging
+            if self.json_output:
+                self._output_json_result(result)
+                sys.exit(0 if result.success else 1)
+            
+            # Normal output mode
             if self.debug:
                 result.print_detailed_result()
             else:
@@ -48,7 +54,17 @@ class HyprlandSessionManager:
             
             return result.success
         except SessionValidationError as e:
-            print(f"Error: {e}")
+            if self.json_output:
+                error_result = {
+                    "success": False,
+                    "operation": f"Save session '{session_name}'",
+                    "error": str(e),
+                    "messages": [{"status": "error", "message": str(e), "context": None}]
+                }
+                print(json.dumps(error_result, indent=2))
+                sys.exit(1)
+            else:
+                print(f"Error: {e}")
             return False
 
     def restore_session(self, session_name: str) -> bool:
@@ -56,7 +72,11 @@ class HyprlandSessionManager:
             validate_session_name(session_name)
             result = self.restorer.restore_session(session_name)
             
-            # Print detailed results for debugging
+            if self.json_output:
+                self._output_json_result(result)
+                sys.exit(0 if result.success else 1)
+            
+            # Normal output mode
             if self.debug:
                 result.print_detailed_result()
             else:
@@ -72,13 +92,30 @@ class HyprlandSessionManager:
             
             return result.success
         except SessionValidationError as e:
-            print(f"Error: {e}")
+            if self.json_output:
+                error_result = {
+                    "success": False,
+                    "operation": f"Restore session '{session_name}'",
+                    "error": str(e),
+                    "messages": [{"status": "error", "message": str(e), "context": None}]
+                }
+                print(json.dumps(error_result, indent=2))
+                sys.exit(1)
+            else:
+                print(f"Error: {e}")
             return False
 
     def list_sessions(self) -> None:
         result = self.lister.list_sessions()
         
-        # Print detailed results for debugging
+        if self.json_output:
+            self._output_json_result(result)
+            sys.exit(0 if result.success else 1)
+        
+        # Normal output mode - CLI handles all presentation
+        if result.success and result.data:
+            self._print_session_list(result.data)
+        
         if self.debug:
             result.print_detailed_result()
         else:
@@ -89,13 +126,61 @@ class HyprlandSessionManager:
                 print(f"✗ {result.error_count} errors occurred")
                 for error in result.errors:
                     print(f"  Error: {error.message}")
+    
+    def _print_session_list(self, data: dict) -> None:
+        """Handle session list presentation in CLI"""
+        sessions = data.get('sessions', [])
+        
+        if not sessions:
+            print("No saved sessions found")
+            return
+
+        print("Saved sessions:")
+        print("-" * 40)
+
+        for session in sessions:
+            if session.get('valid', False):
+                print(f"  {session['name']}")
+                print(f"    Windows: {session['windows']}")
+                print(f"    Files: {session['files']}")
+                print(f"    Saved: {session['timestamp']}")
+                print()
+            else:
+                error = session.get('error', 'Unknown error')
+                print(f"  {session['name']} (Error: {error})")
+                print()
+    
+    def _output_json_result(self, result) -> None:
+        """Output structured JSON result"""
+        json_result = {
+            "success": result.success,
+            "operation": result.operation_name,
+            "data": result.data,
+            "messages": [
+                {
+                    "status": msg.status.value,
+                    "message": msg.message,
+                    "context": msg.context
+                } for msg in result.messages
+            ],
+            "summary": {
+                "success_count": result.success_count,
+                "warning_count": result.warning_count,
+                "error_count": result.error_count
+            }
+        }
+        print(json.dumps(json_result, indent=2))
 
     def delete_session(self, session_name: str) -> bool:
         try:
             validate_session_name(session_name)
             result = self.deleter.delete_session(session_name)
             
-            # Print detailed results for debugging
+            if self.json_output:
+                self._output_json_result(result)
+                sys.exit(0 if result.success else 1)
+            
+            # Normal output mode
             if self.debug:
                 result.print_detailed_result()
             else:
@@ -111,7 +196,17 @@ class HyprlandSessionManager:
             
             return result.success
         except SessionValidationError as e:
-            print(f"Error: {e}")
+            if self.json_output:
+                error_result = {
+                    "success": False,
+                    "operation": f"Delete session '{session_name}'",
+                    "error": str(e),
+                    "messages": [{"status": "error", "message": str(e), "context": None}]
+                }
+                print(json.dumps(error_result, indent=2))
+                sys.exit(1)
+            else:
+                print(f"Error: {e}")
             return False
 
 
@@ -132,10 +227,15 @@ def main() -> None:
         action="store_true",
         help="Enable debug output for troubleshooting",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results in JSON format for UI integration",
+    )
 
     args = parser.parse_args()
 
-    manager = HyprlandSessionManager(debug=args.debug)
+    manager = HyprlandSessionManager(debug=args.debug, json_output=args.json)
 
     if args.action == "save":
         if not args.session_name:
