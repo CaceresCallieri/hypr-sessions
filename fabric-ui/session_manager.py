@@ -3,11 +3,9 @@
 Hypr Sessions Manager - Fabric Layer Widget
 """
 
-import os
 import sys
 from pathlib import Path
 
-# Import GTK for the switch widget
 import gi
 from fabric import Application
 from fabric.widgets.box import Box
@@ -34,8 +32,8 @@ class SessionManagerWidget(WaylandWindow):
             anchor="center",
             exclusivity="none",
             keyboard_mode="on-demand",
-            visible=True,
-            all_visible=True,
+            visible=False,
+            all_visible=False,
         )
 
         # Initialize session utilities
@@ -96,8 +94,7 @@ class SessionManagerWidget(WaylandWindow):
         # Connect keyboard events
         self.connect("key-press-event", self.on_key_press)
 
-        # Show everything
-        content_box.show_all()
+        # Show window after all content is added
         self.show_all()
 
     def _on_browse_mode(self):
