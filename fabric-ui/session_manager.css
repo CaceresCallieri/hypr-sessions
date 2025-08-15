@@ -145,3 +145,62 @@ label {
 	background-color: rgba(203, 166, 247, 0.2);
 }
 
+/* Dynamic content area */
+#dynamic-content {
+	background-color: transparent;
+	min-height: 200px;
+}
+
+/* Browse panel */
+#browse-panel {
+	background-color: transparent;
+}
+
+/* Save panel */
+#save-panel {
+	background-color: rgba(49, 50, 68, 0.3);
+	border-radius: 8px;
+	padding: 20px;
+	margin: 10px 0;
+}
+
+#save-header {
+	color: #a6e3a1;
+	font-weight: bold;
+	margin-bottom: 10px;
+}
+
+#session-name-input {
+	background-color: #313244;
+	border: 1px solid #585b70;
+	border-radius: 6px;
+	padding: 10px 12px;
+	color: #cdd6f4;
+	font-size: 14px;
+	min-width: 250px;
+}
+
+#session-name-input:focus {
+	border-color: #a6e3a1;
+	box-shadow: 0 0 0 2px rgba(166, 227, 161, 0.3);
+}
+
+#save-session-button {
+	background-color: #a6e3a1;
+	color: #181825;
+	border: none;
+	border-radius: 8px;
+	padding: 12px 20px;
+	font-weight: bold;
+	font-size: 14px;
+	min-width: 180px;
+}
+
+#save-session-button:hover {
+	background-color: #94e2d5;
+}
+
+#save-session-button:active {
+	background-color: #89dceb;
+}
+

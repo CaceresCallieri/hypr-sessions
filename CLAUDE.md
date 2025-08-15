@@ -806,6 +806,19 @@ hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json -
     - **Equal Button Sizing**: GTK homogeneous box for perfectly balanced appearance
     - **State Management**: Interactive switching with visual feedback and console logging
 
+6. **Panel Switching Logic (2025-08-15)**:
+    - **Dynamic Content Area**: Container that switches between browse and save panels
+    - **Seamless Transitions**: Smooth panel switching without UI flickering
+    - **State Tracking**: Proper mode tracking with visual button state updates
+    - **Content Management**: Dynamic widget replacement using children property
+
+7. **Save Session Panel (2025-08-15)**:
+    - **Input Field**: Entry widget for session name with placeholder text
+    - **Save Button**: Styled button with emoji and click handler
+    - **Auto-Focus**: Automatic input field focus when switching to save mode
+    - **Input Validation**: Basic validation with user feedback
+    - **Green Theme**: Consistent styling with green color scheme
+
 ### Technical Implementation Details
 
 **File Structure**:
@@ -833,14 +846,16 @@ fabric-ui/
 - **Keyboard Support**: Esc key closes the widget (keyboard_mode="on-demand")
 - **Button Interaction**: Click handlers prepared for future restore functionality
 
-### Current Status (2025-08-14)
+### Current Status (2025-08-15)
 
-✅ **COMPLETED - Fabric UI Foundation**:
+✅ **COMPLETED - Complete Fabric UI Implementation**:
 
 - ✅ Working layer widget with proper Wayland integration
 - ✅ Session discovery and display functionality
 - ✅ Clean UI structure with external CSS styling
 - ✅ Segmented toggle switch for Browse/Save mode selection
+- ✅ Panel switching logic with dynamic content management
+- ✅ Save Session panel with input field and auto-focus
 - ✅ Interactive elements with keyboard navigation
 - ✅ Stable codebase without CSS or rendering errors
 
@@ -854,9 +869,9 @@ python session_manager.py
 
 **Next Steps**:
 
-- **Panel Switching**: Implement show/hide logic for Browse vs Save panels
-- **Save Session Panel**: Create UI for saving new sessions with input validation
-- **Button Functionality**: Connect session buttons to actual restore operations
+- **Code Refactoring**: Separate widgets into different files for better organization
+- **Backend Integration**: Connect save session functionality to actual CLI backend
+- **Restore Functionality**: Connect session buttons to actual restore operations
 - **Enhanced UI**: Session metadata display, deletion options
 
 **Benefits Realized**:
