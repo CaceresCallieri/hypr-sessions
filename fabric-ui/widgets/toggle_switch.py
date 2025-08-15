@@ -45,30 +45,36 @@ class ToggleSwitchWidget(Box):
     
     def _handle_browse_clicked(self, *args):
         """Handle browse button click"""
-        if not self.is_save_mode:
-            return  # Already in browse mode
-            
+        # set_browse_mode() now handles everything including callbacks
         self.set_browse_mode()
-        if self.on_browse_clicked:
-            self.on_browse_clicked()
     
     def _handle_save_clicked(self, *args):
         """Handle save button click"""
-        if self.is_save_mode:
-            return  # Already in save mode
-            
+        # set_save_mode() now handles everything including callbacks
         self.set_save_mode()
-        if self.on_save_clicked:
-            self.on_save_clicked()
     
     def set_browse_mode(self):
-        """Switch to browse mode visual state"""
+        """Switch to browse mode - updates visual state and triggers callback"""
+        if not self.is_save_mode:
+            return  # Already in browse mode
+            
         self.is_save_mode = False
         self.browse_button.set_name("toggle-left-active")
         self.save_button.set_name("toggle-right-inactive")
+        
+        # Automatically trigger callback for panel switching
+        if self.on_browse_clicked:
+            self.on_browse_clicked()
     
     def set_save_mode(self):
-        """Switch to save mode visual state"""
+        """Switch to save mode - updates visual state and triggers callback"""
+        if self.is_save_mode:
+            return  # Already in save mode
+            
         self.is_save_mode = True
         self.browse_button.set_name("toggle-left-inactive")
         self.save_button.set_name("toggle-right-active")
+        
+        # Automatically trigger callback for panel switching
+        if self.on_save_clicked:
+            self.on_save_clicked()
