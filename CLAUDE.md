@@ -871,7 +871,7 @@ fabric-ui/
 - **Title Display**: "Hypr Sessions Manager" with subtitle
 - **Segmented Toggle**: Browse Sessions/Save Session toggle with equal button sizing
 - **Session List**: "Available Sessions:" header with button list below
-- **Keyboard Support**: Esc key closes the widget (keyboard_mode="on-demand")
+- **Keyboard Support**: Esc key properly terminates the entire application (keyboard_mode="on-demand")
 - **Button Interaction**: Click handlers prepared for future restore functionality
 
 ### Current Status (2025-08-15)

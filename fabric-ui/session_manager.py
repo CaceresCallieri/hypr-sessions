@@ -25,6 +25,7 @@ from utils import SessionUtils
 
 class SessionManagerWidget(WaylandWindow):
     def __init__(self):
+        self.app = None  # Will be set after Application creation
         super().__init__(
             title="session-manager",
             name="session-manager",
@@ -136,7 +137,10 @@ class SessionManagerWidget(WaylandWindow):
         """Handle key press events"""
         # Check for Escape key (keycode 9)
         if event.get_keycode()[1] == 9:  # Esc key
-            self.close()
+            if self.app:
+                self.app.quit()  # Properly quit the entire application
+            else:
+                self.close()  # Fallback to just closing window
             return True  # Event handled
         return False  # Event not handled
 
@@ -145,11 +149,14 @@ def main():
     """Create and run the session manager widget"""
     print("Starting Hypr Sessions Manager...")
 
-    # Create widget
+    # Create widget first
     widget = SessionManagerWidget()
 
-    # Create application
+    # Create application with widget
     app = Application("hypr-sessions-manager", widget)
+    
+    # Store app reference in widget for proper shutdown
+    widget.app = app
 
     # Load CSS from external file
     css_path = Path(__file__).parent / "session_manager.css"
@@ -159,7 +166,7 @@ def main():
     else:
         print("Warning: session_manager.css not found")
 
-    print("Session Manager started! Press Ctrl+C or click Close to exit")
+    print("Session Manager started! Press Esc to exit")
     app.run()
 
 
