@@ -819,24 +819,41 @@ hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json -
     - **Input Validation**: Basic validation with user feedback
     - **Green Theme**: Consistent styling with green color scheme
 
+8. **Code Refactoring and Modular Architecture (2025-08-15)**:
+    - **Widget Separation**: Extracted components into dedicated widget files
+    - **Package Structure**: Created widgets/ and utils/ packages with proper __init__.py files
+    - **Specialized Modules**: ToggleSwitchWidget, BrowsePanelWidget, SavePanelWidget classes
+    - **Session Utilities**: Centralized session directory operations in SessionUtils class
+    - **Callback Interface**: Clean communication between widgets using callback functions
+    - **Code Reduction**: Main file reduced from 311 to 166 lines (47% reduction)
+
 ### Technical Implementation Details
 
 **File Structure**:
 
 ```
 fabric-ui/
-├── session_manager.py      # Main UI widget implementation
+├── session_manager.py      # Main application and window class (166 lines)
+├── widgets/                # Widget components package
+│   ├── __init__.py         # Package initialization with exports
+│   ├── toggle_switch.py    # ToggleSwitchWidget - segmented toggle control
+│   ├── browse_panel.py     # BrowsePanelWidget - session listing and selection
+│   └── save_panel.py       # SavePanelWidget - session creation interface
+├── utils/                  # Utility modules package
+│   ├── __init__.py         # Package initialization with exports
+│   └── session_utils.py    # SessionUtils class - directory operations
 ├── session_manager.css     # External stylesheet
 └── venv/                   # Fabric framework virtual environment
 ```
 
 **Key Components**:
 
-- **SessionManagerWidget**: Main WaylandWindow class extending Fabric widgets
-- **Session Discovery**: Method to scan and validate session directories
-- **Button Generation**: Dynamic creation of session buttons with click handlers
-- **Segmented Toggle**: Two-button switch with active/inactive state management
-- **CSS Integration**: External stylesheet loading with error handling
+- **SessionManagerWidget**: Main WaylandWindow class with widget orchestration and callbacks
+- **ToggleSwitchWidget**: Segmented toggle control with state management and callback interface
+- **BrowsePanelWidget**: Session discovery, listing, and selection with refresh capability
+- **SavePanelWidget**: Session creation interface with input validation and utility methods
+- **SessionUtils**: Centralized session directory operations and path management
+- **CSS Integration**: External stylesheet loading with modular widget styling
 
 **UI Features**:
 
@@ -848,7 +865,7 @@ fabric-ui/
 
 ### Current Status (2025-08-15)
 
-✅ **COMPLETED - Complete Fabric UI Implementation**:
+✅ **COMPLETED - Modular Fabric UI Implementation**:
 
 - ✅ Working layer widget with proper Wayland integration
 - ✅ Session discovery and display functionality
@@ -857,6 +874,8 @@ fabric-ui/
 - ✅ Panel switching logic with dynamic content management
 - ✅ Save Session panel with input field and auto-focus
 - ✅ Interactive elements with keyboard navigation
+- ✅ Modular architecture with separated widget components
+- ✅ Package structure with proper imports and exports
 - ✅ Stable codebase without CSS or rendering errors
 
 **Usage**:
@@ -869,14 +888,17 @@ python session_manager.py
 
 **Next Steps**:
 
-- **Code Refactoring**: Separate widgets into different files for better organization
 - **Backend Integration**: Connect save session functionality to actual CLI backend
 - **Restore Functionality**: Connect session buttons to actual restore operations
 - **Enhanced UI**: Session metadata display, deletion options
+- **Error Handling**: User feedback for save/restore operations
+- **Session Management**: Delete session functionality with confirmation dialogs
 
 **Benefits Realized**:
 
 - **User-Friendly Interface**: Graphical alternative to CLI operations
 - **Native Integration**: Proper Wayland layer shell implementation
-- **Maintainable Code**: Clean separation of logic and styling
+- **Maintainable Code**: Clean separation of logic and styling with modular architecture
 - **Extensible Foundation**: Ready for additional session management features
+- **Developer Experience**: 47% code reduction in main file, focused widget responsibilities
+- **Reusable Components**: Widget modules can be imported and used in other applications
