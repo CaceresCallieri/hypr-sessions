@@ -12,6 +12,11 @@ from fabric.widgets.button import Button
 from fabric.widgets.label import Label
 from fabric.widgets.wayland import WaylandWindow
 
+# Import GTK for the switch widget
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+
 # Add parent directory to path to import session utilities
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -42,6 +47,9 @@ class SessionManagerWidget(WaylandWindow):
         )
         subtitle_label.set_markup("<span size='small'>Manage your Hyprland sessions</span>")
 
+        # Toggle switch section
+        toggle_container = self.create_toggle_switch()
+
         # Sessions list section
         sessions_header = Label(
             text="Available Sessions:",
@@ -57,7 +65,7 @@ class SessionManagerWidget(WaylandWindow):
             orientation="vertical",
             spacing=15,
             name="content-box",
-            children=[title_label, subtitle_label, sessions_header, sessions_container],
+            children=[title_label, subtitle_label, toggle_container, sessions_header, sessions_container],
         )
 
         # Add to window and ensure visibility
@@ -72,6 +80,64 @@ class SessionManagerWidget(WaylandWindow):
         # Show everything
         content_box.show_all()
         self.show_all()
+
+    def create_toggle_switch(self):
+        """Create a segmented toggle switch like Hotels/Apartments example"""
+        # State tracking
+        self.is_save_mode = False
+        
+        # Create left button (Browse Sessions)
+        self.browse_button = Button(
+            label="Browse Sessions",
+            name="toggle-left-active",  # Start as active
+            on_clicked=lambda *_: self.set_browse_mode()
+        )
+        
+        # Create right button (Save Session)
+        self.save_button = Button(
+            label="Save Session", 
+            name="toggle-right-inactive",  # Start as inactive
+            on_clicked=lambda *_: self.set_save_mode()
+        )
+        
+        # Create container that looks like a single segmented control
+        toggle_box = Box(
+            orientation="horizontal",
+            spacing=0,  # No spacing for seamless appearance
+            name="segmented-toggle",
+            children=[self.browse_button, self.save_button]
+        )
+        
+        # Ensure buttons expand equally
+        toggle_box.set_homogeneous(True)
+        
+        return toggle_box
+
+    def set_browse_mode(self):
+        """Switch to browse sessions mode"""
+        if not self.is_save_mode:
+            return  # Already in browse mode
+            
+        self.is_save_mode = False
+        print("Switched to Browse Sessions mode")
+        
+        # Update button styles
+        self.browse_button.set_name("toggle-left-active")
+        self.save_button.set_name("toggle-right-inactive")
+        # TODO: Show browse panel
+
+    def set_save_mode(self):
+        """Switch to save session mode"""
+        if self.is_save_mode:
+            return  # Already in save mode
+            
+        self.is_save_mode = True
+        print("Switched to Save Session mode")
+        
+        # Update button styles
+        self.browse_button.set_name("toggle-left-inactive")
+        self.save_button.set_name("toggle-right-active")
+        # TODO: Show save panel
 
     def get_sessions_directory(self):
         """Get the sessions directory path"""

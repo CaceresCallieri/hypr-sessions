@@ -800,6 +800,12 @@ hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json -
     - **Import Structure**: Proper module imports and path handling
     - **Error Handling**: Graceful handling of missing sessions and CSS issues
 
+5. **Segmented Toggle Switch (2025-08-14)**:
+    - **Two-Panel Design**: Toggle between "Browse Sessions" and "Save Session" modes
+    - **Visual Design**: Segmented control similar to Hotels/Apartments UI pattern
+    - **Equal Button Sizing**: GTK homogeneous box for perfectly balanced appearance
+    - **State Management**: Interactive switching with visual feedback and console logging
+
 ### Technical Implementation Details
 
 **File Structure**:
@@ -816,11 +822,13 @@ fabric-ui/
 - **SessionManagerWidget**: Main WaylandWindow class extending Fabric widgets
 - **Session Discovery**: Method to scan and validate session directories
 - **Button Generation**: Dynamic creation of session buttons with click handlers
+- **Segmented Toggle**: Two-button switch with active/inactive state management
 - **CSS Integration**: External stylesheet loading with error handling
 
 **UI Features**:
 
 - **Title Display**: "Hypr Sessions Manager" with subtitle
+- **Segmented Toggle**: Browse Sessions/Save Session toggle with equal button sizing
 - **Session List**: "Available Sessions:" header with button list below
 - **Keyboard Support**: Esc key closes the widget (keyboard_mode="on-demand")
 - **Button Interaction**: Click handlers prepared for future restore functionality
@@ -832,6 +840,7 @@ fabric-ui/
 - ✅ Working layer widget with proper Wayland integration
 - ✅ Session discovery and display functionality
 - ✅ Clean UI structure with external CSS styling
+- ✅ Segmented toggle switch for Browse/Save mode selection
 - ✅ Interactive elements with keyboard navigation
 - ✅ Stable codebase without CSS or rendering errors
 
@@ -845,8 +854,9 @@ python session_manager.py
 
 **Next Steps**:
 
+- **Panel Switching**: Implement show/hide logic for Browse vs Save panels
+- **Save Session Panel**: Create UI for saving new sessions with input validation
 - **Button Functionality**: Connect session buttons to actual restore operations
-- **Additional Features**: Save session functionality, refresh capability
 - **Enhanced UI**: Session metadata display, deletion options
 
 **Benefits Realized**:
