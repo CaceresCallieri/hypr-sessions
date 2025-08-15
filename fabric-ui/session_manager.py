@@ -67,7 +67,8 @@ class SessionManagerWidget(WaylandWindow):
         )
         
         self.save_panel = SavePanelWidget(
-            on_save_clicked=self._on_save_session
+            on_save_success=self._on_save_success,
+            on_save_error=self._on_save_error
         )
 
         # Create dynamic content area
@@ -123,13 +124,16 @@ class SessionManagerWidget(WaylandWindow):
         print(f"Session clicked: {session_name}")
         # TODO: Add restore functionality later
 
-    def _on_save_session(self, session_name):
-        """Handle save session request"""
-        print(f"Saving session: {session_name}")
-        # TODO: Connect to actual save functionality
+    def _on_save_success(self, session_name, result):
+        """Handle successful save operation"""
+        print(f"✅ Session '{session_name}' saved successfully!")
         
-        # Refresh browse panel in case we switch back
+        # Refresh browse panel to show new session
         self.browse_panel.refresh()
+    
+    def _on_save_error(self, session_name, error_message):
+        """Handle save operation error"""
+        print(f"❌ Failed to save session '{session_name}': {error_message}")
 
     def on_key_press(self, widget, event):
         """Handle key press events"""

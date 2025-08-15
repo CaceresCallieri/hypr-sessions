@@ -827,6 +827,15 @@ hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json -
     - **Callback Interface**: Clean communication between widgets using callback functions
     - **Code Reduction**: Main file reduced from 311 to 166 lines (47% reduction)
 
+9. **Backend Integration and Save Functionality (2025-08-15)**:
+    - **Backend Client**: Subprocess-based CLI communication with JSON parsing and error handling
+    - **Real Save Operations**: Actual session saving using mature CLI backend with --json flag
+    - **User Feedback System**: Success/error/info status messages with visual styling
+    - **Multi-line Messages**: Prevent width expansion with formatted 3-line success messages
+    - **Button States**: Disable/enable during operations with loading indicators
+    - **Error Resilience**: Comprehensive error handling for validation, backend, and network failures
+    - **Auto-refresh**: Browse panel updates automatically after successful saves
+
 ### Technical Implementation Details
 
 **File Structure**:
@@ -841,7 +850,8 @@ fabric-ui/
 │   └── save_panel.py       # SavePanelWidget - session creation interface
 ├── utils/                  # Utility modules package
 │   ├── __init__.py         # Package initialization with exports
-│   └── session_utils.py    # SessionUtils class - directory operations
+│   ├── session_utils.py    # SessionUtils class - directory operations
+│   └── backend_client.py   # BackendClient class - CLI communication
 ├── session_manager.css     # External stylesheet
 └── venv/                   # Fabric framework virtual environment
 ```
@@ -851,8 +861,9 @@ fabric-ui/
 - **SessionManagerWidget**: Main WaylandWindow class with widget orchestration and callbacks
 - **ToggleSwitchWidget**: Segmented toggle control with state management and callback interface
 - **BrowsePanelWidget**: Session discovery, listing, and selection with refresh capability
-- **SavePanelWidget**: Session creation interface with input validation and utility methods
+- **SavePanelWidget**: Session creation interface with backend integration and status feedback
 - **SessionUtils**: Centralized session directory operations and path management
+- **BackendClient**: CLI communication with JSON parsing, error handling, and timeout protection
 - **CSS Integration**: External stylesheet loading with modular widget styling
 
 **UI Features**:
@@ -865,14 +876,16 @@ fabric-ui/
 
 ### Current Status (2025-08-15)
 
-✅ **COMPLETED - Modular Fabric UI Implementation**:
+✅ **COMPLETED - Functional Fabric UI with Backend Integration**:
 
 - ✅ Working layer widget with proper Wayland integration
 - ✅ Session discovery and display functionality
 - ✅ Clean UI structure with external CSS styling
 - ✅ Segmented toggle switch for Browse/Save mode selection
 - ✅ Panel switching logic with dynamic content management
-- ✅ Save Session panel with input field and auto-focus
+- ✅ Fully functional save session capability with real CLI backend integration
+- ✅ User feedback system with success/error/info messages and visual styling
+- ✅ Multi-line status messages preventing width expansion artifacts
 - ✅ Interactive elements with keyboard navigation
 - ✅ Modular architecture with separated widget components
 - ✅ Package structure with proper imports and exports
@@ -888,17 +901,18 @@ python session_manager.py
 
 **Next Steps**:
 
-- **Backend Integration**: Connect save session functionality to actual CLI backend
-- **Restore Functionality**: Connect session buttons to actual restore operations
+- **Restore Functionality**: Connect session buttons to actual restore operations using BackendClient
 - **Enhanced UI**: Session metadata display, deletion options
-- **Error Handling**: User feedback for save/restore operations
 - **Session Management**: Delete session functionality with confirmation dialogs
+- **Advanced Features**: Session validation, auto-refresh timers, keyboard shortcuts
 
 **Benefits Realized**:
 
-- **User-Friendly Interface**: Graphical alternative to CLI operations
+- **Fully Functional UI**: Complete save session capability with real backend integration
+- **User-Friendly Interface**: Graphical alternative to CLI operations with visual feedback
 - **Native Integration**: Proper Wayland layer shell implementation
 - **Maintainable Code**: Clean separation of logic and styling with modular architecture
 - **Extensible Foundation**: Ready for additional session management features
 - **Developer Experience**: 47% code reduction in main file, focused widget responsibilities
 - **Reusable Components**: Widget modules can be imported and used in other applications
+- **Professional UX**: Multi-line messages, button states, error handling, and natural animations

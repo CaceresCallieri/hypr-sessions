@@ -204,3 +204,34 @@ label {
 	background-color: #89dceb;
 }
 
+/* Status message styles */
+#save-status-success {
+	color: #a6e3a1;
+	font-weight: bold;
+	padding: 8px 12px;
+	margin-top: 10px;
+	background-color: rgba(166, 227, 161, 0.1);
+	border: 1px solid rgba(166, 227, 161, 0.3);
+	border-radius: 6px;
+}
+
+#save-status-error {
+	color: #f38ba8;
+	font-weight: bold;
+	padding: 8px 12px;
+	margin-top: 10px;
+	background-color: rgba(243, 139, 168, 0.1);
+	border: 1px solid rgba(243, 139, 168, 0.3);
+	border-radius: 6px;
+}
+
+#save-status-info {
+	color: #89b4fa;
+	font-weight: bold;
+	padding: 8px 12px;
+	margin-top: 10px;
+	background-color: rgba(137, 180, 250, 0.1);
+	border: 1px solid rgba(137, 180, 250, 0.3);
+	border-radius: 6px;
+}
+
