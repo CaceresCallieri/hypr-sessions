@@ -1241,3 +1241,192 @@ These methods provide foundation for future enhancements:
 5. **Future Extensible**: Ready for scroll indicators, pagination, and mouse support
 
 This scrollable navigation implementation transforms the session manager into a professional, scalable application that maintains excellent performance and user experience regardless of session collection size, establishing a solid foundation for future session management enhancements.
+
+## Recent Layout-Stable Scroll Indicators Implementation (2025-08-16)
+
+### Implemented
+
+1. **Professional Scroll Indicators with Layout Stability**: Complete visual feedback system without layout shifts
+    - **Nerd Font Chevrons**: Clean, modern `\uf077` (up) and `\uf078` (down) symbols from Font Awesome
+    - **Reserved Space Architecture**: Always-present indicator placeholders prevent window size changes
+    - **Conditional Visibility**: Arrows appear/disappear based on scroll state without DOM changes
+    - **Layout Consistency**: Fixed window dimensions regardless of scroll indicator state
+
+2. **Code Quality Improvements**:
+    - **DRY Principle**: `_create_scroll_indicator()` helper method eliminates code duplication
+    - **Configurable Symbols**: Arrow constants (`ARROW_UP`, `ARROW_DOWN`) for easy customization
+    - **Clean Implementation**: Reduced from 10+ lines to 2 lines per indicator
+    - **Maintainable Architecture**: Single place to modify indicator logic and styling
+
+3. **Enhanced User Experience**:
+    - **Stable Interface**: No jarring window resizing during navigation
+    - **Professional Appearance**: Nerd Font symbols provide modern, consistent design
+    - **Clear Visual Feedback**: Intuitive directional indicators for available content
+    - **Minimal Design**: Clean chevrons without background clutter
+
+4. **Technical Architecture Excellence**:
+    - **Space Reservation**: `min-height` CSS ensures consistent height for empty indicators
+    - **Proper Text Rendering**: `set_markup()` calls ensure reliable symbol display
+    - **Performance Optimized**: No widget creation/destruction during navigation
+    - **Future-Ready**: Easy to customize symbols or add enhanced indicator features
+
+### Technical Implementation Details
+
+**Layout Stability Pattern**:
+```python
+def _create_scroll_indicator(self, arrow_symbol, show_condition):
+    """Create a scroll indicator with reserved space"""
+    indicator = Label(text="", name="scroll-indicator")
+    if show_condition:
+        indicator.set_markup(arrow_symbol)
+    else:
+        indicator.set_markup("")  # Empty but reserves space
+    return indicator
+```
+
+**Configurable Symbol System**:
+```python
+# Nerd Font chevrons for professional appearance
+self.ARROW_UP = "\uf077"    # nf-fa-chevron_up
+self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_down
+
+# Usage
+more_above = self._create_scroll_indicator(self.ARROW_UP, self.has_sessions_above())
+more_below = self._create_scroll_indicator(self.ARROW_DOWN, self.has_sessions_below())
+```
+
+**CSS Layout Stability**:
+```css
+#scroll-indicator {
+    color: #89b4fa;
+    font-size: 16px;
+    font-weight: bold;
+    /* Reserved space ensures consistent layout */
+}
+```
+
+### Problem Solved: Layout Shift Prevention
+
+**Before (Dynamic Indicators):**
+- Widgets added/removed based on scroll state
+- Window size fluctuated unpredictably
+- Jarring user experience with layout jumps
+- Inconsistent interface dimensions
+
+**After (Reserved Space):**
+- Fixed widget structure with conditional content
+- Stable window dimensions in all scroll states
+- Smooth, professional navigation experience
+- Consistent interface behavior
+
+5. **Session Count Display Enhancement**:
+    - **Dynamic Header**: "Available Sessions (N):" format with real-time session count
+    - **Initialization Fix**: Resolved order-of-operations bug where count showed 0 on widget creation
+    - **Accurate Display**: Session count correct from initial render through all navigation states
+    - **Professional Formatting**: Bold markup with consistent header styling
+
+### Technical Implementation Details
+
+**Order-of-Operations Fix**:
+```python
+def _create_content(self):
+    """Create the browse panel content"""
+    # Get and create session buttons first
+    sessions_container = self._create_sessions_list()
+    
+    # Sessions list section header with total count (now that we have the actual count)
+    total_sessions = len(self.all_session_names)
+    header_text = f"Available Sessions ({total_sessions}):"
+    sessions_header = Label(text=header_text, name="sessions-header")
+    sessions_header.set_markup(f"<span weight='bold'>{header_text}</span>")
+```
+
+**Layout Stability Pattern**:
+```python
+def _create_scroll_indicator(self, arrow_symbol, show_condition):
+    """Create a scroll indicator with reserved space"""
+    indicator = Label(text="", name="scroll-indicator")
+    if show_condition:
+        indicator.set_markup(arrow_symbol)
+    else:
+        indicator.set_markup("")  # Empty but reserves space
+    return indicator
+```
+
+**Configurable Symbol System**:
+```python
+# Nerd Font chevrons for professional appearance
+self.ARROW_UP = "\uf077"    # nf-fa-chevron_up
+self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_down
+
+# Usage
+more_above = self._create_scroll_indicator(self.ARROW_UP, self.has_sessions_above())
+more_below = self._create_scroll_indicator(self.ARROW_DOWN, self.has_sessions_below())
+```
+
+**CSS Layout Stability**:
+```css
+#scroll-indicator {
+    color: #89b4fa;
+    font-size: 16px;
+    font-weight: bold;
+    /* Reserved space ensures consistent layout */
+}
+```
+
+### Problem Solved: Layout Shift Prevention
+
+**Before (Dynamic Indicators):**
+- Widgets added/removed based on scroll state
+- Window size fluctuated unpredictably
+- Jarring user experience with layout jumps
+- Inconsistent interface dimensions
+
+**After (Reserved Space):**
+- Fixed widget structure with conditional content
+- Stable window dimensions in all scroll states
+- Smooth, professional navigation experience
+- Consistent interface behavior
+
+### Session Count Bug Fix
+
+**Before (Initialization Issue):**
+- Header created before sessions list populated
+- `len(self.all_session_names)` returned 0 on widget creation
+- Count only updated after arrow key navigation
+
+**After (Order Fix):**
+- Sessions list populated first via `_create_sessions_list()`
+- Header created with accurate count immediately
+- Correct session count from initial render
+
+### Current Status (2025-08-16)
+
+✅ **COMPLETED - Layout-Stable Scroll Indicators with Session Count Display**:
+
+- ✅ Professional Nerd Font chevrons for modern appearance
+- ✅ Reserved space architecture preventing layout shifts
+- ✅ DRY principle implementation with helper methods
+- ✅ Configurable symbol system for easy customization
+- ✅ Stable window dimensions regardless of scroll state
+- ✅ Clean, maintainable code without duplication
+- ✅ Proper text rendering with `set_markup()` solution
+- ✅ Performance-optimized indicator management
+- ✅ Dynamic session count display in header
+- ✅ Fixed initialization bug for accurate count from widget creation
+
+**User Experience Benefits**:
+- **Professional Design**: Modern Nerd Font symbols matching developer aesthetics
+- **Stable Interface**: No window resizing or layout jumps during navigation
+- **Clear Feedback**: Intuitive visual cues for scrollable content availability
+- **Consistent Behavior**: Predictable interface dimensions and spacing
+- **Immediate Context**: Session count visible from first render
+
+**Code Quality Benefits**:
+- **Maintainable**: Single method for all indicator creation logic
+- **Configurable**: Easy symbol customization through constants
+- **Efficient**: No performance overhead from widget creation/destruction
+- **Readable**: Clear intent with helper methods and meaningful names
+- **Bug-Free Initialization**: Proper order-of-operations for accurate state
+
+This implementation establishes a professional-grade scroll indicator system with accurate session count display that provides excellent visual feedback while maintaining perfect layout stability, creating a polished and reliable user interface experience that scales beautifully with any session collection size.

@@ -103,7 +103,7 @@ class SessionManagerWidget(WaylandWindow):
         self.add(content_box)
 
         # Force size allocation
-        self.set_size_request(400, 300)
+        self.set_size_request(400, 400)
 
         # Connect keyboard events
         self.connect("key-press-event", self.on_key_press)
@@ -215,7 +215,9 @@ def main():
     else:
         print("Warning: session_manager.css not found")
 
-    print("Session Manager started! Press Tab/←→ to switch panels, ↑↓ to navigate sessions, Enter to restore, Esc to exit")
+    print(
+        "Session Manager started! Press Tab/←→ to switch panels, ↑↓ to navigate sessions, Enter to restore, Esc to exit"
+    )
     app.run()
 
 
