@@ -871,7 +871,11 @@ fabric-ui/
 - **Title Display**: "Hypr Sessions Manager" with subtitle
 - **Segmented Toggle**: Browse Sessions/Save Session toggle with equal button sizing
 - **Session List**: "Available Sessions:" header with button list below
-- **Keyboard Support**: Esc key properly terminates the entire application (keyboard_mode="on-demand")
+- **Comprehensive Keyboard Navigation**: Multiple navigation methods with intuitive key bindings
+  - **Tab**: Toggle between Browse/Save panels
+  - **← Left Arrow**: Switch to Browse Sessions panel
+  - **→ Right Arrow**: Switch to Save Session panel
+  - **Esc**: Exit application
 - **Button Interaction**: Click handlers prepared for future restore functionality
 
 ### Current Status (2025-08-15)
@@ -886,7 +890,7 @@ fabric-ui/
 - ✅ Fully functional save session capability with real CLI backend integration
 - ✅ User feedback system with success/error/info messages and visual styling
 - ✅ Multi-line status messages preventing width expansion artifacts
-- ✅ Interactive elements with keyboard navigation
+- ✅ Comprehensive keyboard navigation with Tab, arrow keys, and Esc support
 - ✅ Modular architecture with separated widget components
 - ✅ Package structure with proper imports and exports
 - ✅ Stable codebase without CSS or rendering errors
@@ -904,7 +908,7 @@ python session_manager.py
 - **Restore Functionality**: Connect session buttons to actual restore operations using BackendClient
 - **Enhanced UI**: Session metadata display, deletion options
 - **Session Management**: Delete session functionality with confirmation dialogs
-- **Advanced Features**: Session validation, auto-refresh timers, keyboard shortcuts
+- **Advanced Features**: Session validation, auto-refresh timers
 
 **Benefits Realized**:
 
@@ -916,3 +920,82 @@ python session_manager.py
 - **Developer Experience**: 47% code reduction in main file, focused widget responsibilities
 - **Reusable Components**: Widget modules can be imported and used in other applications
 - **Professional UX**: Multi-line messages, button states, error handling, and natural animations
+
+## Recent Keyboard Navigation Enhancement (2025-08-16)
+
+### Implemented
+
+1. **Comprehensive Keyboard Navigation System**: Complete keyboard control for panel switching
+    - **Multi-Modal Navigation**: Tab key for quick toggle, arrow keys for directional navigation
+    - **Intuitive Key Mapping**: Left arrow → Browse panel, Right arrow → Save panel
+    - **Single Source of Truth Integration**: All keyboard navigation uses the refactored toggle switch architecture
+    - **Debug-Assisted Development**: Used systematic debugging to identify correct keycodes (113/114 vs 37/39)
+
+2. **Keycode Discovery and Implementation**:
+    - **System-Specific Keycodes**: Discovered actual keycodes through runtime debugging (Left=113, Right=114, Tab=23, Esc=9)
+    - **Cross-Platform Compatibility**: GTK keycode detection ensures proper keyboard handling
+    - **Clean Implementation**: Removed debug statements for production-ready code
+    - **User Feedback**: Updated help message to reflect all available shortcuts
+
+3. **Enhanced User Experience**:
+    - **Multiple Navigation Methods**: Mouse clicks, Tab toggle, directional arrows, quick exit
+    - **Natural Flow**: Left/right arrow mapping matches visual panel layout
+    - **Consistent Behavior**: All navigation methods use single source of truth pattern
+    - **Professional Polish**: Clean keyboard handling without console noise
+
+### Technical Implementation Details
+
+**Keyboard Event Handling**:
+```python
+# GTK key press event handling with system-specific keycodes
+elif keycode == 114:  # Right arrow
+    if not self.toggle_switch.is_save_mode:  # If in browse mode, go to save
+        self.toggle_switch.set_save_mode()
+    return True
+
+elif keycode == 113:  # Left arrow
+    if self.toggle_switch.is_save_mode:  # If in save mode, go to browse
+        self.toggle_switch.set_browse_mode()
+    return True
+```
+
+**Keycode Mapping**:
+- **Escape (9)**: Exit application
+- **Tab (23)**: Toggle between panels
+- **Left Arrow (113)**: Switch to Browse Sessions panel
+- **Right Arrow (114)**: Switch to Save Session panel
+
+### Current Status (2025-08-16)
+
+✅ **COMPLETED - Full Keyboard Navigation**:
+
+- ✅ Tab key panel toggling with single source of truth architecture
+- ✅ Left/right arrow directional navigation
+- ✅ System-specific keycode detection and mapping
+- ✅ Clean production code without debug output
+- ✅ Updated user feedback with comprehensive shortcut information
+- ✅ Consistent behavior across all navigation methods
+
+**User Interface Shortcuts**:
+```
+Tab/←→ to switch panels, Esc to exit
+```
+
+**Benefits Realized**:
+
+- **Accessibility**: Multiple input methods accommodate different user preferences
+- **Efficiency**: Quick keyboard navigation without mouse dependency
+- **Intuitive Design**: Directional keys match visual panel layout
+- **Professional UX**: Clean, responsive keyboard handling
+- **Maintainable Code**: Leverages existing single source of truth architecture
+
+### Architecture Integration
+
+The keyboard navigation seamlessly integrates with the existing toggle switch refactoring:
+
+1. **Single Method Calls**: Each navigation method calls only `set_browse_mode()` or `set_save_mode()`
+2. **Automatic Callbacks**: Toggle switch methods automatically trigger panel switching
+3. **State Consistency**: Visual toggle state and panel content remain synchronized
+4. **Clean API**: No duplicate calls or manual state management required
+
+This implementation provides a complete, professional keyboard navigation experience that enhances the UI's usability while maintaining clean, maintainable code architecture.

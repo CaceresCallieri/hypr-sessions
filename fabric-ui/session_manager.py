@@ -13,13 +13,14 @@ from fabric.widgets.label import Label
 from fabric.widgets.wayland import WaylandWindow
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 
 # Add parent directory to path to import session utilities
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Import our custom widgets and utilities
-from widgets import ToggleSwitchWidget, BrowsePanelWidget, SavePanelWidget
+from widgets import BrowsePanelWidget, SavePanelWidget, ToggleSwitchWidget
+
 from utils import SessionUtils
 
 
@@ -55,19 +56,17 @@ class SessionManagerWidget(WaylandWindow):
 
         # Create toggle switch with callbacks
         self.toggle_switch = ToggleSwitchWidget(
-            on_browse_clicked=self._on_browse_mode,
-            on_save_clicked=self._on_save_mode
+            on_browse_clicked=self._on_browse_mode, on_save_clicked=self._on_save_mode
         )
 
         # Create panels with callbacks
         self.browse_panel = BrowsePanelWidget(
             session_utils=self.session_utils,
-            on_session_clicked=self._on_session_clicked
+            on_session_clicked=self._on_session_clicked,
         )
-        
+
         self.save_panel = SavePanelWidget(
-            on_save_success=self._on_save_success,
-            on_save_error=self._on_save_error
+            on_save_success=self._on_save_success, on_save_error=self._on_save_error
         )
 
         # Create dynamic content area
@@ -75,7 +74,7 @@ class SessionManagerWidget(WaylandWindow):
             orientation="vertical",
             spacing=10,
             name="dynamic-content",
-            children=[self.browse_panel]  # Start with browse panel
+            children=[self.browse_panel],  # Start with browse panel
         )
 
         # Create layout
@@ -83,7 +82,12 @@ class SessionManagerWidget(WaylandWindow):
             orientation="vertical",
             spacing=15,
             name="content-box",
-            children=[title_label, subtitle_label, self.toggle_switch, self.content_area],
+            children=[
+                title_label,
+                subtitle_label,
+                self.toggle_switch,
+                self.content_area,
+            ],
         )
 
         # Add to window and ensure visibility
@@ -101,7 +105,7 @@ class SessionManagerWidget(WaylandWindow):
     def _on_browse_mode(self):
         """Handle switch to browse mode"""
         print("Switched to Browse Sessions mode")
-        
+
         # Switch to browse panel
         self.content_area.children = [self.browse_panel]
         self.content_area.show_all()
@@ -109,11 +113,11 @@ class SessionManagerWidget(WaylandWindow):
     def _on_save_mode(self):
         """Handle switch to save mode"""
         print("Switched to Save Session mode")
-        
+
         # Switch to save panel
         self.content_area.children = [self.save_panel]
         self.content_area.show_all()
-        
+
         # Auto-focus the input field
         self.save_panel.focus_input()
 
@@ -125,23 +129,47 @@ class SessionManagerWidget(WaylandWindow):
     def _on_save_success(self, session_name, result):
         """Handle successful save operation"""
         print(f"✅ Session '{session_name}' saved successfully!")
-        
+
         # Refresh browse panel to show new session
         self.browse_panel.refresh()
-    
+
     def _on_save_error(self, session_name, error_message):
         """Handle save operation error"""
         print(f"❌ Failed to save session '{session_name}': {error_message}")
 
     def on_key_press(self, widget, event):
         """Handle key press events"""
+        keycode = event.get_keycode()[1]
+        state = event.get_state()
+
         # Check for Escape key (keycode 9)
-        if event.get_keycode()[1] == 9:  # Esc key
+        if keycode == 9:  # Esc key
             if self.app:
                 self.app.quit()  # Properly quit the entire application
             else:
                 self.close()  # Fallback to just closing window
             return True  # Event handled
+
+        # Check for Tab key (keycode 23)
+        elif keycode == 23:  # Tab key
+            # Toggle between panels - toggle switch handles everything automatically
+            if self.toggle_switch.is_save_mode:
+                self.toggle_switch.set_browse_mode()  # Automatically calls _on_browse_mode()
+            else:
+                self.toggle_switch.set_save_mode()  # Automatically calls _on_save_mode()
+
+            return True  # Event handled
+
+        elif keycode == 114:  # Right arrow
+            if not self.toggle_switch.is_save_mode:  # If in browse mode, go to save
+                self.toggle_switch.set_save_mode()
+            return True
+
+        elif keycode == 113:  # Left arrow
+            if self.toggle_switch.is_save_mode:  # If in save mode, go to browse
+                self.toggle_switch.set_browse_mode()
+            return True
+
         return False  # Event not handled
 
 
@@ -154,7 +182,7 @@ def main():
 
     # Create application with widget
     app = Application("hypr-sessions-manager", widget)
-    
+
     # Store app reference in widget for proper shutdown
     widget.app = app
 
@@ -166,7 +194,7 @@ def main():
     else:
         print("Warning: session_manager.css not found")
 
-    print("Session Manager started! Press Esc to exit")
+    print("Session Manager started! Press Tab/←→ to switch panels, Esc to exit")
     app.run()
 
 
