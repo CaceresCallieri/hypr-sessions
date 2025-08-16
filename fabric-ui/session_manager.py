@@ -137,21 +137,27 @@ class SessionManagerWidget(WaylandWindow):
 
     def _on_save_success(self, session_name, result):
         """Handle successful save operation"""
-        print(f"✅ Session '{session_name}' saved successfully!")
+        print(f"Session '{session_name}' saved successfully!")
 
         # Refresh browse panel to show new session
         self.browse_panel.refresh()
 
     def _on_save_error(self, session_name, error_message):
         """Handle save operation error"""
-        print(f"❌ Failed to save session '{session_name}': {error_message}")
+        print(f"Failed to save session '{session_name}': {error_message}")
 
     def on_key_press(self, widget, event):
         """Handle key press events"""
         keycode = event.get_keycode()[1]
         state = event.get_state()
 
-        # Check for Escape key
+        # Give save panel first chance to handle events when in save mode
+        # (especially for Escape key during save operations)
+        if self.toggle_switch.is_save_mode:
+            if self.save_panel.handle_key_press(keycode):
+                return True
+
+        # Check for Escape key (global quit) - only if save panel didn't handle it
         if keycode == KEYCODE_ESCAPE:
             if self.app:
                 self.app.quit()  # Properly quit the entire application
@@ -179,8 +185,8 @@ class SessionManagerWidget(WaylandWindow):
                 self.toggle_switch.set_browse_mode()
             return True
 
-        # Session navigation (only in Browse mode)
-        elif not self.toggle_switch.is_save_mode:  # Only when in Browse mode
+        # Browse mode navigation
+        elif not self.toggle_switch.is_save_mode:  # Browse mode
             if keycode == KEYCODE_UP_ARROW:
                 self.browse_panel.select_previous()
                 return True
