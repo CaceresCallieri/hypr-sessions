@@ -23,6 +23,15 @@ from widgets import BrowsePanelWidget, SavePanelWidget, ToggleSwitchWidget
 
 from utils import SessionUtils
 
+# GTK Keycodes
+KEYCODE_ESCAPE = 9
+KEYCODE_TAB = 23
+KEYCODE_ENTER = 36
+KEYCODE_LEFT_ARROW = 113
+KEYCODE_RIGHT_ARROW = 114
+KEYCODE_UP_ARROW = 111
+KEYCODE_DOWN_ARROW = 116
+
 
 class SessionManagerWidget(WaylandWindow):
     def __init__(self):
@@ -142,16 +151,16 @@ class SessionManagerWidget(WaylandWindow):
         keycode = event.get_keycode()[1]
         state = event.get_state()
 
-        # Check for Escape key (keycode 9)
-        if keycode == 9:  # Esc key
+        # Check for Escape key
+        if keycode == KEYCODE_ESCAPE:
             if self.app:
                 self.app.quit()  # Properly quit the entire application
             else:
                 self.close()  # Fallback to just closing window
             return True  # Event handled
 
-        # Check for Tab key (keycode 23)
-        elif keycode == 23:  # Tab key
+        # Check for Tab key
+        elif keycode == KEYCODE_TAB:
             # Toggle between panels - toggle switch handles everything automatically
             if self.toggle_switch.is_save_mode:
                 self.toggle_switch.set_browse_mode()  # Automatically calls _on_browse_mode()
@@ -160,15 +169,27 @@ class SessionManagerWidget(WaylandWindow):
 
             return True  # Event handled
 
-        elif keycode == 114:  # Right arrow
+        elif keycode == KEYCODE_RIGHT_ARROW:
             if not self.toggle_switch.is_save_mode:  # If in browse mode, go to save
                 self.toggle_switch.set_save_mode()
             return True
 
-        elif keycode == 113:  # Left arrow
+        elif keycode == KEYCODE_LEFT_ARROW:
             if self.toggle_switch.is_save_mode:  # If in save mode, go to browse
                 self.toggle_switch.set_browse_mode()
             return True
+
+        # Session navigation (only in Browse mode)
+        elif not self.toggle_switch.is_save_mode:  # Only when in Browse mode
+            if keycode == KEYCODE_UP_ARROW:
+                self.browse_panel.select_previous()
+                return True
+            elif keycode == KEYCODE_DOWN_ARROW:
+                self.browse_panel.select_next()
+                return True
+            elif keycode == KEYCODE_ENTER:
+                self.browse_panel.activate_selected_session()
+                return True
 
         return False  # Event not handled
 
@@ -194,7 +215,7 @@ def main():
     else:
         print("Warning: session_manager.css not found")
 
-    print("Session Manager started! Press Tab/←→ to switch panels, Esc to exit")
+    print("Session Manager started! Press Tab/←→ to switch panels, ↑↓ to navigate sessions, Enter to restore, Esc to exit")
     app.run()
 
 
