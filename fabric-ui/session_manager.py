@@ -20,17 +20,16 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 # Import our custom widgets and utilities
 from widgets import BrowsePanelWidget, SavePanelWidget, ToggleSwitchWidget
-
 from utils import SessionUtils
-
-# GTK Keycodes
-KEYCODE_ESCAPE = 9
-KEYCODE_TAB = 23
-KEYCODE_ENTER = 36
-KEYCODE_LEFT_ARROW = 113
-KEYCODE_RIGHT_ARROW = 114
-KEYCODE_UP_ARROW = 111
-KEYCODE_DOWN_ARROW = 116
+from constants import (
+    KEYCODE_ESCAPE,
+    KEYCODE_TAB,
+    KEYCODE_ENTER,
+    KEYCODE_LEFT_ARROW,
+    KEYCODE_RIGHT_ARROW,
+    KEYCODE_UP_ARROW,
+    KEYCODE_DOWN_ARROW,
+)
 
 
 class SessionManagerWidget(WaylandWindow):

@@ -17,8 +17,13 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-sys.path.append(str(Path(__file__).parent.parent))
+# Add parent directory to path for clean imports
+parent_dir = str(Path(__file__).parent.parent)
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
 from utils import BackendClient, BackendError
+from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 
 
 class SavePanelWidget(Box):
@@ -153,9 +158,13 @@ class SavePanelWidget(Box):
 
     def _handle_save_clicked(self, button):
         """Handle save button click with state-based UI"""
+        self._trigger_save_operation()
+
+    def _trigger_save_operation(self):
+        """Common save logic used by both button click and Enter key"""
         # Prevent multiple concurrent saves
         if self.save_in_progress:
-            print("Save already in progress, ignoring click")
+            print("Save already in progress, ignoring request")
             return
             
         session_name = self.session_name_entry.get_text().strip()
@@ -312,8 +321,15 @@ class SavePanelWidget(Box):
 
     def handle_key_press(self, keycode):
         """Handle keyboard events for different states"""
+        # Enter key handling - trigger save when in input state
+        if keycode == KEYCODE_ENTER:
+            if self.state == "input":
+                # Trigger the same save logic as button click
+                self._trigger_save_operation()
+                return True
+        
         # Escape key handling based on current state
-        if keycode == 9:  # KEYCODE_ESCAPE
+        if keycode == KEYCODE_ESCAPE:
             if self.state == "saving":
                 # Cancel save operation
                 print("Cancelling save operation...")
