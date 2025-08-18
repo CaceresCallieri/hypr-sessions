@@ -29,6 +29,7 @@ from constants import (
     KEYCODE_RIGHT_ARROW,
     KEYCODE_UP_ARROW,
     KEYCODE_DOWN_ARROW,
+    KEYCODE_D,
 )
 
 
@@ -156,7 +157,13 @@ class SessionManagerWidget(WaylandWindow):
             if self.save_panel.handle_key_press(keycode):
                 return True
 
-        # Check for Escape key (global quit) - only if save panel didn't handle it
+        # Give browse panel first chance to handle events when in browse mode
+        # (especially for Escape key during delete confirmation)
+        elif not self.toggle_switch.is_save_mode:
+            if self.browse_panel.handle_key_press(keycode):
+                return True
+
+        # Check for Escape key (global quit) - only if panels didn't handle it
         if keycode == KEYCODE_ESCAPE:
             if self.app:
                 self.app.quit()  # Properly quit the entire application
@@ -184,8 +191,9 @@ class SessionManagerWidget(WaylandWindow):
                 self.toggle_switch.set_browse_mode()
             return True
 
-        # Browse mode navigation
+        # Browse mode navigation (only for keys not handled by browse panel)
         elif not self.toggle_switch.is_save_mode:  # Browse mode
+            # Standard navigation
             if keycode == KEYCODE_UP_ARROW:
                 self.browse_panel.select_previous()
                 return True
@@ -194,6 +202,16 @@ class SessionManagerWidget(WaylandWindow):
                 return True
             elif keycode == KEYCODE_ENTER:
                 self.browse_panel.activate_selected_session()
+                return True
+            elif keycode == KEYCODE_D:
+                # Check if a session is selected, then trigger delete confirmation
+                selected_session = self.browse_panel.get_selected_session()
+                if selected_session:
+                    print(f"DEBUG: Initiating delete for session: {selected_session}")
+                    self.browse_panel.selected_session_for_delete = selected_session
+                    self.browse_panel.set_state("delete_confirm")
+                else:
+                    print("DEBUG: No session selected for deletion")
                 return True
 
         return False  # Event not handled

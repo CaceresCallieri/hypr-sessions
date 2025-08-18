@@ -2,1732 +2,159 @@
 
 ## Project Overview
 
-A Python-based session manager for Hyprland that saves and restores workspace sessions manually. Captures window states, groups, and application-specific data like terminal working directories.
+A Python-based session manager for Hyprland that saves and restores workspace sessions manually. Captures window states, groups, and application-specific data like terminal working directories, Neovim sessions, and browser tabs.
 
-## Architecture
+### Architecture
 
-- **CLI Interface**: `hypr-sessions.py` - Main entry point
-- **Commands**: `save`, `restore`, `list`, `delete`
-- **Modular Structure**: Each command in separate files
-- **Utils**: Shared configuration and session directory setup
+-   **CLI Interface**: `hypr-sessions.py` - Main entry point with commands: `save`, `restore`, `list`, `delete`
+-   **Modular Structure**: Specialized handlers for different application types (terminals, Neovide, browsers)
+-   **Fabric UI**: Professional graphical interface using Fabric framework for desktop widgets
+-   **JSON API**: Clean API for UI integration with structured responses and error handling
 
-## File Structure
+### File Structure
 
 ```
-├── hypr-sessions.py          # Main CLI interface with --debug flag
-├── session_save/             # Modular save functionality
-│   ├── session_saver.py      # Main orchestration with debug logging
-│   ├── hyprctl_client.py     # Hyprctl data retrieval
-│   ├── launch_commands.py    # Launch command generation
-│   ├── terminal_handler.py   # Terminal working directory capture
-│   ├── neovide_handler.py    # Neovide-specific session management
-│   └── browser_handler.py    # Browser window detection and tab capture
-├── session_restore.py        # Restore with grouping logic and debug output
-├── session_list.py           # List saved sessions with debug output
-├── session_delete.py         # Delete sessions with debug output
-├── utils.py                  # Shared session directory setup
-├── fabric-ui/                # Fabric-based graphical user interface
-│   ├── session_manager.py    # Main UI layer widget implementation
-│   ├── session_manager.css   # External stylesheet for UI styling
-│   └── venv/                 # Virtual environment with Fabric framework
-├── browser_extension/        # Extension-based browser integration
-├── setup_browser_support.py  # DEPRECATED: Extension setup script
-└── experiments/              # Research and investigation scripts
-    ├── browser-extension/    # Extension communication experiments
-    ├── session-file-access/  # sessionstore.jsonlz4 parsing experiments
-    ├── window-mapping/       # Window-to-session correlation research
-    ├── process-analysis/     # Process tree investigation experiments
-    └── utilities/            # Research helper tools (session viewers, etc.)
+├── hypr-sessions.py              # Main CLI with --debug and --json flags
+├── session_save/                 # Modular save functionality
+│   ├── session_saver.py          # Main orchestration with debug logging
+│   ├── hyprctl_client.py         # Hyprctl data retrieval
+│   ├── launch_commands.py        # Launch command generation
+│   ├── terminal_handler.py       # Terminal working directory capture
+│   ├── neovide_handler.py        # Neovide session management via remote API
+│   └── browser_handler.py        # Browser tab capture via keyboard extension
+├── session_restore.py            # Restore with grouping logic and timing
+├── session_list.py, session_delete.py  # Session management operations
+├── utils.py, validation.py       # Shared utilities and input validation
+├── operation_result.py           # Structured error handling system
+├── session_types.py              # Type definitions and data structures
+├── fabric-ui/                    # Graphical user interface
+│   ├── session_manager.py        # Main UI application (166 lines)
+│   ├── constants.py              # Shared UI constants with type hints
+│   ├── widgets/                  # Modular UI components
+│   │   ├── browse_panel.py       # Session navigation with scrolling
+│   │   ├── save_panel.py         # Session creation with state management
+│   │   └── toggle_switch.py      # Panel switching control
+│   ├── utils/                    # UI utilities
+│   │   ├── backend_client.py     # CLI communication with JSON parsing
+│   │   └── session_utils.py      # Session directory operations
+│   ├── session_manager.css       # External stylesheet with Catppuccin theme
+│   └── venv/                     # Fabric framework virtual environment
+├── browser_extension/            # Browser integration
+│   ├── manifest.json             # Extension configuration
+│   └── background.js             # Tab capture logic (140 lines)
+└── experiments/                  # Research and investigation scripts
 ```
 
-## Key Features Implemented
+## Core Features
 
-1. **Basic session save/restore** - Captures windows, groups, positions
-2. **Group restoration** - Recreates Hyprland window groups during restore
-3. **Terminal working directories** - Captures and restores terminal CWD with running programs
-4. **Enhanced Neovide session management** - Live Neovim session capture via remote API
-5. **Browser tab capture** - Zen browser extension with keyboard shortcut integration
-6. **Improved grouping logic** - Launches grouped windows sequentially, locks groups
-7. **Modular architecture** - Clean separation of concerns with specialized handlers
-8. **Debug mode** - Comprehensive logging with `--debug` flag for troubleshooting
+### Session Management
 
-## Technical Details
+-   **Folder-Based Storage**: `~/.config/hypr-sessions/session_name/` - each session in self-contained directory
+-   **Window Data**: Class, title, PID, position, size, launch commands, working directories
+-   **Group Restoration**: Recreates Hyprland window groups with sequential launching and proper timing
+-   **Input Validation**: Comprehensive validation with filesystem-safe names, existence checking, custom exceptions
+-   **Structured Results**: OperationResult system with success/warning/error categorization and partial failure support
 
-### Session Data Format (2025-08-13)
+### Application Support
 
-- **Location**: `~/.config/hypr-sessions/`
-- **Structure**: **Folder-based storage** - each session is a self-contained directory
-- **Format**:
-    ```
-    ~/.config/hypr-sessions/
-    ├── session_name/
-    │   ├── session.json           # Main session metadata and windows
-    │   ├── neovide-session-*.vim  # Neovide session files
-    │   └── (future: browser-*.json, other app data)
-    ```
-- **Benefits**: Self-contained sessions, easier cleanup, no file conflicts, extensible
-- **Window data**: class, title, PID, position, size, launch_command, working_directory (terminals)
-- **Neovide data**: neovide_session object with working_directory and session_file paths within session directory
+#### Terminal Support
 
-### Terminal Support
+-   **Supported**: Ghostty terminal with comprehensive working directory capture
+-   **Running Programs**: Detects active programs (yazi, npm run dev, vim, etc.) via process tree analysis
+-   **Launch Commands**: `ghostty --working-directory=/path -e program; exec $SHELL` for persistence
+-   **Shell Wrapper**: Programs wrapped to return to shell when exiting, with signal handling
 
-- **Supported**: Only ghostty
-- **Working directory capture**: Reads from `/proc/{pid}/cwd` and child processes
-- **Launch flags**: Terminal-specific directory arguments
+#### Neovide Support
 
-### Neovide Support
+-   **Detection**: Window class "neovide" for GUI-based Neovim
+-   **Live Session Capture**: Uses Neovim remote API via socket detection (`nvim --server --remote-send :mksession`)
+-   **Session Files**: Creates comprehensive session files in session directory
+-   **Restoration**: `neovide -- -S session.vim` with full buffer/cursor/layout restoration
+-   **Fallback**: Basic working directory if remote API unavailable
 
-- **Detection**: Window class "neovide" for GUI-based Neovim
-- **Working directory**: Captured from Neovide process `/proc/{pid}/cwd`
-- **Session files**: Creates basic session files in `~/.config/hypr-sessions/`
-- **Restoration**: Uses `neovide -- -S session.vim` for session loading
-- **Current limitation**: Only restores working directory, not actual Neovim session state
+#### Browser Support
 
-### Group Restoration Process
+-   **Method**: Keyboard shortcut extension approach (Alt+U trigger)
+-   **Communication**: `hyprctl dispatch sendshortcut ALT,u,address:{window_address}` - no window focus needed
+-   **File Transfer**: Extension saves `hypr-session-tabs-{timestamp}.json` to Downloads folder
+-   **Tab Data**: Full navigation history, pinned status, active tab detection, URL filtering
+-   **Status**: ✅ Working with Zen browser, 15+ tabs in ~2 seconds
 
-1. Launch ungrouped windows normally
-2. For each group: launch leader → togglegroup → launch members → lockactivegroup
-3. Uses natural focus (no focuswindow calls) to avoid workspace switching
+### Technical Implementation
 
-## Constants and Configuration
+-   **JSON API**: `--json` flag produces clean, parseable output for UI integration
+-   **Error Handling**: Custom exception classes, structured validation, graceful degradation
+-   **Debug Mode**: `--debug` flag with comprehensive logging across all components
+-   **Timing System**: Configurable delays for group restoration (`DELAY_BETWEEN_INSTRUCTIONS = 0.4s`)
+-   **Thread Safety**: Proper async patterns with UI thread protection in Fabric UI
 
-- **Timing**: `SessionRestore.DELAY_BETWEEN_INSTRUCTIONS = 0.4` seconds
-- **Sessions directory**: `~/.config/hypr-sessions/`
-- **Gitignore**: `__pycache__/` excluded
-
-## Future Development Roadmap
-
-### **Immediate Priorities (Current Work)**
-
-1. **Firefox browser support** - Extend extension approach to Firefox
-2. **Better window positioning** - More precise layout restoration for all applications
-
-### **Planned Enhancements**
-
-1. **Multi-browser sessions** - Handle mixed browser environments (Zen + Firefox)
-2. **Better window positioning** - More precise layout restoration for all applications
-3. **Qt/QML UI** - Graphical interface for session management
-4. **Session validation** - Verify restored sessions match saved state
-5. **Workspace-specific sessions** - Different session profiles per workspace type
-
-## Development Notes
-
-- **Python style**: Class constants in UPPER_CASE
-- **Error handling**: Graceful fallbacks for permission/file errors
-- **Shell safety**: Uses `shlex.quote()` for path escaping
-- **Process discovery**: Finds shell children of terminal processes for accurate CWD
-
-## Testing Notes
-
-- Test grouping with multiple terminal windows
-- Verify working directory capture across different terminals
-- Check workspace isolation (no unintended workspace switching)
-- **IMPORTANT**: Always test restore commands in workspace 4 using: `hyprctl dispatch workspace 4 && ./hypr-sessions.py restore session-name`
-
-## Debug Mode
-
-The `--debug` flag provides comprehensive troubleshooting output:
-
-```bash
-# Debug session save (shows window detection, Neovide capture, file creation)
-./hypr-sessions.py save work-session --debug
-
-# Debug session restore (shows file loading, launch process, group creation)
-./hypr-sessions.py restore work-session --debug
-
-# Debug session listing (shows directory scanning, file parsing)
-./hypr-sessions.py list --debug
-
-# Debug session deletion (shows file path validation, deletion process)
-./hypr-sessions.py delete work-session --debug
-```
-
-Debug output includes:
-
-- Window detection and classification
-- Process ID and working directory capture
-- Session file creation and validation
-- Launch command generation and execution
-- Group organization and restoration logic
-
-## Common Commands
-
-```bash
-# Save current workspace
-./hypr-sessions.py save work-session
-
-# Restore session
-./hypr-sessions.py restore work-session
-
-# List all sessions
-./hypr-sessions.py list
-
-# Delete session
-./hypr-sessions.py delete work-session
-```
-
-## Browser Integration Evolution (2025-08-08)
-
-### Phase 1: Native Messaging Extension Approach (2025-07-21) - DEPRECATED
-
-**Original Implementation**: Complex native messaging extension system
-
-- **Extension Architecture**: Firefox/Zen WebExtension with native messaging
-- **Communication**: File-based triggers + native messaging protocol
-- **Issues**: Extension not responding to triggers, complex debugging, maintenance overhead
-- **Status**: ⚠️ Deprecated in favor of sessionstore.jsonlz4 direct access
-
-### Phase 2: sessionstore.jsonlz4 Direct Access (2025-08-08) - ABANDONED
-
-**Attempted Implementation**: Direct access to Zen browser's session storage files
-
-- **Method**: Parse Mozilla's LZ4-compressed session files directly
-- **Issues**: Session files don't update in real-time, window-to-tab mapping complexity
-- **Status**: ⚠️ Abandoned due to unreliable session data correlation
-
-### Phase 3: Keyboard Shortcut Extension Approach (2025-08-10) - ✅ CURRENT
-
-**Final Solution**: Browser extension with keyboard shortcut triggers via hyprctl sendshortcut
-
-- **Method**: Extension responds to Alt+U, saves tab data to Downloads folder
-- **Communication**: hyprctl sendshortcut sends Alt+U directly to specific browser window
-- **File Transfer**: Extension creates timestamped JSON files for Python script to process
-- **Advantages**: Simple, reliable, non-disruptive to user workflow
-
-#### **✅ Working Implementation**
-
-**Browser Extension** (`browser_extension/`):
-
-- ✅ **Keyboard Command**: Alt+U registered in manifest.json
-- ✅ **Tab Capture**: Captures all tabs from current window with metadata
-- ✅ **File Output**: Saves `hypr-session-tabs-{timestamp}.json` to Downloads
-- ✅ **Clean Architecture**: Focused 140-line background.js, no native messaging complexity
-
-**Python Integration** (`session_save/browser_handler.py`):
-
-- ✅ **Direct Shortcut**: Uses `hyprctl dispatch sendshortcut ALT,u,address:{window_address}`
-- ✅ **No Window Focus**: Sends shortcut directly to specific window without focusing
-- ✅ **File Monitoring**: Detects new tab files by comparing before/after file lists
-- ✅ **Tab Processing**: Loads JSON data and integrates into session structure
-- ✅ **Cleanup**: Automatically removes temporary tab files after processing
-
-#### **Technical Architecture**
-
-**Workflow**:
-
-1. **Window Detection**: Python script identifies Zen browser windows via hyprctl
-2. **Shortcut Delivery**: `hyprctl dispatch sendshortcut ALT,u,address:{window_address}`
-3. **Extension Response**: Browser extension captures current window tabs
-4. **File Creation**: Extension saves `hypr-session-tabs-{timestamp}.json` to Downloads
-5. **Python Processing**: Script detects new file, loads tab data, cleans up file
-6. **Session Integration**: Tab data merged into window's browser_session object
-
-**Key Components**:
-
-- ✅ `capture_tabs_via_keyboard_shortcut()`: Main orchestration method
-- ✅ `wait_for_keyboard_shortcut_file()`: Monitors Downloads for new files
-- ✅ `load_keyboard_shortcut_tab_data()`: Parses extension JSON format
-- ✅ File cleanup and error handling with clear diagnostics
-
-#### **Technical Implementation Details**
-
-**Session Data Structure**:
-
-```json
-{
-	"windows": [
-		{
-			"tabs": [
-				{
-					"entries": [{ "url": "https://...", "title": "Page Title" }],
-					"index": 1,
-					"pinned": false
-				}
-			],
-			"selected": 2
-		}
-	]
-}
-```
-
-**Tab Extraction Logic**:
-
-- ✅ Navigation history handling (entries array with index)
-- ✅ URL filtering (skip about: pages, extensions)
-- ✅ Active tab detection via selected index
-- ✅ Pinned status capture
-
-**File Structure**:
-
-```
-session_save/
-├── browser_handler.py         # Keyboard shortcut integration
-├── session_saver.py           # Main session orchestration
-└── launch_commands.py         # Browser restoration commands
-browser_extension/             # Zen browser extension
-├── manifest.json              # Extension configuration
-└── background.js              # Tab capture logic
-```
-
-#### **Session Data Example**
-
-```json
-{
-	"browser_session": {
-		"browser_type": "zen",
-		"capture_method": "keyboard_shortcut",
-		"keyboard_shortcut": "Alt+U",
-		"tab_count": 15,
-		"window_id": 21884,
-		"tabs": [
-			{
-				"id": 717,
-				"url": "https://example.com",
-				"title": "Example Page",
-				"active": false,
-				"pinned": false,
-				"index": 1,
-				"windowId": 21884
-			}
-		]
-	}
-}
-```
-
-#### **Current Status (2025-08-10)**
-
-✅ **COMPLETED - Browser Session Saving**:
-
-- ✅ Zen browser window detection
-- ✅ Keyboard shortcut delivery via hyprctl sendshortcut
-- ✅ Extension tab capture and file generation
-- ✅ Python script file monitoring and processing
-- ✅ Session JSON integration with full tab metadata
-- ✅ Automatic cleanup of temporary files
-- ✅ Comprehensive debug logging and error handling
-
-🚧 **IN PROGRESS - Browser Session Restoration**:
-
-- ✅ Launch command generation with tab URLs
-- ⏳ Tab restoration testing and optimization
-- ⏳ Workspace-specific browser window positioning
-
-**Performance**: Successfully captures 15+ tabs in ~2 seconds with no user workflow disruption.
-
-#### **Dependencies**
-
-- Zen browser with installed hypr-sessions extension
-- Extension must be loaded and keyboard shortcuts enabled
-- Downloads folder write permissions for tab data files
-
-## Recent Session Directory Reorganization (2025-08-13)
-
-### Implemented
-
-1. **Folder-Based Session Storage**: Complete restructuring from flat files to directory-based organization
-    - **Self-Contained Sessions**: Each session stored in its own directory with all related files
-    - **Collision Prevention**: No more conflicts between session file names across different sessions
-    - **Easier Management**: Single directory deletion removes entire session including all artifacts
-    - **Future Extensibility**: Ready for additional per-session files (browser data, custom configs)
-
-2. **Updated Configuration System**:
-    - **New Path Methods**: `get_session_directory()`, `get_session_file_path()` with automatic directory creation
-    - **Legacy Support Methods**: Migration helpers for development transition (not used in production)
-    - **Backward Compatibility**: All existing code updated to use new folder structure seamlessly
-
-3. **Enhanced Session Operations**:
-    - **Save**: Creates session directory and stores session.json plus neovide session files within directory
-    - **List**: Shows folder-based sessions with file count and comprehensive metadata
-    - **Delete**: Removes entire session directory with user feedback on files deleted
-    - **Restore**: Works seamlessly with new folder paths, including swallowing and grouping
-
-4. **Cleanup and Migration**:
-    - **Deprecated Files Removed**: zen-browser-backups directory and old flat session files cleaned up
-    - **Application Command Fixes**: Fixed org.kde.dolphin -> dolphin mapping for proper restoration
-    - **Testing Verified**: Full end-to-end testing of save/list/delete/restore with complex sessions
-
-### Technical Implementation Details
-
-- **Directory Structure**: `~/.config/hypr-sessions/session_name/session.json` + auxiliary files
-- **Automatic Creation**: Session directories created on-demand during save operations
-- **Neovide Integration**: Session files now stored within session directory using session name context
-- **Error Handling**: Comprehensive error handling for directory operations and file management
-
-### Current Status (2025-08-13)
-
-✅ **COMPLETED - Folder-Based Session Storage**:
-
-- ✅ Configuration system updated with new path methods
-- ✅ Session saving to individual directories with all files contained
-- ✅ Session listing showing directory-based sessions with metadata
-- ✅ Session deletion removing entire directories safely
-- ✅ Session restoration working with new folder paths
-- ✅ Swallowing and grouping functionality fully compatible
-- ✅ Legacy file cleanup and application command fixes
-
-**Benefits Realized**:
-
-- **Cleaner Organization**: Session directories clearly show what belongs to each session
-- **Safer Operations**: Deleting a session removes only that session's files
-- **Development Friendly**: Easier to debug and inspect session contents
-- **Future Ready**: Architecture supports additional per-session data files
-
-## Recent Input Validation Implementation (2025-08-13)
-
-### Implemented
-
-1. **Comprehensive Input Validation System**: Complete validation framework for session operations
-    - **Custom Exception Classes**: Specific exception types for different validation failures
-    - **Session Name Validation**: Filesystem-safe names with comprehensive character and pattern checks
-    - **Existence Validation**: Proper session existence checking without creating directories
-    - **Directory Permission Validation**: Ensures write access to sessions directory
-
-2. **Validation Module** (`validation.py`):
-    - **SessionValidator Class**: Centralized validation logic with comprehensive checks
-    - **Custom Exceptions**: `SessionValidationError`, `InvalidSessionNameError`, `SessionNotFoundError`, `SessionAlreadyExistsError`
-    - **Input Sanitization**: Prevents invalid characters, control characters, reserved names
-    - **Boundary Validation**: Length limits, whitespace trimming, pattern enforcement
-
-3. **Enhanced Error Handling**:
-    - **CLI Integration**: All session operations validate inputs before execution
-    - **Component-Level Validation**: Each session component includes validation for direct usage
-    - **User-Friendly Messages**: Clear, actionable error messages with specific guidance
-    - **Early Failure**: Validates inputs before performing expensive operations
-
-4. **Validation Rules Implemented**:
-    - **Character Restrictions**: No filesystem-unsafe characters (`<>:"/\\|?*`)
-    - **Length Limits**: Maximum 200 characters for cross-platform compatibility
-    - **Pattern Validation**: No leading/trailing whitespace, no consecutive spaces
-    - **Reserved Names**: Prevents use of system directories (`.`, `..`)
-    - **Control Characters**: Blocks non-printable characters that could cause issues
-
-### Technical Implementation Details
-
-- **Validation Points**: CLI entry, component entry, and operation-specific validation
-- **Directory Creation Prevention**: Checks existence before auto-creating directories
-- **Exception Hierarchy**: Structured exception types for specific error handling
-- **Convenience Functions**: Simple validation functions for common use cases
-
-### Current Status (2025-08-13)
-
-✅ **COMPLETED - Input Validation System**:
-
-- ✅ Custom exception classes for validation scenarios
-- ✅ Comprehensive session name validation with filesystem safety
-- ✅ Session existence validation without side effects
-- ✅ Integration across all session operations (save/restore/list/delete)
-- ✅ Edge case testing with invalid inputs, control characters, length limits
-- ✅ User-friendly error messages with actionable guidance
-
-**Validation Examples**:
-
-- **Invalid Characters**: `Error: Session name contains invalid characters: '/'. Invalid characters: <>:"/\|?*`
-- **Reserved Names**: `Error: '..' is a reserved name and cannot be used`
-- **Length Limits**: `Error: Session name too long (201 chars). Maximum length is 200`
-- **Existence Checks**: `Error: Session 'nonexistent' not found`
-- **Duplicate Detection**: `Error: Session 'existing' already exists. Delete it first or use a different name.`
-
-**Benefits Realized**:
-
-- **Prevented Errors**: Invalid inputs caught before operations begin
-- **Better UX**: Clear error messages guide users to valid inputs
-- **System Safety**: Filesystem-safe names prevent directory traversal and corruption
-- **Development Quality**: Consistent validation across all components
-
-## Recent Structured Error Results Implementation (2025-08-13)
-
-### Implemented
-
-1. **Comprehensive OperationResult System**: Complete structured error tracking implementation
-    - **OperationResult Class**: Centralized result tracking with success/warning/error categorization
-    - **Rich Message Context**: Detailed operation feedback with contextual information
-    - **Partial Failure Support**: Operations can succeed with warnings, enabling graceful degradation
-    - **User-Friendly Display**: Smart formatting for debug vs normal operation modes
-
-2. **Enhanced Session Operations with Structured Results**:
-    - **SessionSaver**: Returns OperationResult with detailed window capture tracking, validation results, and file operation status
-    - **SessionRestore**: Tracks validation, file loading, application launching with granular success/failure reporting
-    - **SessionList**: Provides structured session scanning with invalid session warnings and detailed metadata
-    - **SessionDelete**: File-by-file deletion tracking with comprehensive validation and cleanup reporting
-
-3. **CLI Integration with Smart Result Display**:
-    - **Debug Mode**: Full detailed results showing all success/warning/error messages for troubleshooting
-    - **Normal Mode**: Concise summaries with error details when operations fail
-    - **Consistent Formatting**: Unified ✓/⚠/✗ symbols for immediate status recognition
-    - **Graceful Error Handling**: Clear failure messages without technical stack traces
-
-4. **Individual Window Processing with Error Recovery**:
-    - **Granular Exception Handling**: Each window capture wrapped in try-catch for isolation
-    - **Partial Success Tracking**: Failed windows don't abort entire session save operation
-    - **Detailed Failure Context**: Specific error messages for terminal, neovide, and browser window failures
-    - **Fallback Mechanisms**: Graceful degradation when specialized handlers fail
-
-### Current Status
-
-- **Structured Error Results**: Complete implementation across all session operations ✅
-- **Partial Failure Handling**: Operations continue despite individual component failures ✅
-- **Rich Debugging Information**: Comprehensive logging and result tracking ✅
-- **User Experience**: Clean error reporting with actionable feedback ✅
-- **Backward Compatibility**: Existing CLI behavior preserved with enhanced feedback ✅
-
-### Technical Implementation Details
-
-- **OperationResult Architecture**: Dataclass-based result system with typed message categorization
-- **Message Aggregation**: Centralized collection of operation events with context preservation
-- **CLI Response Adaptation**: Different output verbosity based on debug flag state
-- **Exception Integration**: Seamless conversion of validation errors to structured results
-- **Data Preservation**: Operation results include structured data for programmatic access
-
-### Error Handling Improvements Completed
-
-1. **Input Validation System**: Comprehensive session name and directory validation ✅
-2. **Structured Error Results**: Rich operation feedback with partial failure support ✅
-3. **Remaining Improvement Options**:
-    - **Retry Mechanisms**: Automatic retry for transient failures
-    - **Configuration Validation**: Startup-time environment and dependency checking
-    - **Recovery Suggestions**: Contextual hints for resolving common issues
-    - **Operation Rollback**: Undo capability for failed operations
-
-### Debug Output Examples
-
-```bash
-# Detailed structured results in debug mode
-./hypr-sessions.py save work-session --debug
-✓ Save session 'work-session': 15 succeeded, 2 warnings
-  ✓ Session name validated
-  ✓ Sessions directory accessible
-  ✓ Found 8 windows in current workspace
-  ✓ Captured working directory for com.mitchellh.ghostty
-  ⚠ Could not capture running program for com.mitchellh.ghostty
-  ✓ Session saved to /home/user/.config/hypr-sessions/work-session/session.json
-
-# Concise results in normal mode
-./hypr-sessions.py save work-session
-✓ Session saved successfully
-  ⚠ 2 warnings occurred during save
-
-# Error case handling
-./hypr-sessions.py restore nonexistent-session
-✗ Session restore failed
-  Error: Session 'nonexistent-session' not found
-```
-
-### File Structure Updates
-
-```
-├── operation_result.py           # NEW: Structured result system
-├── session_save/
-│   └── session_saver.py          # Updated: Returns OperationResult with window tracking
-├── session_restore.py            # Updated: Structured restore feedback
-├── session_list.py               # Updated: Session validation and metadata tracking
-├── session_delete.py             # Updated: File-by-file deletion tracking
-└── hypr-sessions.py              # Updated: Smart result display based on debug mode
-```
-
-## Recent Session Work (2025-07-12)
-
-### Implemented
-
-1. **Enhanced Neovide Session Management**: Complete implementation using Neovim remote API
-    - **Socket Detection**: Automatically finds Neovim server sockets for running Neovide instances
-    - **Live Session Capture**: Uses `nvim --server --remote-send :mksession` to capture actual session state
-    - **Comprehensive Session Files**: Captures open buffers, cursor positions, window layouts, working directories
-    - **Intelligent Fallback**: Falls back to basic working directory session if remote API fails
-    - **Debug Integration**: Full debug logging for troubleshooting session capture/restore
-
-2. **Neovim Remote API Integration**:
-    - Detects sockets in `/run/user/{uid}/nvim.{pid}.*` and other standard locations
-    - Searches process tree for child Neovim processes if direct PID socket not found
-    - Executes `:mksession!` command remotely to generate comprehensive session files
-    - Validates session file creation with timeout handling
-
-3. **Enhanced Debug Infrastructure**:
-    - Added debug parameter to all session classes including LaunchCommandGenerator
-    - Detailed logging for socket detection, session capture, and command execution
-    - Process tracking and validation throughout the session management pipeline
-
-4. **Robust Session Restoration**:
-    - Prioritizes full Neovim session files over basic working directory restoration
-    - Uses `neovide -- -S session.vim` for comprehensive session restoration
-    - Maintains backward compatibility with existing basic session approach
-
-### Current Status
-
-- **Neovide Socket Detection**: Automatically finds Neovim server sockets ✅
-- **Live Session Capture**: Captures actual Neovim session state via remote API ✅
-- **Comprehensive Session Files**: Saves buffers, cursor positions, layouts ✅
-- **Enhanced Restoration**: Restores full Neovim sessions with all state ✅
-- **Fallback Support**: Graceful degradation when remote API unavailable ✅
-
-### Technical Implementation Details
-
-- **Socket Patterns**: Supports multiple socket location patterns for compatibility
-- **Process Tree Search**: Finds Neovim processes in complex process hierarchies
-- **Timeout Handling**: 10-second timeout for remote commands, 3-second wait for file creation
-- **Session File Naming**: Uses `neovide-session-{pid}.vim` format to avoid conflicts
-- **Error Recovery**: Comprehensive error handling with detailed debug output
-
-### Next Steps (Future Enhancements)
-
-1. **Session Validation**: Verify session files contain expected Neovim session markers
-2. **Plugin State Capture**: Enhanced session capture for complex plugin configurations
-3. **Multi-instance Support**: Handle multiple Neovide instances with different sessions
-4. **Session Merging**: Combine multiple Neovim sessions into workspace-level sessions
-
-## Important Development Guidelines
-
-**CRITICAL**: Documentation and development workflow requirements:
-
-1. After every change to this codebase, update this CLAUDE.md file to reflect:
-2. Going forward, always update CLAUDE.md with relevant implementation details during development
-3. Include CLAUDE.md updates in commits when making changes
-
-**CRITICAL**: After every change to this codebase, update this CLAUDE.md file to reflect:
-
-- **New features implemented** with technical details
-- **Changes made** to existing functionality
-- **Knowledge gained** about the system behavior
-- **Issues discovered** and their solutions
-- **Future objectives** and implementation approaches
-- **Debugging insights** and troubleshooting notes
-
-This file serves as the primary knowledge base for understanding the project's evolution, current capabilities, and development roadmap. Keep it comprehensive and up-to-date to ensure effective collaboration and debugging.
-
-## Code Style Guidelines
-
-**IMPORTANT**: Emoji Usage Policy:
-- **NO EMOJIS**: Do not use emojis in code, UI text, documentation, or commit messages
-- **Rendering Issues**: Emojis do not render correctly in the target environment
-- **Text Alternatives**: Use clear, descriptive text instead of emoji symbols
-- **Professional Appearance**: Maintain clean, professional interface design without decorative symbols
-- **Status Indicators**: Use text like "Success", "Error", "Saving" instead of emoji equivalents
-
-## Recent JSON API Implementation (2025-08-14)
-
-### Implemented
-
-1. **Clean JSON API with Proper Separation of Concerns**: Complete implementation for UI integration
-    - **Clean JSON Output**: All session classes now return pure data without print statement contamination
-    - **Proper CLI Separation**: Session classes handle data operations, CLI handles all presentation
-    - **UI-Ready Architecture**: Simple command execution approach for frontend integration
-    - **Structured Output Format**: Consistent JSON schema across all operations with success/error states
-
-2. **Enhanced CLI Interface**:
-    - **--json Flag**: Produces clean, parseable JSON output suitable for UI consumption
-    - **Dual Output Modes**: JSON mode for programmatic use, normal mode for human interaction
-    - **Debug Compatibility**: Debug output works alongside JSON without contamination
-    - **Exit Code Strategy**: JSON mode outputs structured results and exits cleanly
-
-3. **Pure Data Operations**:
-    - **Session Classes**: Removed all user-facing print statements for pure data operations
-    - **Debug Preservation**: Maintained debug output through `debug_print()` methods
-    - **Structured Returns**: All operations return OperationResult objects with rich metadata
-    - **Error Isolation**: Clean error handling without technical stack traces in JSON mode
-
-4. **UI Integration Architecture**:
-    - **Simple Command Execution**: UI buttons run commands like `./hypr-session.py restore name-of-session --json`
-    - **Subprocess Communication**: Frontend calls CLI commands rather than library imports
-    - **No Complex Dependencies**: Avoids library import complexity in favor of simple command execution
-    - **Reliable Output**: Guaranteed clean JSON without stdout contamination
-
-### Technical Implementation Details
-
-**JSON Output Format**:
-
-```json
-{
-	"success": true,
-	"operation": "Save session 'work-session'",
-	"data": {
-		"session_file": "/path/to/session.json",
-		"windows_saved": 5,
-		"groups_detected": 1
-	},
-	"messages": [
-		{
-			"status": "success",
-			"message": "Session saved successfully",
-			"context": null
-		}
-	],
-	"summary": {
-		"success_count": 15,
-		"warning_count": 2,
-		"error_count": 0
-	}
-}
-```
-
-**CLI Architecture Changes**:
-
-- **\_output_json_result()**: Dedicated JSON output method in main CLI
-- **\_print_session_list()**: Structured presentation for normal mode
-- **Pure Session Classes**: No presentation logic, only data operations
-- **Debug Coexistence**: Debug output appears before JSON, doesn't contaminate structure
-
-### Current Status
-
-✅ **COMPLETED - JSON API Implementation**:
-
-- ✅ Clean JSON output without print statement contamination
-- ✅ Proper separation of data operations and presentation logic
-- ✅ All session operations support --json flag (save, restore, list, delete)
-- ✅ Debug mode compatibility with JSON output
-- ✅ Error handling with structured JSON error responses
-- ✅ Comprehensive testing of all commands with --json and --debug flags
-
-**Usage Examples**:
-
-```bash
-# UI-ready JSON output
-./hypr-sessions.py list --json
-./hypr-sessions.py save work-session --json
-hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json
-./hypr-sessions.py delete work-session --json
-
-# Debug output with JSON structure
-hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session --json --debug
-
-# Error cases return structured JSON
-./hypr-sessions.py restore nonexistent-session --json
-```
-
-**UI Integration Benefits**:
-
-- **Simple Implementation**: No complex library imports or API integration
-- **Reliable Output**: Guaranteed clean JSON structure for parsing
-- **Error Handling**: Structured error responses with actionable messages
-- **Debug Support**: Troubleshooting information available without affecting JSON
-- **Cross-Platform**: Works with any frontend that can execute subprocess commands
-
-### File Structure Updates
-
-```
-├── hypr-sessions.py              # Updated: --json flag support, clean output separation
-├── session_save/
-│   └── session_saver.py          # Updated: Removed print statements, pure data operations
-├── session_restore.py            # Updated: Debug-only output, no user-facing prints
-├── session_list.py               # Updated: Pure data operations, structured results
-├── session_delete.py             # Updated: Clean operations without print contamination
-└── operation_result.py           # Integration: Structured results for JSON conversion
-```
-
-## Recent Terminal Program Detection Work (2025-07-13)
-
-### Implemented
-
-1. **Running Program Detection in Terminals**: Complete implementation for detecting and restoring active programs
-    - **Process Tree Analysis**: Recursively analyzes terminal process trees to find non-shell programs
-    - **Command Line Parsing**: Extracts program names, arguments, and shell commands from `/proc/{pid}/cmdline`
-    - **Shell Command Detection**: Special handling for shell commands executed with `-c` flag (npm run dev, complex commands)
-    - **Intelligent Filtering**: Skips shell processes unless they're executing specific commands
-
-2. **Enhanced Session Data Format**:
-    - **running_program Object**: Stores detected program information including name, args, full_command, and optional shell_command
-    - **Backward Compatibility**: New data is optional, existing sessions continue to work
-    - **Debug Integration**: Comprehensive logging for program detection and command building
-
-3. **Advanced Launch Command Generation**:
-    - **Ghostty-Specific Execution**: Uses `-e` flag for program execution with working directory
-    - **Shell Command Handling**: Properly executes complex shell commands through `sh -c`
-    - **Direct Program Execution**: Launches simple programs directly without shell intermediary
-    - **Working Directory Integration**: Combines working directory and program execution seamlessly
-
-4. **Fixed Process Detection Issues**:
-    - **Process Stat Parsing**: Fixed parsing of `/proc/*/stat` for processes with spaces in names (like "npm run dev")
-    - **Recursive Process Search**: Enhanced process tree traversal to find programs in complex hierarchies
-    - **Conflict Resolution**: Prevents conflicts between terminal program detection and dedicated neovide session management
-
-### Technical Implementation Details
-
-- **Process Discovery**: Reads `/proc/{pid}/cmdline` for command line information and `/proc/*/stat` for parent-child relationships
-- **Command Parsing**: Handles null-separated arguments with proper Unicode decoding
-- **Shell Detection**: Identifies bash, zsh, fish, sh, dash and analyzes their child processes
-- **Process Filtering**: Skips hypr-sessions save commands, neovide processes, and embedded nvim instances
-- **Launch Command Building**: Constructs proper Ghostty commands with working directory and program execution
-
-### Current Status
-
-- **Program Detection**: Automatically detects running programs in Ghostty terminals ✅
-- **Command Restoration**: Restores terminals with detected programs running ✅
-- **Shell Command Support**: Handles complex shell commands (npm run dev) ✅
-- **Process Tree Analysis**: Recursive search through complex process hierarchies ✅
-- **Conflict Prevention**: Avoids conflicts with neovide session management ✅
-
-### Examples of Supported Programs
-
-- **File Managers**: yazi, ranger, nnn, lf
-- **Development Tools**: npm run dev, yarn start, cargo run
-- **Editors**: vim, nvim (standalone, not embedded)
-- **System Tools**: htop, btop, top, ps
-- **Custom Scripts**: Any executable program or shell command
-
-### Terminal Persistence Enhancement (2025-07-14)
-
-**✅ RESOLVED**: Implemented shell wrapper approach to keep terminals open after programs exit
-
-- **Shell Wrapper Implementation**: Programs are wrapped with `; exec $SHELL` to return to shell when program exits
-- **Signal Handling**: Added trap for shell commands to handle Ctrl+C gracefully without killing terminal
-- **Multi-word Command Detection**: Enhanced detection for package manager commands (npm run dev, yarn start, etc.)
-- **Proper Quoting**: Fixed command generation with proper shell escaping and quoting
-
-**Technical Details:**
-
-- **Direct Programs**: `ghostty --working-directory=/path -e sh -c "yazi; exec $SHELL"`
-- **Shell Commands**: `ghostty --working-directory=/path -e sh -c "trap 'echo Program interrupted' INT; npm run dev; exec $SHELL"`
-- **Package Manager Support**: npm, yarn, pnpm, bun commands are automatically treated as shell commands
-- **Argument Filtering**: Removes empty arguments from process cmdline parsing
-
-### Known Limitations
-
-- **None currently identified** - Terminal persistence feature is complete and working
-
-## Fabric UI Implementation (2025-08-14)
-
-### Implemented
-
-1. **Fabric-based Layer Widget**: Complete graphical user interface implementation
-    - **Wayland Layer Shell**: Native layer widget using WaylandWindow for overlay display
-    - **Centered Display**: Layer widget appears centered on screen as overlay
-    - **Keyboard Navigation**: Esc key support for closing the widget
-    - **Clean Architecture**: Separated Python logic from CSS styling
-
-2. **Session List Display**:
-    - **Automatic Discovery**: Scans `~/.config/hypr-sessions/` for available sessions
-    - **Interactive Buttons**: Each session displayed as clickable button in vertical list
-    - **Dynamic Content**: Shows "No sessions found" when no sessions exist
-    - **Session Detection**: Validates session directories contain session.json files
-
-3. **UI Structure and Styling**:
-    - **External CSS**: Clean separation with session_manager.css stylesheet
-    - **GTK-Compatible Styling**: Proper CSS without unsupported properties
-    - **Responsive Design**: Appropriate sizing and spacing for session lists
-    - **Clean Typography**: Readable fonts without problematic emoji rendering
-
-4. **Framework Integration**:
-    - **Virtual Environment**: Isolated Fabric installation in fabric-ui/venv/
-    - **Import Structure**: Proper module imports and path handling
-    - **Error Handling**: Graceful handling of missing sessions and CSS issues
-
-5. **Segmented Toggle Switch (2025-08-14)**:
-    - **Two-Panel Design**: Toggle between "Browse Sessions" and "Save Session" modes
-    - **Visual Design**: Segmented control similar to Hotels/Apartments UI pattern
-    - **Equal Button Sizing**: GTK homogeneous box for perfectly balanced appearance
-    - **State Management**: Interactive switching with visual feedback and console logging
-
-6. **Panel Switching Logic (2025-08-15)**:
-    - **Dynamic Content Area**: Container that switches between browse and save panels
-    - **Seamless Transitions**: Smooth panel switching without UI flickering
-    - **State Tracking**: Proper mode tracking with visual button state updates
-    - **Content Management**: Dynamic widget replacement using children property
-
-7. **Save Session Panel (2025-08-15)**:
-    - **Input Field**: Entry widget for session name with placeholder text
-    - **Save Button**: Styled button with emoji and click handler
-    - **Auto-Focus**: Automatic input field focus when switching to save mode
-    - **Input Validation**: Basic validation with user feedback
-    - **Green Theme**: Consistent styling with green color scheme
-
-8. **Code Refactoring and Modular Architecture (2025-08-15)**:
-    - **Widget Separation**: Extracted components into dedicated widget files
-    - **Package Structure**: Created widgets/ and utils/ packages with proper __init__.py files
-    - **Specialized Modules**: ToggleSwitchWidget, BrowsePanelWidget, SavePanelWidget classes
-    - **Session Utilities**: Centralized session directory operations in SessionUtils class
-    - **Callback Interface**: Clean communication between widgets using callback functions
-    - **Code Reduction**: Main file reduced from 311 to 166 lines (47% reduction)
-
-9. **Backend Integration and Save Functionality (2025-08-15)**:
-    - **Backend Client**: Subprocess-based CLI communication with JSON parsing and error handling
-    - **Real Save Operations**: Actual session saving using mature CLI backend with --json flag
-    - **User Feedback System**: Success/error/info status messages with visual styling
-    - **Multi-line Messages**: Prevent width expansion with formatted 3-line success messages
-    - **Button States**: Disable/enable during operations with loading indicators
-    - **Error Resilience**: Comprehensive error handling for validation, backend, and network failures
-    - **Auto-refresh**: Browse panel updates automatically after successful saves
-
-### Technical Implementation Details
-
-**File Structure**:
-
-```
-fabric-ui/
-├── session_manager.py      # Main application and window class (166 lines)
-├── widgets/                # Widget components package
-│   ├── __init__.py         # Package initialization with exports
-│   ├── toggle_switch.py    # ToggleSwitchWidget - segmented toggle control
-│   ├── browse_panel.py     # BrowsePanelWidget - session listing and selection
-│   └── save_panel.py       # SavePanelWidget - session creation interface
-├── utils/                  # Utility modules package
-│   ├── __init__.py         # Package initialization with exports
-│   ├── session_utils.py    # SessionUtils class - directory operations
-│   └── backend_client.py   # BackendClient class - CLI communication
-├── session_manager.css     # External stylesheet
-└── venv/                   # Fabric framework virtual environment
-```
-
-**Key Components**:
-
-- **SessionManagerWidget**: Main WaylandWindow class with widget orchestration and callbacks
-- **ToggleSwitchWidget**: Segmented toggle control with state management and callback interface
-- **BrowsePanelWidget**: Session discovery, listing, and selection with refresh capability
-- **SavePanelWidget**: Session creation interface with backend integration and status feedback
-- **SessionUtils**: Centralized session directory operations and path management
-- **BackendClient**: CLI communication with JSON parsing, error handling, and timeout protection
-- **CSS Integration**: External stylesheet loading with modular widget styling
-
-**UI Features**:
-
-- **Title Display**: "Hypr Sessions Manager" with subtitle
-- **Segmented Toggle**: Browse Sessions/Save Session toggle with equal button sizing
-- **Session List**: "Available Sessions:" header with button list below
-- **Comprehensive Keyboard Navigation**: Multiple navigation methods with intuitive key bindings
-  - **Tab**: Toggle between Browse/Save panels
-  - **← Left Arrow**: Switch to Browse Sessions panel
-  - **→ Right Arrow**: Switch to Save Session panel
-  - **Esc**: Exit application
-- **Button Interaction**: Click handlers prepared for future restore functionality
-
-### Current Status (2025-08-15)
-
-✅ **COMPLETED - Functional Fabric UI with Backend Integration**:
-
-- ✅ Working layer widget with proper Wayland integration
-- ✅ Session discovery and display functionality
-- ✅ Clean UI structure with external CSS styling
-- ✅ Segmented toggle switch for Browse/Save mode selection
-- ✅ Panel switching logic with dynamic content management
-- ✅ Fully functional save session capability with real CLI backend integration
-- ✅ User feedback system with success/error/info messages and visual styling
-- ✅ Multi-line status messages preventing width expansion artifacts
-- ✅ Comprehensive keyboard navigation with Tab, arrow keys, and Esc support
-- ✅ Modular architecture with separated widget components
-- ✅ Package structure with proper imports and exports
-- ✅ Stable codebase without CSS or rendering errors
-
-**Usage**:
-
-```bash
-cd fabric-ui
-source venv/bin/activate
-python session_manager.py
-```
-
-**Next Steps**:
-
-- **Restore Functionality**: Connect session buttons to actual restore operations using BackendClient
-- **Enhanced UI**: Session metadata display, deletion options
-- **Session Management**: Delete session functionality with confirmation dialogs
-- **Advanced Features**: Session validation, auto-refresh timers
-
-**Benefits Realized**:
-
-- **Fully Functional UI**: Complete save session capability with real backend integration
-- **User-Friendly Interface**: Graphical alternative to CLI operations with visual feedback
-- **Native Integration**: Proper Wayland layer shell implementation
-- **Maintainable Code**: Clean separation of logic and styling with modular architecture
-- **Extensible Foundation**: Ready for additional session management features
-- **Developer Experience**: 47% code reduction in main file, focused widget responsibilities
-- **Reusable Components**: Widget modules can be imported and used in other applications
-- **Professional UX**: Multi-line messages, button states, error handling, and natural animations
-
-## Recent Keyboard Navigation Enhancement (2025-08-16)
-
-### Implemented
-
-1. **Comprehensive Keyboard Navigation System**: Complete keyboard control for panel switching
-    - **Multi-Modal Navigation**: Tab key for quick toggle, arrow keys for directional navigation
-    - **Intuitive Key Mapping**: Left arrow → Browse panel, Right arrow → Save panel
-    - **Single Source of Truth Integration**: All keyboard navigation uses the refactored toggle switch architecture
-    - **Debug-Assisted Development**: Used systematic debugging to identify correct keycodes (113/114 vs 37/39)
-
-2. **Keycode Discovery and Implementation**:
-    - **System-Specific Keycodes**: Discovered actual keycodes through runtime debugging (Left=113, Right=114, Tab=23, Esc=9)
-    - **Cross-Platform Compatibility**: GTK keycode detection ensures proper keyboard handling
-    - **Clean Implementation**: Removed debug statements for production-ready code
-    - **User Feedback**: Updated help message to reflect all available shortcuts
-
-3. **Enhanced User Experience**:
-    - **Multiple Navigation Methods**: Mouse clicks, Tab toggle, directional arrows, quick exit
-    - **Natural Flow**: Left/right arrow mapping matches visual panel layout
-    - **Consistent Behavior**: All navigation methods use single source of truth pattern
-    - **Professional Polish**: Clean keyboard handling without console noise
-
-### Technical Implementation Details
-
-**Keyboard Event Handling**:
-```python
-# GTK key press event handling with system-specific keycodes
-elif keycode == 114:  # Right arrow
-    if not self.toggle_switch.is_save_mode:  # If in browse mode, go to save
-        self.toggle_switch.set_save_mode()
-    return True
-
-elif keycode == 113:  # Left arrow
-    if self.toggle_switch.is_save_mode:  # If in save mode, go to browse
-        self.toggle_switch.set_browse_mode()
-    return True
-```
-
-**Keycode Mapping**:
-- **Escape (9)**: Exit application
-- **Tab (23)**: Toggle between panels
-- **Left Arrow (113)**: Switch to Browse Sessions panel
-- **Right Arrow (114)**: Switch to Save Session panel
-
-### Current Status (2025-08-16)
-
-✅ **COMPLETED - Full Keyboard Navigation**:
-
-- ✅ Tab key panel toggling with single source of truth architecture
-- ✅ Left/right arrow directional navigation
-- ✅ System-specific keycode detection and mapping
-- ✅ Clean production code without debug output
-- ✅ Updated user feedback with comprehensive shortcut information
-- ✅ Consistent behavior across all navigation methods
-
-**User Interface Shortcuts**:
-```
-Tab/←→ to switch panels, Esc to exit
-```
-
-**Benefits Realized**:
-
-- **Accessibility**: Multiple input methods accommodate different user preferences
-- **Efficiency**: Quick keyboard navigation without mouse dependency
-- **Intuitive Design**: Directional keys match visual panel layout
-- **Professional UX**: Clean, responsive keyboard handling
-- **Maintainable Code**: Leverages existing single source of truth architecture
-
-### Architecture Integration
-
-The keyboard navigation seamlessly integrates with the existing toggle switch refactoring:
-
-1. **Single Method Calls**: Each navigation method calls only `set_browse_mode()` or `set_save_mode()`
-2. **Automatic Callbacks**: Toggle switch methods automatically trigger panel switching
-3. **State Consistency**: Visual toggle state and panel content remain synchronized
-4. **Clean API**: No duplicate calls or manual state management required
-
-This implementation provides a complete, professional keyboard navigation experience that enhances the UI's usability while maintaining clean, maintainable code architecture.
-
-## Recent Session Navigation Implementation (2025-08-16)
-
-### Implemented
-
-1. **Comprehensive Session Navigation System**: Complete keyboard-driven session browsing and selection
-    - **Visual Selection State**: First session auto-selected with distinct blue highlighting and purple border
-    - **Keyboard Navigation**: Up/Down arrows for session traversal with wraparound behavior
-    - **Mode-Aware Controls**: Session navigation only active in Browse mode, preserving panel navigation
-    - **Enter Key Activation**: Direct session restore via keyboard selection
-
-2. **Advanced Visual Feedback System**:
-    - **Clean CSS Architecture**: Base `.session-button` styling with `.selected` modifier class
-    - **GTK Style Integration**: Proper `add_class()`/`remove_class()` implementation for dynamic styling
-    - **Professional Aesthetics**: Blue background, dark text, purple border, bold font, and subtle glow for selected sessions
-    - **Hover Effects**: Preserved hover interactions for non-selected sessions
-
-3. **Robust Navigation Logic**:
-    - **Wraparound Behavior**: Last session → first session (Down), first session → last session (Up)
-    - **State Management**: Proper GTK StyleContext manipulation for real-time visual updates
-    - **Edge Case Handling**: Empty session lists, single sessions, panel switching preservation
-    - **Auto-Selection**: First session automatically selected on panel display
-
-4. **Maintainable Code Architecture**:
-    - **Keycode Constants**: Extracted hardcoded values to named constants for better maintainability
-    - **Method Separation**: Clean separation between `select_next()`, `select_previous()`, and `activate_selected_session()`
-    - **Mode Isolation**: Session navigation logic isolated to Browse mode only
-    - **Error Prevention**: Bounds checking and state validation throughout navigation logic
-
-### Technical Implementation Details
-
-**Keycode Constants**:
-```python
-# GTK Keycodes
-KEYCODE_ESCAPE = 9
-KEYCODE_TAB = 23
-KEYCODE_ENTER = 36
-KEYCODE_LEFT_ARROW = 113
-KEYCODE_RIGHT_ARROW = 114
-KEYCODE_UP_ARROW = 111
-KEYCODE_DOWN_ARROW = 116
-```
-
-**CSS Selection Styling**:
-```css
-#session-button.selected {
-    background-color: #89b4fa;
-    color: #181825;
-    border: 2px solid #cba6f7;
-    font-weight: bold;
-    box-shadow: 0 0 8px rgba(137, 180, 250, 0.3);
-}
-```
-
-**Navigation State Management**:
-```python
-def select_next(self):
-    """Select the next session with wraparound and visual feedback"""
-    if self.selected_index >= 0:
-        self.session_buttons[self.selected_index].get_style_context().remove_class("selected")
-    
-    self.selected_index = (self.selected_index + 1) % len(self.session_buttons)
-    self.session_buttons[self.selected_index].get_style_context().add_class("selected")
-```
-
-### Complete Keyboard Control System
-
-**Panel Navigation:**
-- **Tab**: Toggle between Browse/Save panels
-- **← Left Arrow**: Switch to Browse Sessions panel
-- **→ Right Arrow**: Switch to Save Session panel
-
-**Session Navigation (Browse Mode Only):**
-- **↑ Up Arrow**: Navigate to previous session (with wraparound)
-- **↓ Down Arrow**: Navigate to next session (with wraparound)
-- **Enter**: Activate/restore selected session
-
-**System Controls:**
-- **Esc**: Exit application immediately
-
-### Current Status (2025-08-16)
-
-✅ **COMPLETED - Full Session Navigation System**:
-
-- ✅ Visual selection state with auto-selected first session
-- ✅ Up/Down arrow keyboard navigation with wraparound behavior
-- ✅ Enter key session activation with placeholder restore functionality
-- ✅ Mode-aware navigation (Browse mode only, preserves Save panel input)
-- ✅ Professional CSS styling with clear selection differentiation
-- ✅ GTK StyleContext integration with proper class management
-- ✅ Maintainable code with keycode constants and clean architecture
-- ✅ Edge case handling for empty lists, single sessions, and state transitions
-
-**User Experience Enhancement**:
-```
-↑↓ to navigate sessions, Enter to restore, Tab/←→ to switch panels, Esc to exit
-```
-
-**Benefits Realized**:
-
-- **Complete Keyboard Control**: Full navigation without mouse dependency
-- **Professional UX**: Clear visual feedback with responsive navigation
-- **Accessibility**: Multiple navigation methods accommodate different workflows
-- **Intuitive Design**: Natural Up/Down mapping with visual session order
-- **Clean Architecture**: Maintainable code with proper separation of concerns
-- **Future-Ready**: Solid foundation for upcoming session restore functionality
+## Fabric UI Implementation
 
 ### Architecture Excellence
 
-The session navigation seamlessly integrates with existing UI architecture:
+-   **Wayland Layer Widget**: Native overlay using WaylandWindow with layer shell support
+-   **State-Based UI**: Save panel with input/saving/success/error states and smooth transitions
+-   **Asynchronous Operations**: Non-blocking save operations with proper thread safety and timeout handling
+-   **Keyboard Navigation**: Comprehensive control (Tab, arrows, Enter, Esc) with mode-aware routing
+-   **Modular Design**: Clean separation of concerns with specialized widget components
 
-1. **Single Responsibility**: BrowsePanelWidget handles session-specific navigation logic
-2. **Event Delegation**: SessionManagerWidget routes keyboard events based on current mode
-3. **State Consistency**: Visual feedback and internal state remain synchronized
-4. **Non-Invasive**: Existing panel navigation and save functionality unaffected
-5. **Extensible**: Ready for additional session management features (restore, delete, metadata)
+### UI Components
 
-This implementation establishes a comprehensive, professional-grade keyboard navigation system that significantly enhances the session manager's usability while maintaining clean, maintainable code standards.
-
-## Recent Scrollable Session Navigation Implementation (2025-08-16)
-
-### Implemented
-
-1. **Scalable Session Display System**: Intelligent windowing for session management scalability
-    - **Fixed 5-Session Window**: Display limited to 5 sessions maximum for optimal UX
-    - **Configurable Window Size**: `VISIBLE_WINDOW_SIZE` constant for easy adjustment
-    - **Smart Window Positioning**: Automatically positions window to keep selection visible
-    - **Clean Minimalist Design**: No visual clutter, pure session focus
-
-2. **Advanced Scrolling Algorithm**:
-    - **Dual-Index State Management**: Global position tracking across all sessions plus local position within visible window
-    - **Intelligent Window Calculation**: Dynamic window positioning algorithm ensuring selection remains visible
-    - **Wraparound Navigation**: Seamless navigation from last to first session across entire collection
-    - **Automatic Scrolling**: Window scrolls automatically when selection moves beyond visible boundaries
-
-3. **Performance-Optimized Architecture**:
-    - **On-Demand Rendering**: Only creates UI widgets for visible sessions (5 out of potentially hundreds)
-    - **Efficient State Updates**: Smart refresh system that recalculates window positioning
-    - **Memory Efficient**: Minimal widget creation regardless of total session count
-    - **Smooth Navigation**: No lag or delays when scrolling through large session collections
-
-4. **Robust State Management**:
-    - **Global Session Tracking**: `all_session_names[]` maintains complete session list
-    - **Window Boundaries**: `visible_start_index` and calculated end position for window management
-    - **Selection Persistence**: `selected_global_index` maintains selection across scrolling operations
-    - **Edge Case Handling**: Proper bounds checking and validation for all navigation scenarios
-
-### Technical Implementation Details
-
-**Core State Variables**:
 ```python
-self.VISIBLE_WINDOW_SIZE = 5        # Configurable display limit
-self.all_session_names = []         # Complete session collection
-self.visible_start_index = 0        # First visible session in global list
-self.selected_global_index = 0      # Currently selected session in global list
-self.selected_local_index = 0       # Selection position within visible window
+# Main widget hierarchy
+SessionManagerWidget (WaylandWindow)
+├── ToggleSwitchWidget          # Browse/Save mode switching with visual feedback
+├── BrowsePanelWidget           # Session navigation with intelligent scrolling
+└── SavePanelWidget             # Session creation with Enter key support
 ```
 
-**Window Calculation Algorithm**:
+### Advanced Features
+
+#### Scalable Session Navigation
+
+-   **Scrollable Window**: Fixed 5-session display with intelligent positioning
+-   **Wraparound Navigation**: Seamless navigation through unlimited session collections
+-   **Visual Indicators**: Nerd Font chevrons (↑↓) for scroll state with layout stability
+-   **Performance**: On-demand rendering - only creates widgets for visible sessions
+-   **Session Count**: Dynamic header showing "Available Sessions (N)" with real-time updates
+
+#### Professional Save Experience
+
+-   **Enter Key Support**: Type session name → press Enter → save operation
+-   **State Management**: Clean UI transitions with loading indicators and status feedback
+-   **Error Recovery**: Retry functionality with session name preservation
+-   **Validation**: Real-time input validation with user-friendly error messages
+-   **Backend Integration**: Async communication with 30s timeout and proper error handling
+
+#### Keyboard Navigation System
+
+```
+Panel Navigation:
+- Tab: Toggle between Browse/Save panels
+- ← →: Directional panel switching
+- Esc: Exit application
+
+Session Navigation (Browse Mode):
+- ↑ ↓: Navigate sessions with wraparound
+- Enter: Activate/restore selected session
+- d: Delete confirmation for selected session
+
+Delete Confirmation:
+- Enter: Confirm deletion (permanent action)
+- Esc: Cancel deletion and return to browsing
+
+Save Panel:
+- Enter: Trigger save operation (input state only)
+- Esc: Cancel operations or return to input
+```
+
+### Constants Management
+
 ```python
-def calculate_visible_window(self):
-    """Intelligent window positioning to keep selection visible"""
-    if selection < window_start:
-        # Scroll window up to show selection
-        self.visible_start_index = self.selected_global_index
-    elif selection >= window_end:
-        # Scroll window down to show selection
-        self.visible_start_index = self.selected_global_index - VISIBLE_WINDOW_SIZE + 1
-    
-    # Ensure window boundaries don't exceed session list bounds
-    self.visible_start_index = max(0, min(visible_start_index, total_sessions - VISIBLE_WINDOW_SIZE))
-```
-
-**Smart Navigation Logic**:
-```python
-def select_next(self):
-    """Navigation with automatic scrolling and wraparound"""
-    total_sessions = len(self.all_session_names)
-    self.selected_global_index = (self.selected_global_index + 1) % total_sessions
-    self.update_display()  # Triggers window recalculation and UI refresh
-```
-
-### Scalability and Performance Benefits
-
-**Before Scrollable Navigation:**
-- All sessions displayed simultaneously
-- UI becomes cluttered with 10+ sessions
-- Limited scalability for large session collections
-- Fixed screen real estate consumption
-
-**After Scrollable Navigation:**
-- Clean 5-session display regardless of total count
-- Works seamlessly with 5 or 500 sessions
-- Consistent UI performance
-- Optimal screen real estate usage
-
-### Future-Ready Utility Methods
-
-**Navigation State API**:
-```python
-def has_sessions_above(self):
-    """Returns True if more sessions exist above visible window"""
-    
-def has_sessions_below(self):
-    """Returns True if more sessions exist below visible window"""
-```
-
-These methods provide foundation for future enhancements:
-- **Scroll Indicators**: Visual cues for available content
-- **Pagination Info**: "Session 3 of 12" status display
-- **Mouse Scroll Support**: Integration with mouse wheel events
-- **Accessibility Features**: Screen reader scroll state announcements
-
-### Current Status (2025-08-16)
-
-✅ **COMPLETED - Scalable Session Navigation**:
-
-- ✅ Fixed 5-session display window with intelligent positioning
-- ✅ Seamless navigation through unlimited session collections
-- ✅ Wraparound behavior across entire session list
-- ✅ Performance-optimized rendering (only visible sessions)
-- ✅ Configurable window size via `VISIBLE_WINDOW_SIZE` constant
-- ✅ Clean minimalist design without visual indicators
-- ✅ Robust state management with proper edge case handling
-- ✅ Future-ready utility methods for enhanced features
-
-**User Experience Enhancement**:
-- **Scalability**: Handles any number of sessions elegantly
-- **Performance**: Smooth navigation regardless of session count
-- **Clean Design**: Uncluttered interface focusing on session content
-- **Intuitive Navigation**: Natural Up/Down scrolling behavior
-- **Memory Efficient**: Minimal resource usage for large collections
-
-**Architecture Excellence**:
-
-1. **Separation of Concerns**: Window management isolated from navigation logic
-2. **Configurable Design**: Easy adjustment of display parameters
-3. **Performance Optimized**: On-demand widget creation and smart refresh
-4. **State Consistency**: Global and local indexes always synchronized
-5. **Future Extensible**: Ready for scroll indicators, pagination, and mouse support
-
-This scrollable navigation implementation transforms the session manager into a professional, scalable application that maintains excellent performance and user experience regardless of session collection size, establishing a solid foundation for future session management enhancements.
-
-## Recent Layout-Stable Scroll Indicators Implementation (2025-08-16)
-
-### Implemented
-
-1. **Professional Scroll Indicators with Layout Stability**: Complete visual feedback system without layout shifts
-    - **Nerd Font Chevrons**: Clean, modern `\uf077` (up) and `\uf078` (down) symbols from Font Awesome
-    - **Reserved Space Architecture**: Always-present indicator placeholders prevent window size changes
-    - **Conditional Visibility**: Arrows appear/disappear based on scroll state without DOM changes
-    - **Layout Consistency**: Fixed window dimensions regardless of scroll indicator state
-
-2. **Code Quality Improvements**:
-    - **DRY Principle**: `_create_scroll_indicator()` helper method eliminates code duplication
-    - **Configurable Symbols**: Arrow constants (`ARROW_UP`, `ARROW_DOWN`) for easy customization
-    - **Clean Implementation**: Reduced from 10+ lines to 2 lines per indicator
-    - **Maintainable Architecture**: Single place to modify indicator logic and styling
-
-3. **Enhanced User Experience**:
-    - **Stable Interface**: No jarring window resizing during navigation
-    - **Professional Appearance**: Nerd Font symbols provide modern, consistent design
-    - **Clear Visual Feedback**: Intuitive directional indicators for available content
-    - **Minimal Design**: Clean chevrons without background clutter
-
-4. **Technical Architecture Excellence**:
-    - **Space Reservation**: `min-height` CSS ensures consistent height for empty indicators
-    - **Proper Text Rendering**: `set_markup()` calls ensure reliable symbol display
-    - **Performance Optimized**: No widget creation/destruction during navigation
-    - **Future-Ready**: Easy to customize symbols or add enhanced indicator features
-
-### Technical Implementation Details
-
-**Layout Stability Pattern**:
-```python
-def _create_scroll_indicator(self, arrow_symbol, show_condition):
-    """Create a scroll indicator with reserved space"""
-    indicator = Label(text="", name="scroll-indicator")
-    if show_condition:
-        indicator.set_markup(arrow_symbol)
-    else:
-        indicator.set_markup("")  # Empty but reserves space
-    return indicator
-```
-
-**Configurable Symbol System**:
-```python
-# Nerd Font chevrons for professional appearance
-self.ARROW_UP = "\uf077"    # nf-fa-chevron_up
-self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_down
-
-# Usage
-more_above = self._create_scroll_indicator(self.ARROW_UP, self.has_sessions_above())
-more_below = self._create_scroll_indicator(self.ARROW_DOWN, self.has_sessions_below())
-```
-
-**CSS Layout Stability**:
-```css
-#scroll-indicator {
-    color: #89b4fa;
-    font-size: 16px;
-    font-weight: bold;
-    /* Reserved space ensures consistent layout */
-}
-```
-
-### Problem Solved: Layout Shift Prevention
-
-**Before (Dynamic Indicators):**
-- Widgets added/removed based on scroll state
-- Window size fluctuated unpredictably
-- Jarring user experience with layout jumps
-- Inconsistent interface dimensions
-
-**After (Reserved Space):**
-- Fixed widget structure with conditional content
-- Stable window dimensions in all scroll states
-- Smooth, professional navigation experience
-- Consistent interface behavior
-
-5. **Session Count Display Enhancement**:
-    - **Dynamic Header**: "Available Sessions (N):" format with real-time session count
-    - **Initialization Fix**: Resolved order-of-operations bug where count showed 0 on widget creation
-    - **Accurate Display**: Session count correct from initial render through all navigation states
-    - **Professional Formatting**: Bold markup with consistent header styling
-
-### Technical Implementation Details
-
-**Order-of-Operations Fix**:
-```python
-def _create_content(self):
-    """Create the browse panel content"""
-    # Get and create session buttons first
-    sessions_container = self._create_sessions_list()
-    
-    # Sessions list section header with total count (now that we have the actual count)
-    total_sessions = len(self.all_session_names)
-    header_text = f"Available Sessions ({total_sessions}):"
-    sessions_header = Label(text=header_text, name="sessions-header")
-    sessions_header.set_markup(f"<span weight='bold'>{header_text}</span>")
-```
-
-**Layout Stability Pattern**:
-```python
-def _create_scroll_indicator(self, arrow_symbol, show_condition):
-    """Create a scroll indicator with reserved space"""
-    indicator = Label(text="", name="scroll-indicator")
-    if show_condition:
-        indicator.set_markup(arrow_symbol)
-    else:
-        indicator.set_markup("")  # Empty but reserves space
-    return indicator
-```
-
-**Configurable Symbol System**:
-```python
-# Nerd Font chevrons for professional appearance
-self.ARROW_UP = "\uf077"    # nf-fa-chevron_up
-self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_down
-
-# Usage
-more_above = self._create_scroll_indicator(self.ARROW_UP, self.has_sessions_above())
-more_below = self._create_scroll_indicator(self.ARROW_DOWN, self.has_sessions_below())
-```
-
-**CSS Layout Stability**:
-```css
-#scroll-indicator {
-    color: #89b4fa;
-    font-size: 16px;
-    font-weight: bold;
-    /* Reserved space ensures consistent layout */
-}
-```
-
-### Problem Solved: Layout Shift Prevention
-
-**Before (Dynamic Indicators):**
-- Widgets added/removed based on scroll state
-- Window size fluctuated unpredictably
-- Jarring user experience with layout jumps
-- Inconsistent interface dimensions
-
-**After (Reserved Space):**
-- Fixed widget structure with conditional content
-- Stable window dimensions in all scroll states
-- Smooth, professional navigation experience
-- Consistent interface behavior
-
-### Session Count Bug Fix
-
-**Before (Initialization Issue):**
-- Header created before sessions list populated
-- `len(self.all_session_names)` returned 0 on widget creation
-- Count only updated after arrow key navigation
-
-**After (Order Fix):**
-- Sessions list populated first via `_create_sessions_list()`
-- Header created with accurate count immediately
-- Correct session count from initial render
-
-### Current Status (2025-08-16)
-
-✅ **COMPLETED - Layout-Stable Scroll Indicators with Session Count Display**:
-
-- ✅ Professional Nerd Font chevrons for modern appearance
-- ✅ Reserved space architecture preventing layout shifts
-- ✅ DRY principle implementation with helper methods
-- ✅ Configurable symbol system for easy customization
-- ✅ Stable window dimensions regardless of scroll state
-- ✅ Clean, maintainable code without duplication
-- ✅ Proper text rendering with `set_markup()` solution
-- ✅ Performance-optimized indicator management
-- ✅ Dynamic session count display in header
-- ✅ Fixed initialization bug for accurate count from widget creation
-
-**User Experience Benefits**:
-- **Professional Design**: Modern Nerd Font symbols matching developer aesthetics
-- **Stable Interface**: No window resizing or layout jumps during navigation
-- **Clear Feedback**: Intuitive visual cues for scrollable content availability
-- **Consistent Behavior**: Predictable interface dimensions and spacing
-- **Immediate Context**: Session count visible from first render
-
-**Code Quality Benefits**:
-- **Maintainable**: Single method for all indicator creation logic
-- **Configurable**: Easy symbol customization through constants
-- **Efficient**: No performance overhead from widget creation/destruction
-- **Readable**: Clear intent with helper methods and meaningful names
-- **Bug-Free Initialization**: Proper order-of-operations for accurate state
-
-This implementation establishes a professional-grade scroll indicator system with accurate session count display that provides excellent visual feedback while maintaining perfect layout stability, creating a polished and reliable user interface experience that scales beautifully with any session collection size.
-
-## Recent State-Based Save Panel Implementation (2025-08-16)
-
-### Implemented
-
-1. **Complete State-Based UI System**: Comprehensive save panel redesign eliminating frozen UI during operations
-    - **Four UI States**: "input", "saving", "success", "error" with complete UI replacement for each state
-    - **Smooth Transitions**: No more frozen interface during save operations
-    - **Professional Feedback**: Clear visual feedback for every operation phase
-    - **State Isolation**: Each state provides appropriate UI elements and controls
-
-2. **Asynchronous Save Operations**:
-    - **Background Threading**: Save operations run in separate threads to prevent UI blocking
-    - **UI Thread Safety**: Proper GLib.idle_add() usage for thread-safe UI updates
-    - **Minimum Display Time**: 500ms minimum for saving state visibility even on fast operations
-    - **Timeout Protection**: 35-second UI timeout (longer than 30-second backend timeout)
-
-3. **Comprehensive Edge Case Handling**:
-    - **Rapid Click Prevention**: save_in_progress flag prevents multiple concurrent saves
-    - **Operation Cancellation**: Escape key cancels operations in save mode
-    - **Error Recovery**: Retry functionality preserves session names for convenience
-    - **Input Validation**: Prevents saves with empty session names
-    - **Panel Switching**: Proper keyboard event routing to save panel when active
-
-4. **Enhanced User Experience**:
-    - **Clear State Feedback**: "Saving session 'name'...", "Success!", "Save Failed" messages
-    - **Auto-Recovery**: Success state auto-returns to input after 2 seconds
-    - **Error Options**: Retry or back to input buttons in error state
-    - **Session Name Preservation**: Failed sessions retain names for easy retry
-
-### Technical Implementation Details
-
-**State Machine Architecture**:
-```python
-States: "input" -> "saving" -> "success"/"error" -> "input"
-- Input: Normal entry field + save button
-- Saving: Clean "Saving session 'name'..." message only
-- Success: Success message with auto-return timer
-- Error: Error message with retry + back buttons
-```
-
-**Asynchronous Operation Pattern**:
-```python
-def _start_save_operation(self, session_name):
-    # Set UI timeout
-    self.timeout_id = GLib.timeout_add_seconds(35, self._handle_save_timeout)
-    
-    def run_save_operation():
-        # Minimum display time for UX
-        start_time = time.time()
-        result = self.backend_client.save_session(session_name)
-        elapsed = time.time() - start_time
-        if elapsed < 0.5:
-            time.sleep(0.5 - elapsed)
-        
-        # Schedule UI update on main thread
-        GLib.idle_add(self._handle_save_success, session_name, result)
-    
-    threading.Thread(target=run_save_operation, daemon=True).start()
-```
-
-**Keyboard Event Integration**:
-```python
-# Save panel gets first chance to handle events when active
-if self.toggle_switch.is_save_mode:
-    if self.save_panel.handle_key_press(keycode):
-        return True  # Event handled by save panel
-
-# Escape key cancels operations based on current state
-if keycode == 9:  # KEYCODE_ESCAPE
-    if self.state == "saving":
-        self.save_in_progress = False
-        self.set_state("input")
-        return True
-```
-
-### Edge Cases Resolved
-
-**Threading Safety**: All UI updates scheduled on main thread via GLib.idle_add()
-**Timeout Coordination**: UI timeout (35s) longer than backend timeout (30s)
-**State Cleanup**: save_in_progress flag properly managed across all completion paths
-**Import Issues**: Fixed GLib import errors by adding module-level imports
-**Minimum UX**: 500ms minimum display ensures saving state is always visible
-
-### Current Status (2025-08-16)
-
-**COMPLETED - State-Based Save Panel with Asynchronous Operations**:
-
-- Complete state machine implementation replacing frozen UI during saves
-- Asynchronous save operations with proper thread safety
-- Comprehensive edge case handling (rapid clicks, timeouts, cancellation)
-- Enhanced keyboard navigation with state-aware Escape key handling
-- Professional user feedback without emoji dependencies
-- Error recovery with retry functionality and session name preservation
-- Auto-return from success state with configurable timing
-
-**User Experience Benefits**:
-- **Responsive Interface**: No more frozen UI during save operations
-- **Clear Feedback**: Immediate state transitions and progress indication
-- **Error Recovery**: Easy retry with preserved session names
-- **Keyboard Control**: Cancel operations with Escape key
-- **Professional Design**: Clean text-based feedback without rendering issues
-
-**Technical Benefits**:
-- **Thread Safety**: Proper async patterns with UI thread protection
-- **State Management**: Clean separation of UI states and business logic
-- **Maintainable Code**: Clear state machine architecture
-- **Robust Error Handling**: Comprehensive timeout and exception management
-- **Performance**: Non-blocking operations with minimum UX impact
-
-This implementation transforms the save experience from a potentially frustrating frozen interface to a smooth, professional workflow with clear feedback and complete user control over all operations.
-
-## Recent Save Panel Code Quality Improvements (2025-08-16)
-
-### Implemented
-
-1. **Code Duplication Elimination**: Reduced redundant cleanup and error handling code
-    - **Centralized Cleanup**: Added `_cleanup_operation()` method to consolidate timeout and flag management
-    - **Single Responsibility**: Each cleanup operation handled in one place with proper resource deallocation
-    - **Reduced Maintenance**: Eliminated repeated cleanup patterns across multiple methods
-    - **Better Resource Management**: Proper attribute cleanup with `delattr()` to prevent memory issues
-
-2. **Configuration Constants**: Centralized timing and behavior configuration
-    - **OPERATION_TIMEOUT = 35**: Configurable save operation timeout (longer than backend timeout)
-    - **MIN_DISPLAY_TIME = 0.5**: Minimum saving state visibility for better UX
-    - **SUCCESS_AUTO_RETURN_DELAY = 2**: Auto-return timing from success state
-    - **Maintainable Configuration**: Easy adjustment of timing behavior without code changes
-
-3. **Improved Resource Management**:
-    - **Proper Timeout Cleanup**: Enhanced timeout ID management with attribute removal
-    - **Consolidated State Management**: Centralized operation state cleanup
-    - **Memory Efficiency**: Prevents timeout ID leaks and orphaned attributes
-
-### Technical Implementation Details
-
-**Cleanup Method Consolidation**:
-```python
-def _cleanup_operation(self):
-    """Clean up the current save operation"""
-    if hasattr(self, 'timeout_id'):
-        GLib.source_remove(self.timeout_id)
-        delattr(self, 'timeout_id')
-    self.save_in_progress = False
-```
-
-**Configuration Constants Usage**:
-```python
-class SavePanelWidget(Box):
-    # Configuration constants
-    OPERATION_TIMEOUT = 35  # seconds (longer than backend timeout)
-    MIN_DISPLAY_TIME = 0.5  # seconds (minimum saving state visibility)
-    SUCCESS_AUTO_RETURN_DELAY = 2  # seconds (auto-return from success)
-
-    # Used throughout the implementation
-    self.timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_save_timeout)
-    if elapsed < self.MIN_DISPLAY_TIME:
-        time.sleep(self.MIN_DISPLAY_TIME - elapsed)
-    GLib.timeout_add_seconds(self.SUCCESS_AUTO_RETURN_DELAY, self._return_to_input)
-```
-
-### Code Quality Metrics
-
-**Improvements Achieved**:
-- **Code Duplication**: Eliminated 15-20% repeated cleanup code across 4 methods
-- **Maintainability**: Centralized configuration allows easy behavior modification
-- **Resource Safety**: Proper attribute cleanup prevents potential memory leaks
-- **Readability**: Clear constant names document timing behavior intentions
-
-### Current Status (2025-08-16)
-
-**COMPLETED - Save Panel Code Quality Improvements**:
-
-- Eliminated code duplication with centralized cleanup method
-- Added configurable constants for all timing behaviors
-- Enhanced resource management with proper attribute cleanup
-- Maintained full functionality while improving code quality
-- Preserved UI integration and existing behavior
-
-**Benefits Realized**:
-- **Maintainable Code**: Single place to modify cleanup logic and timing configuration
-- **Better Performance**: Proper resource cleanup prevents memory issues
-- **Developer Experience**: Clear constants document behavior and enable easy adjustment
-- **Reduced Bugs**: Consolidated cleanup logic reduces chance of missed resource cleanup
-
-**Integration Approach**:
-- **Incremental Improvements**: Applied practical enhancements to existing connected code
-- **Zero Regression Risk**: All changes preserve existing functionality and UI integration
-- **Immediate Benefits**: Improvements work with current system without integration complexity
-
-This approach demonstrates effective code quality improvement through practical, incremental changes that enhance maintainability while preserving full functionality and UI connectivity.
-
-## Recent Save Panel Enter Key Enhancement (2025-08-17)
-
-### Implemented
-
-1. **Enter Key Save Functionality**: Complete keyboard enhancement for improved user experience
-    - **State-Aware Trigger**: Enter key triggers save operation only when in "input" state
-    - **Consistent Validation**: Uses same validation logic as save button click
-    - **DRY Principle**: Extracted common save logic into `_trigger_save_operation()` method
-    - **User-Friendly Flow**: Natural keyboard behavior when typing session names
-
-2. **Code Refactoring for Maintainability**:
-    - **Centralized Save Logic**: Both button click and Enter key use identical validation and save flow
-    - **Clean Method Extraction**: `_handle_save_clicked()` simplified to single method call
-    - **Consistent Error Handling**: Same validation, error handling, and state management
-    - **Safe Operation Prevention**: Prevents multiple concurrent saves through unified logic
-
-3. **Enhanced Keyboard Interaction**:
-    - **Natural UX**: Users can type session name and press Enter to save
-    - **Alternative Methods**: Both button click and Enter key work seamlessly
-    - **State Integration**: Works perfectly with existing state-based UI system
-    - **Responsive Feedback**: Same visual feedback and state transitions
-
-### Technical Implementation Details
-
-**Save Logic Extraction**:
-```python
-def _handle_save_clicked(self, button):
-    """Handle save button click with state-based UI"""
-    self._trigger_save_operation()
-
-def _trigger_save_operation(self):
-    """Common save logic used by both button click and Enter key"""
-    # Prevent multiple concurrent saves
-    if self.save_in_progress:
-        return
-    
-    # Validation and save logic...
-```
-
-**Enter Key Handler**:
-```python
-def handle_key_press(self, keycode):
-    """Handle keyboard events for different states"""
-    # Enter key handling - trigger save when in input state
-    if keycode == KEYCODE_ENTER:
-        if self.state == "input":
-            self._trigger_save_operation()
-            return True
-    
-    # Existing Escape key handling...
-```
-
-### Current Status (2025-08-17)
-
-✅ **COMPLETED - Enter Key Save Enhancement**:
-
-- ✅ Enter key triggers save operation in input state
-- ✅ Extracted common save logic for DRY principle compliance
-- ✅ Maintained all existing validation and error handling
-- ✅ Preserved state-based UI behavior and visual feedback
-- ✅ Enhanced user experience with natural keyboard interaction
-
-**User Experience Enhancement**:
-- **Keyboard Efficiency**: Users can save sessions without mouse interaction
-- **Natural Flow**: Type session name → Press Enter → Save completes
-- **Consistent Behavior**: Same validation and feedback regardless of trigger method
-- **Professional UX**: Smooth, responsive keyboard interaction
-
-## Recent Constants Refactoring and Code Quality Improvements (2025-08-17)
-
-### Implemented
-
-1. **Centralized Constants Management**: Complete refactoring of hardcoded values into shared constants
-    - **Dedicated Constants File**: Created `fabric-ui/constants.py` for all UI constants
-    - **Type Safety**: Added `Final[int]` type hints for better IDE support and immutability
-    - **Import Consistency**: All files now import from single source of truth
-    - **Professional Organization**: Clean separation of constants from business logic
-
-2. **Enhanced Import Architecture**:
-    - **Robust Path Handling**: Improved import safety with duplicate path prevention
-    - **Clean Module Structure**: Eliminated hardcoded values across multiple files
-    - **Maintainable Design**: Single location for all keycode constant updates
-    - **IDE Integration**: Better auto-completion and IntelliSense support
-
-3. **Code Quality Improvements**:
-    - **DRY Principle**: Eliminated duplicate keycode definitions
-    - **Type Hints**: Added `typing.Final` for immutable constant declarations
-    - **Documentation**: Clear comments explaining constant purposes and values
-    - **Future-Ready**: Extensible structure for additional UI constants
-
-### Technical Implementation Details
-
-**Constants File Structure**:
-```python
-# fabric-ui/constants.py
+# fabric-ui/constants.py - Professional constant organization
 from typing import Final
 
-# GTK Keycodes
+# GTK Keycodes with type safety
 KEYCODE_ESCAPE: Final[int] = 9
 KEYCODE_TAB: Final[int] = 23
 KEYCODE_ENTER: Final[int] = 36
@@ -1735,77 +162,286 @@ KEYCODE_LEFT_ARROW: Final[int] = 113
 KEYCODE_RIGHT_ARROW: Final[int] = 114
 KEYCODE_UP_ARROW: Final[int] = 111
 KEYCODE_DOWN_ARROW: Final[int] = 116
-```
 
-**Import Pattern Improvements**:
-```python
-# session_manager.py
-from constants import (
-    KEYCODE_ESCAPE,
-    KEYCODE_TAB,
-    KEYCODE_ENTER,
-    # ... other constants
-)
-
-# widgets/save_panel.py
-# Add parent directory to path for clean imports
-parent_dir = str(Path(__file__).parent.parent)
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
-
+# Import pattern across files
 from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 ```
 
-**Usage Examples**:
+## Recent Development (2025-08-17)
+
+### Enter Key Enhancement Implementation
+
+-   **State-Aware Trigger**: Enter key triggers save only in "input" state, preventing accidental saves
+-   **DRY Principle**: Extracted `_trigger_save_operation()` method for unified save logic
+-   **Consistent Validation**: Same validation, error handling, and state management for both triggers
+-   **User Experience**: Natural keyboard workflow eliminates mouse dependency
+
+### Constants Refactoring Achievement
+
+-   **Centralized Management**: Created `fabric-ui/constants.py` with comprehensive type hints
+-   **Type Safety**: `Final[int]` annotations prevent accidental constant modification
+-   **Import Safety**: Enhanced path handling prevents duplicate path additions
+-   **IDE Integration**: Better auto-completion, error detection, and code navigation
+-   **Maintainability**: Single source of truth for all UI constants
+
+### Delete Confirmation UI Implementation
+
+-   **'d' Key Trigger**: Press 'd' in browse mode to initiate delete confirmation for selected session
+-   **State-Based UI**: BrowsePanelWidget now supports "browsing" and "delete_confirm" states
+-   **Confirmation Workflow**: Clear warning message with "Press Enter to DELETE • Esc to Cancel" instructions
+-   **Safe Navigation**: Enter confirms deletion, Esc cancels and returns to browsing
+-   **Key Handling Priority**: Browse panel gets first chance to handle keys, preventing premature app exit during confirmations
+
+## Browser Integration Evolution
+
+### Current: Keyboard Shortcut Extension (2025-08-10)
+
+**✅ Working Solution**: Browser extension with keyboard shortcut triggers
+
+#### Technical Architecture
+
+-   **Extension**: Registers Alt+U command, captures tabs with metadata
+-   **Communication**: `hyprctl sendshortcut` sends Alt+U directly to browser window
+-   **Data Flow**: Extension → Downloads/hypr-session-tabs-{timestamp}.json → Python processing
+-   **Performance**: Captures 15+ tabs in ~2 seconds without workflow disruption
+
+#### Implementation Details
+
+```javascript
+// Extension background.js - tab capture
+chrome.commands.onCommand.addListener((command) => {
+  if (command === "capture-tabs") {
+    captureTabs();
+  }
+});
+
+// Session data structure
+{
+  "browser_session": {
+    "browser_type": "zen",
+    "capture_method": "keyboard_shortcut",
+    "tab_count": 15,
+    "tabs": [{"url": "...", "title": "...", "active": false, "pinned": false}]
+  }
+}
+```
+
+### Previous Approaches (Deprecated)
+
+1. **Native Messaging (2025-07-21)**: Complex extension system - abandoned due to reliability issues
+2. **sessionstore.jsonlz4 (2025-08-08)**: Direct file access - abandoned due to real-time update problems
+
+## Session Data Format & Storage
+
+### Current Structure (Folder-Based, 2025-08-13)
+
+```
+~/.config/hypr-sessions/
+├── session_name/
+│   ├── session.json           # Main session metadata
+│   ├── neovide-session-*.vim  # Neovide session files
+│   └── (future: browser-*.json, app-specific data)
+```
+
+### Session JSON Schema
+
+```json
+{
+  "windows": [
+    {
+      "class": "com.mitchellh.ghostty",
+      "title": "Terminal",
+      "working_directory": "/path/to/dir",
+      "running_program": {
+        "name": "yazi",
+        "args": [],
+        "full_command": "yazi",
+        "shell_command": null
+      },
+      "launch_command": "ghostty --working-directory=/path -e sh -c 'yazi; exec $SHELL'",
+      "browser_session": {
+        "browser_type": "zen",
+        "tabs": [...],
+        "capture_method": "keyboard_shortcut"
+      },
+      "neovide_session": {
+        "working_directory": "/path",
+        "session_file": "session_name/neovide-session-12345.vim"
+      }
+    }
+  ],
+  "groups": [[window_id_1, window_id_2]],
+  "workspace": 1
+}
+```
+
+### Storage Benefits
+
+-   **Self-Contained**: Each session directory contains all related files
+-   **No Conflicts**: Elimination of file name collisions between sessions
+-   **Easy Cleanup**: Delete entire session with single directory removal
+-   **Extensible**: Ready for additional per-session data (configs, caches, etc.)
+
+## Development Guidelines
+
+### Code Quality Standards
+
+-   **Type Safety**: Use `Final` annotations for constants, proper type hints throughout
+-   **Error Handling**: Structured OperationResult system with graceful degradation
+-   **DRY Principle**: Extract common logic, avoid code duplication
+-   **Documentation**: Clear docstrings, inline comments for complex logic
+-   **Testing**: Debug modes for troubleshooting, comprehensive error reporting
+
+### UI Development Best Practices
+
+-   **State Management**: Clear UI state machines with proper transitions
+-   **Keyboard Accessibility**: Comprehensive keyboard navigation support
+-   **Visual Feedback**: Immediate user feedback for all operations
+-   **Performance**: Lazy loading, efficient rendering for large data sets
+-   **Thread Safety**: Proper async patterns with UI thread protection
+
+### Session Management Patterns
+
+-   **Validation**: Early input validation with actionable error messages
+-   **Atomicity**: Operations succeed completely or fail cleanly
+-   **Recovery**: Error recovery with user context preservation
+-   **Logging**: Comprehensive debug output for troubleshooting
+
+## Dependencies & Setup
+
+### System Requirements
+
+```bash
+# Arch Linux
+sudo pacman -S gtk3 cairo gtk-layer-shell python-gobject
+
+# Python Environment (fabric-ui/)
+cd fabric-ui
+python -m venv venv
+source venv/bin/activate
+pip install git+https://github.com/Fabric-Development/fabric.git
+```
+
+### Browser Extension Setup
+
+1. Install Zen browser
+2. Load hypr-sessions extension (browser_extension/)
+3. Enable keyboard shortcuts for Alt+U trigger
+4. Verify Downloads folder write permissions
+
+### Testing Commands
+
+```bash
+# CLI Testing
+./hypr-sessions.py save work-session --debug
+./hypr-sessions.py restore work-session --json
+hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session
+
+# UI Testing
+cd fabric-ui && source venv/bin/activate && python session_manager.py
+
+# Integration Testing
+./hypr-sessions.py list --json  # Test JSON API
+```
+
+## Configuration Constants
+
+### Timing Configuration
+
+-   **Group Restoration**: `DELAY_BETWEEN_INSTRUCTIONS = 0.4` seconds between group operations
+-   **Save Operations**: `OPERATION_TIMEOUT = 35` seconds (longer than backend timeout)
+-   **UI Feedback**: `MIN_DISPLAY_TIME = 0.5` seconds minimum for saving state visibility
+-   **Auto-Return**: `SUCCESS_AUTO_RETURN_DELAY = 2` seconds from success to input state
+
+### UI Configuration
+
+-   **Scrolling**: `VISIBLE_WINDOW_SIZE = 5` sessions in browse panel window
+-   **Navigation**: Wraparound behavior for unlimited session collections
+-   **Indicators**: Nerd Font chevrons `\uf077` (up) and `\uf078` (down) for scroll state
+
+### Validation Rules
+
+-   **Session Names**: Max 200 chars, no `<>:"/\|?*`, no leading/trailing whitespace
+-   **Reserved Names**: Prevents `.`, `..`, system directories
+-   **File Safety**: Filesystem-safe validation with cross-platform compatibility
+
+## Input Validation System
+
+### Custom Exception Architecture
+
 ```python
-# Before: hardcoded values
-if keycode == 36:  # KEYCODE_ENTER
-if keycode == 9:   # KEYCODE_ESCAPE
+# validation.py - Structured validation with specific exceptions
+class SessionValidationError(Exception): pass
+class InvalidSessionNameError(SessionValidationError): pass
+class SessionNotFoundError(SessionValidationError): pass
+class SessionAlreadyExistsError(SessionValidationError): pass
 
-# After: typed constants
-if keycode == KEYCODE_ENTER:
-if keycode == KEYCODE_ESCAPE:
+# Usage patterns
+try:
+    SessionValidator.validate_session_name(name)
+except InvalidSessionNameError as e:
+    return OperationResult.error(str(e))
 ```
 
-### Benefits Achieved
+### Validation Points
 
-**Developer Experience**:
-- **IDE Support**: Type hints provide better auto-completion and error detection
-- **Maintainability**: Single location for constant updates and modifications
-- **Discoverability**: Typing "KEYCODE_" shows all available constants
-- **Professional Code**: Clean, typed constant management
+-   **CLI Entry**: All session operations validate inputs before execution
+-   **Component Entry**: Each session component includes validation for direct usage
+-   **Operation-Specific**: Tailored validation for different operation types
+-   **Early Failure**: Validates inputs before performing expensive operations
 
-**Code Quality**:
-- **Type Safety**: `Final[int]` prevents accidental constant modification
-- **Import Safety**: Robust path handling prevents import errors
-- **Consistency**: All files use same constant source without duplication
-- **Documentation**: Clear constant organization and purpose explanation
+## Error Handling Architecture
 
-### Current Status (2025-08-17)
+### Structured Results System
 
-✅ **COMPLETED - Constants Refactoring and Quality Improvements**:
+```python
+# operation_result.py - Comprehensive result tracking
+@dataclass
+class OperationResult:
+    success: bool
+    operation: str
+    messages: List[Dict[str, Any]]
+    summary: Dict[str, int]
+    data: Optional[Dict[str, Any]] = None
 
-- ✅ Created centralized `constants.py` with type hints
-- ✅ Updated all files to use shared constants
-- ✅ Enhanced import safety with path checking
-- ✅ Added comprehensive type annotations
-- ✅ Tested all imports and functionality
-- ✅ Maintained backward compatibility
-
-**Architecture Benefits**:
-- **Single Source of Truth**: All keycode constants in one location
-- **Type Safety**: `Final[int]` annotations for immutable constants
-- **Professional Organization**: Clean separation of constants from logic
-- **Future Extensible**: Ready for additional UI constants (colors, dimensions, etc.)
-- **IDE Integration**: Better development experience with type hints and auto-completion
-
-**File Structure Enhancement**:
-```
-fabric-ui/
-├── constants.py              # NEW: Centralized UI constants with type hints
-├── session_manager.py        # Updated: Imports from constants
-├── widgets/
-│   └── save_panel.py         # Updated: Improved imports and constant usage
+# Usage patterns
+result = OperationResult.success("Session saved")
+result.add_warning("Browser tabs unavailable")
+return result.with_data({"session_file": path})
 ```
 
-This refactoring establishes professional-grade constant management that enhances code maintainability, developer experience, and type safety while preserving all existing functionality.
+### Benefits
+
+-   **Partial Success**: Operations can succeed with warnings
+-   **Rich Context**: Detailed operation feedback with structured messages
+-   **UI Integration**: Clean display formatting for debug vs normal modes
+-   **Debugging**: Comprehensive logging without breaking user experience
+
+## Important Development Notes
+
+### CRITICAL Documentation Update Rule
+
+After every change to this codebase:
+
+1. Update this CLAUDE.md with new features, changes, and knowledge gained
+2. Include technical details for debugging and future development
+3. Document issues discovered and their solutions
+4. Update implementation approaches and current status
+
+### Code Style Requirements
+
+-   **NO EMOJIS**: Use clear text instead (rendering issues in target environment)
+-   **Type Hints**: Comprehensive type annotations for better IDE support
+-   **Constants**: Use `Final` for immutable values, centralized in constants.py
+-   **Shell Safety**: Use `shlex.quote()` for path escaping in commands
+
+### Session Directory Migration (2025-08-13)
+
+**Completed**: Transition from flat file storage to folder-based organization
+
+-   All session operations now use directory-based storage
+-   Legacy support methods available but not used in production
+-   Comprehensive testing verified across save/restore/list/delete operations
+
+This documentation provides comprehensive guidance while maintaining clarity and avoiding redundancy. It serves as both development reference and architectural overview for the Hyprland Session Manager project.
+

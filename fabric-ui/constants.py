@@ -16,6 +16,7 @@ KEYCODE_LEFT_ARROW: Final[int] = 113
 KEYCODE_RIGHT_ARROW: Final[int] = 114
 KEYCODE_UP_ARROW: Final[int] = 111
 KEYCODE_DOWN_ARROW: Final[int] = 116
+KEYCODE_D: Final[int] = 40
 
 # Future expansion possibilities:
 # UI_COLORS = {...}

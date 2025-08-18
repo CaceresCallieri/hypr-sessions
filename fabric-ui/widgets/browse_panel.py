@@ -2,9 +2,20 @@
 Browse Panel Widget for Hypr Sessions Manager
 """
 
+import sys
+from pathlib import Path
+
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.label import Label
+
+# Add parent directory to path for clean imports
+parent_dir = str(Path(__file__).parent.parent)
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+# Import constants for key handling
+from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 
 
 class BrowsePanelWidget(Box):
@@ -32,11 +43,22 @@ class BrowsePanelWidget(Box):
         self.ARROW_UP = "\uf077"  # nf-fa-chevron_down
         self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_up
 
+        # Delete state management
+        self.state = "browsing"  # States: "browsing", "delete_confirm"
+        self.selected_session_for_delete = None
+
         # Create panel content
         self._create_content()
 
     def _create_content(self):
-        """Create the browse panel content"""
+        """Create the browse panel content based on current state"""
+        if self.state == "browsing":
+            self.children = self._create_browsing_ui()
+        elif self.state == "delete_confirm":
+            self.children = self._create_delete_confirmation_ui()
+
+    def _create_browsing_ui(self):
+        """Create the normal browsing UI"""
         # Get and create session buttons first
         sessions_container = self._create_sessions_list()
         
@@ -46,8 +68,32 @@ class BrowsePanelWidget(Box):
         sessions_header = Label(text=header_text, name="sessions-header")
         sessions_header.set_markup(f"<span weight='bold'>{header_text}</span>")
 
-        # Add to panel
-        self.children = [sessions_header, sessions_container]
+        return [sessions_header, sessions_container]
+
+    def _create_delete_confirmation_ui(self):
+        """Create the delete confirmation UI"""
+        # For now, just a simple placeholder - we'll enhance this next
+        session_name = self.selected_session_for_delete or "Unknown"
+        
+        # Main warning message
+        warning_message = Label(
+            text=f"Delete Session: {session_name}",
+            name="delete-title"
+        )
+        warning_message.set_markup(f"<span weight='bold' color='#f38ba8'>Delete Session: {session_name}</span>")
+        
+        # Simple confirmation text for now
+        confirm_text = f"Are you sure you wish to delete '{session_name}' session files?\nThis action cannot be undone."
+        confirm_message = Label(text=confirm_text, name="delete-confirmation")
+        
+        # Instructions
+        instructions = Label(
+            text="Press Enter to DELETE • Esc to Cancel",
+            name="delete-instructions"  
+        )
+        instructions.set_markup("<span size='small' style='italic'>Press Enter to DELETE • Esc to Cancel</span>")
+        
+        return [warning_message, confirm_message, instructions]
 
     def _create_sessions_list(self):
         """Create the sessions list container with buttons for visible window"""
@@ -239,4 +285,31 @@ class BrowsePanelWidget(Box):
         selected_session = self.get_selected_session()
         if selected_session and self.on_session_clicked:
             self.on_session_clicked(selected_session)
+
+    def set_state(self, new_state):
+        """Change the browse panel state and refresh content"""
+        if new_state != self.state:
+            print(f"BrowsePanel: {self.state} → {new_state}")  # Debug logging
+            self.state = new_state
+            self._create_content()
+            self.show_all()
+
+    def handle_key_press(self, keycode):
+        """Handle keyboard events for different browse panel states"""        
+        if self.state == "delete_confirm":
+            if keycode == KEYCODE_ENTER:
+                # Perform delete operation
+                print(f"DEBUG: Confirmed delete for session: {self.selected_session_for_delete}")
+                # TODO: Add actual delete operation here
+                self.set_state("browsing")  # Return to browsing for now
+                return True
+            elif keycode == KEYCODE_ESCAPE:
+                # Cancel delete operation
+                print(f"DEBUG: Cancelled delete for session: {self.selected_session_for_delete}")
+                self.selected_session_for_delete = None
+                self.set_state("browsing")
+                return True
+        
+        # Let main manager handle other keys in browsing state
+        return False
 
