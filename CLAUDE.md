@@ -136,6 +136,7 @@ Panel Navigation:
 
 Session Navigation (Browse Mode):
 - ↑ ↓: Navigate sessions with wraparound
+- Scroll Wheel: Navigate sessions (scroll up = next, scroll down = previous)
 - Enter: Activate/restore selected session
 - d: Delete confirmation for selected session
 
@@ -191,6 +192,14 @@ from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 -   **Async Backend Integration**: Threading with BackendClient.delete_session(), timeout protection, session list refresh
 -   **Professional UX**: Progress indicators, auto-return timers, retry mechanisms, comprehensive error handling
 -   **Consistent Styling**: Catppuccin theme integration matching SavePanelWidget patterns
+
+### Scroll Wheel Navigation Implementation
+
+-   **GTK Event Integration**: Proper scroll-event handling with SCROLL_MASK and SMOOTH_SCROLL_MASK event masks
+-   **Natural Navigation**: Scroll up moves down in list (select_next), scroll down moves up in list (select_previous)
+-   **Smooth Scrolling Support**: Handles both discrete wheel clicks and smooth trackpad scrolling via delta detection
+-   **State-Aware Operation**: Only active in browse mode during "browsing" state, disabled during delete confirmation
+-   **Clean Architecture**: Helper methods _get_scroll_direction() and _can_handle_scroll() for maintainability
 
 ## Browser Integration Evolution
 

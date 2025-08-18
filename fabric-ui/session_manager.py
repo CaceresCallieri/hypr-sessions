@@ -105,8 +105,18 @@ class SessionManagerWidget(WaylandWindow):
         # Force size allocation
         self.set_size_request(400, 400)
 
-        # Connect keyboard events
+        # Connect keyboard and scroll events
         self.connect("key-press-event", self.on_key_press)
+        
+        # Connect scroll events and enable event masks
+        self.connect("scroll-event", self.on_scroll_event)
+        
+        # Enable scroll event masks so the window receives scroll events
+        self.set_events(
+            self.get_events() | 
+            Gdk.EventMask.SCROLL_MASK |
+            Gdk.EventMask.SMOOTH_SCROLL_MASK
+        )
 
         # Show window after all content is added
         self.show_all()
@@ -215,6 +225,55 @@ class SessionManagerWidget(WaylandWindow):
                 return True
 
         return False  # Event not handled
+
+    def on_scroll_event(self, widget, event):
+        """Handle scroll events for session navigation"""
+        # Determine scroll direction
+        is_scroll_up = self._get_scroll_direction(event)
+        if is_scroll_up is None:
+            return False  # Unknown direction or no vertical movement
+        
+        # Only handle scroll in browse mode during browsing state
+        if not self._can_handle_scroll():
+            return True  # Consume event but don't navigate
+        
+        # Navigate with natural scroll behavior
+        if is_scroll_up:
+            self.browse_panel.select_next()  # Scroll up moves down in list
+        else:
+            self.browse_panel.select_previous()  # Scroll down moves up in list
+        
+        return True  # Consume scroll events
+
+    def _get_scroll_direction(self, event):
+        """
+        Determine scroll direction from event.
+        
+        Returns:
+            True if scrolling up, False if scrolling down, None if unknown/no movement
+        """
+        direction = event.direction
+        
+        if direction == Gdk.ScrollDirection.UP:
+            return True
+        elif direction == Gdk.ScrollDirection.DOWN:
+            return False
+        elif direction == Gdk.ScrollDirection.SMOOTH:
+            # Handle smooth scrolling with deltas
+            success, delta_x, delta_y = event.get_scroll_deltas()
+            if delta_y < 0:
+                return True  # Scroll up
+            elif delta_y > 0:
+                return False  # Scroll down
+            else:
+                return None  # No vertical movement
+        else:
+            return None  # Unknown scroll direction
+
+    def _can_handle_scroll(self):
+        """Check if scroll navigation is currently allowed"""
+        return (not self.toggle_switch.is_save_mode and 
+                getattr(self.browse_panel, 'state', 'browsing') == "browsing")
 
 
 def main():
