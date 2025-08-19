@@ -142,9 +142,12 @@ SessionManagerWidget (WaylandWindow)
 -   **Code Reduction**: Eliminated 400+ lines of duplication from `browse_panel.py`
 -   **Extensible Design**: New operations inherit full UI workflow (confirmation/progress/success/error states)
 -   **Thread Safety**: Async backend operations with `GLib.idle_add()` for UI thread safety
--   **Configuration-Driven**: Operation behavior defined via config dictionaries
--   **Timeout Protection**: 35-second operation timeout with cleanup and error handling
--   **State Management**: Centralized state machine with validation and transition logging
+-   **Configuration-Driven**: Operation behavior defined via config dictionaries with validation
+-   **State Constants**: Type-safe state management eliminates magic strings and typos
+-   **Error Handling**: Specific exception types (FileNotFoundError, PermissionError, ConnectionError, TimeoutError)
+-   **Operation Timeouts**: Delete 10s (fast), Restore 60s (application launching) for optimal UX
+-   **Config Validation**: Early validation prevents runtime errors from invalid configurations
+-   **Enhanced Logging**: Context-aware error messages with operation type and detailed debugging
 
 #### Keyboard Navigation System
 
