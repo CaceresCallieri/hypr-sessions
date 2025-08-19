@@ -16,7 +16,11 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 # Import constants and backend client
-from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
+from constants import (
+    KEYCODE_ENTER, KEYCODE_ESCAPE,
+    BROWSING_STATE, DELETE_CONFIRM_STATE, DELETING_STATE, DELETE_SUCCESS_STATE, DELETE_ERROR_STATE,
+    RESTORE_CONFIRM_STATE, RESTORING_STATE, RESTORE_SUCCESS_STATE, RESTORE_ERROR_STATE
+)
 from utils import BackendClient
 
 # Import operation classes
@@ -60,30 +64,30 @@ class BrowsePanelWidget(Box):
         self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_up
 
         # Panel state management
-        self.state = "browsing"  # States: "browsing", "delete_confirm", "deleting", "delete_success", "delete_error", "restore_confirm", "restoring", "restore_success", "restore_error"
+        self.state = BROWSING_STATE  # Browse panel state management using constants
 
         # Create panel content
         self._create_content()
 
     def _create_content(self):
         """Create the browse panel content based on current state"""
-        if self.state == "browsing":
+        if self.state == BROWSING_STATE:
             self.children = self._create_browsing_ui()
-        elif self.state == "delete_confirm":
+        elif self.state == DELETE_CONFIRM_STATE:
             self.children = self.delete_operation.create_confirmation_ui()
-        elif self.state == "deleting":
+        elif self.state == DELETING_STATE:
             self.children = self.delete_operation.create_progress_ui()
-        elif self.state == "delete_success":
+        elif self.state == DELETE_SUCCESS_STATE:
             self.children = self.delete_operation.create_success_ui()
-        elif self.state == "delete_error":
+        elif self.state == DELETE_ERROR_STATE:
             self.children = self.delete_operation.create_error_ui()
-        elif self.state == "restore_confirm":
+        elif self.state == RESTORE_CONFIRM_STATE:
             self.children = self.restore_operation.create_confirmation_ui()
-        elif self.state == "restoring":
+        elif self.state == RESTORING_STATE:
             self.children = self.restore_operation.create_progress_ui()
-        elif self.state == "restore_success":
+        elif self.state == RESTORE_SUCCESS_STATE:
             self.children = self.restore_operation.create_success_ui()
-        elif self.state == "restore_error":
+        elif self.state == RESTORE_ERROR_STATE:
             self.children = self.restore_operation.create_error_ui()
 
     def _create_browsing_ui(self):
@@ -304,7 +308,7 @@ class BrowsePanelWidget(Box):
     
     def handle_key_press(self, keycode):
         """Handle keyboard events for different browse panel states"""        
-        if self.state == "delete_confirm":
+        if self.state == DELETE_CONFIRM_STATE:
             if keycode == KEYCODE_ENTER:
                 # Trigger the actual delete operation
                 self.delete_operation.trigger_operation()
@@ -313,10 +317,10 @@ class BrowsePanelWidget(Box):
                 # Cancel delete operation
                 print(f"DEBUG: Cancelled delete for session: {self.delete_operation.selected_session}")
                 self.delete_operation.selected_session = None
-                self.set_state("browsing")
+                self.set_state(BROWSING_STATE)
                 return True
         
-        elif self.state == "restore_confirm":
+        elif self.state == RESTORE_CONFIRM_STATE:
             if keycode == KEYCODE_ENTER:
                 # Trigger the actual restore operation
                 self.restore_operation.trigger_operation()
@@ -325,7 +329,7 @@ class BrowsePanelWidget(Box):
                 # Cancel restore operation
                 print(f"DEBUG: Cancelled restore for session: {self.restore_operation.selected_session}")
                 self.restore_operation.selected_session = None
-                self.set_state("browsing")
+                self.set_state(BROWSING_STATE)
                 return True
         
         # Let main manager handle other keys in browsing state

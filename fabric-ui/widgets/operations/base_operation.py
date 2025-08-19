@@ -23,6 +23,7 @@ if grandparent_dir not in sys.path:
     sys.path.append(grandparent_dir)
 
 from utils import BackendError
+from constants import BROWSING_STATE
 
 
 class BaseOperation(ABC):
@@ -33,6 +34,12 @@ class BaseOperation(ABC):
     MIN_DISPLAY_TIME = 0.5  # seconds (minimum operation state visibility)
     SUCCESS_AUTO_RETURN_DELAY = 2  # seconds (auto-return from success)
     
+    # Required configuration keys for concrete operations
+    REQUIRED_CONFIG_KEYS = {
+        "color", "action_verb", "description", "button_prefix", 
+        "success_description", "progress_state", "operation_timeout"
+    }
+    
     def __init__(self, panel, backend_client):
         """
         Initialize the operation
@@ -40,12 +47,18 @@ class BaseOperation(ABC):
         Args:
             panel: The browse panel widget that owns this operation
             backend_client: Backend client for API calls
+            
+        Raises:
+            ValueError: If operation configuration is invalid
         """
         self.panel = panel
         self.backend_client = backend_client
         self.selected_session = None
         self.operation_in_progress = False
         self.timeout_id = None
+        
+        # Validate configuration early to catch implementation errors
+        self._validate_configuration()
     
     # Abstract methods - must be implemented by concrete operations
     
@@ -190,8 +203,9 @@ class BaseOperation(ABC):
     
     def _start_operation(self, session_name):
         """Start the actual operation asynchronously"""
-        # Set a timeout for the operation
-        self.timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_timeout)
+        # Set operation-specific timeout
+        operation_timeout = self.get_operation_config().get("operation_timeout", self.OPERATION_TIMEOUT)
+        self.timeout_id = GLib.timeout_add_seconds(operation_timeout, self._handle_timeout)
         
         def run_operation():
             """Run the operation in a separate thread"""
@@ -211,12 +225,40 @@ class BaseOperation(ABC):
                 GLib.idle_add(self._handle_success, session_name, result)
                 
             except BackendError as e:
-                # Schedule error handling on main thread
-                GLib.idle_add(self._handle_error_async, session_name, str(e))
+                # Backend-specific error with clear context
+                error_msg = f"Backend error: {e}"
+                print(f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}")
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
+                
+            except FileNotFoundError as e:
+                # File system error - likely missing session files
+                error_msg = f"Session files not found: {e}"
+                print(f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}")
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
+                
+            except PermissionError as e:
+                # Permission error - filesystem access issues
+                error_msg = f"Permission denied: {e}"
+                print(f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}")
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
+                
+            except ConnectionError as e:
+                # Network or IPC connection issues
+                error_msg = f"Connection failed: {e}"
+                print(f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}")
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
+                
+            except TimeoutError as e:
+                # Operation-specific timeout (different from our UI timeout)
+                error_msg = f"Operation timed out: {e}"
+                print(f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}")
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
                 
             except Exception as e:
-                # Schedule error handling on main thread
-                GLib.idle_add(self._handle_error_async, session_name, str(e))
+                # Unexpected error - log more details for debugging
+                error_msg = f"Unexpected error: {e}"
+                print(f"{self.get_operation_config()['action_verb']} operation failed with unexpected error: {type(e).__name__}: {e}")
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
         
         # Start the operation in a background thread
         operation_thread = threading.Thread(target=run_operation, daemon=True)
@@ -264,7 +306,7 @@ class BaseOperation(ABC):
     def _return_to_browsing(self):
         """Return to browsing state after success"""
         self.selected_session = None
-        self.panel.set_state("browsing")
+        self.panel.set_state(BROWSING_STATE)
         self.cleanup_after_success()
         return False  # Don't repeat timeout
 
@@ -282,4 +324,44 @@ class BaseOperation(ABC):
     def _handle_back_to_browsing_clicked(self, button):
         """Handle back to browsing button click in error state"""
         self.selected_session = None
-        self.panel.set_state("browsing")
+        self.panel.set_state(BROWSING_STATE)
+    
+    def _validate_configuration(self):
+        """
+        Validate that the operation configuration contains all required keys
+        
+        Raises:
+            ValueError: If configuration is missing required keys or has invalid values
+        """
+        try:
+            config = self.get_operation_config()
+        except Exception as e:
+            raise ValueError(f"Failed to get operation configuration: {e}")
+        
+        if not isinstance(config, dict):
+            raise ValueError(f"Configuration must be a dictionary, got {type(config)}")
+        
+        # Check for required keys
+        missing_keys = self.REQUIRED_CONFIG_KEYS - set(config.keys())
+        if missing_keys:
+            operation_name = self.__class__.__name__
+            raise ValueError(f"{operation_name} missing required config keys: {missing_keys}")
+        
+        # Validate specific key values
+        if not config.get("color") or not isinstance(config["color"], str):
+            raise ValueError("Config 'color' must be a non-empty string")
+            
+        if not config.get("action_verb") or not isinstance(config["action_verb"], str):
+            raise ValueError("Config 'action_verb' must be a non-empty string")
+            
+        if not config.get("button_prefix") or not isinstance(config["button_prefix"], str):
+            raise ValueError("Config 'button_prefix' must be a non-empty string")
+            
+        if not config.get("progress_state") or not isinstance(config["progress_state"], str):
+            raise ValueError("Config 'progress_state' must be a non-empty string")
+            
+        # Validate operation timeout
+        timeout = config.get("operation_timeout")
+        if timeout is not None:
+            if not isinstance(timeout, (int, float)) or timeout <= 0:
+                raise ValueError("Config 'operation_timeout' must be a positive number")

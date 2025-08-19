@@ -30,6 +30,9 @@ from constants import (
     KEYCODE_UP_ARROW,
     KEYCODE_DOWN_ARROW,
     KEYCODE_D,
+    BROWSING_STATE,
+    RESTORE_CONFIRM_STATE,
+    DELETE_CONFIRM_STATE,
 )
 
 
@@ -268,7 +271,7 @@ class SessionManagerWidget(WaylandWindow):
     def _can_handle_scroll(self):
         """Check if scroll navigation is currently allowed"""
         return (not self.toggle_switch.is_save_mode and 
-                getattr(self.browse_panel, 'state', 'browsing') == "browsing")
+                getattr(self.browse_panel, 'state', BROWSING_STATE) == BROWSING_STATE)
 
     def _initiate_session_action(self, action_type):
         """Helper method to initiate session actions (restore/delete) with consistent logic"""
@@ -277,10 +280,10 @@ class SessionManagerWidget(WaylandWindow):
             print(f"DEBUG: Initiating {action_type} for session: {selected_session}")
             if action_type == "restore":
                 self.browse_panel.restore_operation.selected_session = selected_session
-                self.browse_panel.set_state("restore_confirm")
+                self.browse_panel.set_state(RESTORE_CONFIRM_STATE)
             elif action_type == "delete":
                 self.browse_panel.delete_operation.selected_session = selected_session
-                self.browse_panel.set_state("delete_confirm")
+                self.browse_panel.set_state(DELETE_CONFIRM_STATE)
         else:
             print(f"DEBUG: No session selected for {action_type}")
 

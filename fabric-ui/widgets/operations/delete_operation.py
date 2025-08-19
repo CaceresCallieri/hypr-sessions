@@ -2,8 +2,17 @@
 Delete operation implementation for browse panel
 """
 
+import sys
+from pathlib import Path
 from typing import Dict, Any
 from .base_operation import BaseOperation
+
+# Add grandparent directory to path for clean imports
+grandparent_dir = str(Path(__file__).parent.parent.parent)
+if grandparent_dir not in sys.path:
+    sys.path.append(grandparent_dir)
+
+from constants import DELETING_STATE
 
 
 class DeleteOperation(BaseOperation):
@@ -21,7 +30,8 @@ class DeleteOperation(BaseOperation):
             "description": "Are you sure you wish to delete '{session_name}' session files?\nThis action cannot be undone.",
             "button_prefix": "delete",
             "success_description": "deleted successfully",
-            "progress_state": "deleting"
+            "progress_state": DELETING_STATE,
+            "operation_timeout": 10  # Delete is fast - shorter timeout
         }
     
     def cleanup_after_success(self):

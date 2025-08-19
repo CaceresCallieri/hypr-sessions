@@ -2,8 +2,17 @@
 Restore operation implementation for browse panel
 """
 
+import sys
+from pathlib import Path
 from typing import Dict, Any
 from .base_operation import BaseOperation
+
+# Add grandparent directory to path for clean imports
+grandparent_dir = str(Path(__file__).parent.parent.parent)
+if grandparent_dir not in sys.path:
+    sys.path.append(grandparent_dir)
+
+from constants import RESTORING_STATE
 
 
 class RestoreOperation(BaseOperation):
@@ -21,7 +30,8 @@ class RestoreOperation(BaseOperation):
             "description": "Restore '{session_name}' session to current workspace?\nThis will launch all saved applications and windows.",
             "button_prefix": "restore",
             "success_description": "restored successfully",
-            "progress_state": "restoring"
+            "progress_state": RESTORING_STATE,
+            "operation_timeout": 60  # Restore can be slow - longer timeout
         }
     
     def cleanup_after_success(self):
