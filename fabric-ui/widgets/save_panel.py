@@ -23,7 +23,7 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 from utils import BackendClient, BackendError
-from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
+from constants import KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q
 
 
 class SavePanelWidget(Box):
@@ -328,8 +328,8 @@ class SavePanelWidget(Box):
                 self._trigger_save_operation()
                 return True
         
-        # Escape key handling based on current state
-        if keycode == KEYCODE_ESCAPE:
+        # Escape or Q key handling based on current state
+        if keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
             if self.state == "saving":
                 # Cancel save operation
                 print("Cancelling save operation...")

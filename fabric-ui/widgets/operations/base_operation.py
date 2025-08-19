@@ -101,10 +101,10 @@ class BaseOperation(ABC):
         
         # Instructions
         instructions = Label(
-            text=f"Press Enter to {config['action_verb'].upper()} • Esc to Cancel",
+            text=f"Press Enter to {config['action_verb'].upper()} • Esc or Q to Cancel",
             name=f"{config['button_prefix']}-instructions"
         )
-        instructions.set_markup(f"<span size='small' style='italic'>Press Enter to {config['action_verb'].upper()} • Esc to Cancel</span>")
+        instructions.set_markup(f"<span size='small' style='italic'>Press Enter to {config['action_verb'].upper()} • Esc or Q to Cancel</span>")
         
         return [warning_message, confirm_message, instructions]
     

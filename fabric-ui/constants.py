@@ -17,6 +17,7 @@ KEYCODE_RIGHT_ARROW: Final[int] = 114
 KEYCODE_UP_ARROW: Final[int] = 111
 KEYCODE_DOWN_ARROW: Final[int] = 116
 KEYCODE_D: Final[int] = 40
+KEYCODE_Q: Final[int] = 24
 
 # Browse Panel States
 # These constants define the possible states of the browse panel for better maintainability

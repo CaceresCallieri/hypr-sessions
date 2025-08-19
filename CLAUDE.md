@@ -155,7 +155,7 @@ SessionManagerWidget (WaylandWindow)
 Panel Navigation:
 - Tab: Toggle between Browse/Save panels
 - ← →: Directional panel switching
-- Esc: Exit application
+- Esc or Q: Exit application
 
 Session Navigation (Browse Mode):
 - ↑ ↓: Navigate sessions with wraparound
@@ -165,15 +165,15 @@ Session Navigation (Browse Mode):
 
 Restore Confirmation:
 - Enter: Confirm restoration (launches all session applications)
-- Esc: Cancel restoration and return to browsing
+- Esc or Q: Cancel restoration and return to browsing
 
 Delete Confirmation:
 - Enter: Confirm deletion (permanent action)
-- Esc: Cancel deletion and return to browsing
+- Esc or Q: Cancel deletion and return to browsing
 
 Save Panel:
 - Enter: Trigger save operation (input state only)
-- Esc: Cancel operations or return to input
+- Esc or Q: Cancel operations or return to input
 ```
 
 ### Constants Management

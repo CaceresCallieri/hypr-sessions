@@ -30,6 +30,7 @@ from constants import (
     KEYCODE_UP_ARROW,
     KEYCODE_DOWN_ARROW,
     KEYCODE_D,
+    KEYCODE_Q,
     BROWSING_STATE,
     RESTORE_CONFIRM_STATE,
     DELETE_CONFIRM_STATE,
@@ -176,8 +177,8 @@ class SessionManagerWidget(WaylandWindow):
             if self.browse_panel.handle_key_press(keycode):
                 return True
 
-        # Check for Escape key (global quit) - only if panels didn't handle it
-        if keycode == KEYCODE_ESCAPE:
+        # Check for Escape or Q key (global quit) - only if panels didn't handle it
+        if keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
             if self.app:
                 self.app.quit()  # Properly quit the entire application
             else:
@@ -310,7 +311,7 @@ def main():
         print("Warning: session_manager.css not found")
 
     print(
-        "Session Manager started! Press Tab/←→ to switch panels, ↑↓ to navigate sessions, Enter to restore, Esc to exit"
+        "Session Manager started! Press Tab/←→ to switch panels, ↑↓ to navigate sessions, Enter to restore, Esc or Q to exit"
     )
     app.run()
 

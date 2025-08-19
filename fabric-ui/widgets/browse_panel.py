@@ -17,7 +17,7 @@ if parent_dir not in sys.path:
 
 # Import constants and backend client
 from constants import (
-    KEYCODE_ENTER, KEYCODE_ESCAPE,
+    KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q,
     BROWSING_STATE, DELETE_CONFIRM_STATE, DELETING_STATE, DELETE_SUCCESS_STATE, DELETE_ERROR_STATE,
     RESTORE_CONFIRM_STATE, RESTORING_STATE, RESTORE_SUCCESS_STATE, RESTORE_ERROR_STATE
 )
@@ -313,8 +313,8 @@ class BrowsePanelWidget(Box):
                 # Trigger the actual delete operation
                 self.delete_operation.trigger_operation()
                 return True
-            elif keycode == KEYCODE_ESCAPE:
-                # Cancel delete operation
+            elif keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
+                # Cancel delete operation (ESC or Q key)
                 print(f"DEBUG: Cancelled delete for session: {self.delete_operation.selected_session}")
                 self.delete_operation.selected_session = None
                 self.set_state(BROWSING_STATE)
@@ -325,8 +325,8 @@ class BrowsePanelWidget(Box):
                 # Trigger the actual restore operation
                 self.restore_operation.trigger_operation()
                 return True
-            elif keycode == KEYCODE_ESCAPE:
-                # Cancel restore operation
+            elif keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
+                # Cancel restore operation (ESC or Q key)
                 print(f"DEBUG: Cancelled restore for session: {self.restore_operation.selected_session}")
                 self.restore_operation.selected_session = None
                 self.set_state(BROWSING_STATE)
