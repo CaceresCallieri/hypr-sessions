@@ -63,9 +63,13 @@ class BrowsePanelWidget(Box):
         self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_up
 
         # Delete state management
-        self.state = "browsing"  # States: "browsing", "delete_confirm", "deleting", "delete_success", "delete_error"
+        self.state = "browsing"  # States: "browsing", "delete_confirm", "deleting", "delete_success", "delete_error", "restore_confirm", "restoring", "restore_success", "restore_error"
         self.selected_session_for_delete = None
         self.delete_in_progress = False  # Prevent multiple concurrent deletes
+        
+        # Restore state management
+        self.selected_session_for_restore = None
+        self.restore_in_progress = False  # Prevent multiple concurrent restores
 
         # Create panel content
         self._create_content()
@@ -82,6 +86,14 @@ class BrowsePanelWidget(Box):
             self.children = self._create_delete_success_ui()
         elif self.state == "delete_error":
             self.children = self._create_delete_error_ui()
+        elif self.state == "restore_confirm":
+            self.children = self._create_restore_confirmation_ui()
+        elif self.state == "restoring":
+            self.children = self._create_restoring_ui()
+        elif self.state == "restore_success":
+            self.children = self._create_restore_success_ui()
+        elif self.state == "restore_error":
+            self.children = self._create_restore_error_ui()
 
     def _create_browsing_ui(self):
         """Create the normal browsing UI"""
@@ -183,6 +195,96 @@ class BrowsePanelWidget(Box):
             label="Back to Sessions",
             name="delete-back-button",
             on_clicked=self._handle_back_to_browsing_clicked,
+        )
+        
+        return [error_message, retry_button, back_button]
+
+    def _create_restore_confirmation_ui(self):
+        """Create the restore confirmation UI"""
+        session_name = self.selected_session_for_restore or "Unknown"
+        
+        # Main confirmation message (green theme for restore vs red for delete)
+        warning_message = Label(
+            text=f"Restore Session: {session_name}",
+            name="restore-title"
+        )
+        warning_message.set_markup(f"<span weight='bold' color='#a6e3a1'>Restore Session: {session_name}</span>")
+        
+        # Confirmation text
+        confirm_text = f"Restore '{session_name}' session to current workspace?\nThis will launch all saved applications and windows."
+        confirm_message = Label(text=confirm_text, name="restore-confirmation")
+        
+        # Instructions
+        instructions = Label(
+            text="Press Enter to RESTORE • Esc to Cancel",
+            name="restore-instructions"  
+        )
+        instructions.set_markup("<span size='small' style='italic'>Press Enter to RESTORE • Esc to Cancel</span>")
+        
+        return [warning_message, confirm_message, instructions]
+
+    def _create_restoring_ui(self):
+        """Create the restoring state UI"""
+        session_name = self.selected_session_for_restore or "Unknown"
+        
+        # Center-aligned restoring message
+        restoring_message = Label(
+            text=f"Restoring session '{session_name}'...",
+            name="restore-status-info"
+        )
+        restoring_message.set_markup(
+            f"<span size='large'>Restoring session</span>\n"
+            f"<span weight='bold'>'{session_name}'</span>\n"
+            f"<span size='small' style='italic'>Please wait...</span>"
+        )
+        
+        return [restoring_message]
+
+    def _create_restore_success_ui(self):
+        """Create the restore success state UI"""
+        session_name = self.selected_session_for_restore or "Unknown"
+        
+        success_message = Label(
+            text=f"Session '{session_name}' restored successfully!",
+            name="restore-status-success"
+        )
+        success_message.set_markup(
+            f"<span size='large'>Success!</span>\n"
+            f"<span weight='bold'>Session '{session_name}'</span>\n"
+            f"<span>restored successfully</span>"
+        )
+        
+        # Auto-return to browsing state after configured delay
+        GLib.timeout_add_seconds(self.SUCCESS_AUTO_RETURN_DELAY, self._return_to_browsing_from_restore)
+        
+        return [success_message]
+
+    def _create_restore_error_ui(self):
+        """Create the restore error state UI with retry option"""
+        session_name = self.selected_session_for_restore or "Unknown"
+        
+        error_message = Label(
+            text="Failed to restore session",
+            name="restore-status-error"
+        )
+        error_message.set_markup(
+            f"<span size='large'>Restore Failed</span>\n"
+            f"<span size='small'>Session '{session_name}'</span>\n"
+            f"<span size='small' style='italic'>Check the error and try again</span>"
+        )
+        
+        # Retry button
+        retry_button = Button(
+            label="Try Again",
+            name="restore-retry-button",
+            on_clicked=self._handle_retry_restore_clicked,
+        )
+        
+        # Back button
+        back_button = Button(
+            label="Back to Sessions",
+            name="restore-back-button",
+            on_clicked=self._handle_back_to_browsing_from_restore_clicked,
         )
         
         return [error_message, retry_button, back_button]
@@ -521,6 +623,126 @@ class BrowsePanelWidget(Box):
                 self.set_state("browsing")
                 return True
         
+        elif self.state == "restore_confirm":
+            if keycode == KEYCODE_ENTER:
+                # Trigger the actual restore operation
+                self._trigger_restore_operation()
+                return True
+            elif keycode == KEYCODE_ESCAPE:
+                # Cancel restore operation
+                print(f"DEBUG: Cancelled restore for session: {self.selected_session_for_restore}")
+                self.selected_session_for_restore = None
+                self.set_state("browsing")
+                return True
+        
         # Let main manager handle other keys in browsing state
         return False
+
+    def _trigger_restore_operation(self):
+        """Trigger the restore operation for the selected session"""
+        # Prevent multiple concurrent restores
+        if self.restore_in_progress:
+            print("Restore already in progress, ignoring request")
+            return
+            
+        if not self.selected_session_for_restore:
+            print("No session selected for restoration")
+            return
+            
+        if not self.backend_client:
+            print("Backend client unavailable")
+            return
+
+        # Mark restore as in progress
+        self.restore_in_progress = True
+        
+        # Transition to restoring state
+        self.set_state("restoring")
+
+        # For now, simulate the restore operation since we're not connecting to backend yet
+        self._simulate_restore_operation(self.selected_session_for_restore)
+
+    def _simulate_restore_operation(self, session_name):
+        """Simulate the restore operation for frontend testing"""
+        # Add timeout protection for consistency with real operations
+        self.timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_restore_timeout)
+        
+        def run_simulate_restore():
+            try:
+                # Ensure restoring state is visible for at least 500ms for better UX
+                start_time = time.time()
+                
+                # Simulate restore operation (2 seconds)
+                time.sleep(2.0)
+                
+                # Calculate minimum delay to show restoring state
+                elapsed = time.time() - start_time
+                if elapsed < self.MIN_DISPLAY_TIME:
+                    time.sleep(self.MIN_DISPLAY_TIME - elapsed)
+                
+                # Simulate success (for now - later we'll handle real backend responses)
+                GLib.idle_add(self._handle_restore_success_simulation, session_name)
+                
+            except Exception as e:
+                # Schedule error handling on main thread
+                GLib.idle_add(self._handle_restore_error_simulation, session_name, str(e))
+        
+        # Start the simulate operation in a background thread
+        restore_thread = threading.Thread(target=run_simulate_restore, daemon=True)
+        restore_thread.start()
+
+    def _handle_restore_success_simulation(self, session_name):
+        """Handle simulated successful restore operation on main thread"""
+        self._cleanup_restore_operation()
+        
+        # Success - transition to success state
+        self.set_state("restore_success")
+        
+        return False  # Don't repeat this idle callback
+
+    def _handle_restore_error_simulation(self, session_name, error_message):
+        """Handle simulated restore operation error on main thread"""
+        self._cleanup_restore_operation()
+            
+        # Simulation error
+        self.set_state("restore_error")
+        
+        return False  # Don't repeat this idle callback
+
+    def _cleanup_restore_operation(self):
+        """Clean up the current restore operation"""
+        if hasattr(self, 'timeout_id'):
+            GLib.source_remove(self.timeout_id)
+            delattr(self, 'timeout_id')
+        self.restore_in_progress = False
+
+    def _handle_restore_timeout(self):
+        """Handle restore operation timeout"""
+        print("Restore operation timed out")
+        self._cleanup_restore_operation()
+        self.set_state("restore_error")
+        return False  # Don't repeat timeout
+
+    def _return_to_browsing_from_restore(self):
+        """Return to browsing state after restore success"""
+        self.selected_session_for_restore = None
+        self.set_state("browsing")
+        # No need to refresh since restore doesn't change session list
+        return False  # Don't repeat timeout
+
+    def _handle_retry_restore_clicked(self, button):
+        """Handle retry button click in restore error state"""
+        # Prevent multiple concurrent restores
+        if self.restore_in_progress:
+            return
+            
+        # Mark restore as in progress and transition back to restoring state
+        self.restore_in_progress = True
+        self.set_state("restoring")
+        self._simulate_restore_operation(self.selected_session_for_restore)
+
+    def _handle_back_to_browsing_from_restore_clicked(self, button):
+        """Handle back to browsing button click in restore error state"""
+        self.selected_session_for_restore = None
+        self.set_state("browsing")
 

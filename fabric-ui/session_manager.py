@@ -211,17 +211,12 @@ class SessionManagerWidget(WaylandWindow):
                 self.browse_panel.select_next()
                 return True
             elif keycode == KEYCODE_ENTER:
-                self.browse_panel.activate_selected_session()
+                # Trigger restore confirmation instead of direct activation
+                self._initiate_session_action("restore")
                 return True
             elif keycode == KEYCODE_D:
                 # Check if a session is selected, then trigger delete confirmation
-                selected_session = self.browse_panel.get_selected_session()
-                if selected_session:
-                    print(f"DEBUG: Initiating delete for session: {selected_session}")
-                    self.browse_panel.selected_session_for_delete = selected_session
-                    self.browse_panel.set_state("delete_confirm")
-                else:
-                    print("DEBUG: No session selected for deletion")
+                self._initiate_session_action("delete")
                 return True
 
         return False  # Event not handled
@@ -274,6 +269,20 @@ class SessionManagerWidget(WaylandWindow):
         """Check if scroll navigation is currently allowed"""
         return (not self.toggle_switch.is_save_mode and 
                 getattr(self.browse_panel, 'state', 'browsing') == "browsing")
+
+    def _initiate_session_action(self, action_type):
+        """Helper method to initiate session actions (restore/delete) with consistent logic"""
+        selected_session = self.browse_panel.get_selected_session()
+        if selected_session:
+            print(f"DEBUG: Initiating {action_type} for session: {selected_session}")
+            if action_type == "restore":
+                self.browse_panel.selected_session_for_restore = selected_session
+                self.browse_panel.set_state("restore_confirm")
+            elif action_type == "delete":
+                self.browse_panel.selected_session_for_delete = selected_session
+                self.browse_panel.set_state("delete_confirm")
+        else:
+            print(f"DEBUG: No session selected for {action_type}")
 
 
 def main():

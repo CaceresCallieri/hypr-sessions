@@ -126,6 +126,15 @@ SessionManagerWidget (WaylandWindow)
 -   **Validation**: Real-time input validation with user-friendly error messages
 -   **Backend Integration**: Async communication with 30s timeout and proper error handling
 
+#### Complete Restore Functionality
+
+-   **Confirmation Workflow**: Enter key → confirmation modal → Enter to restore → async operation
+-   **State Machine**: Four restore states (confirm/restoring/success/error) integrated with existing architecture
+-   **Visual Feedback**: Green-themed confirmation UI with professional progress indicators
+-   **Error Recovery**: Retry mechanisms with timeout protection and graceful fallback
+-   **Code Quality**: DRY principles with shared session action logic and consistent patterns
+-   **Backend Integration**: Frontend complete with simulation layer - backend connection work in progress
+
 #### Keyboard Navigation System
 
 ```
@@ -137,8 +146,12 @@ Panel Navigation:
 Session Navigation (Browse Mode):
 - ↑ ↓: Navigate sessions with wraparound
 - Scroll Wheel: Navigate sessions (scroll up = next, scroll down = previous)
-- Enter: Activate/restore selected session
+- Enter: Restore confirmation for selected session
 - d: Delete confirmation for selected session
+
+Restore Confirmation:
+- Enter: Confirm restoration (launches all session applications)
+- Esc: Cancel restoration and return to browsing
 
 Delete Confirmation:
 - Enter: Confirm deletion (permanent action)

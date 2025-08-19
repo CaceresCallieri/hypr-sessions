@@ -304,3 +304,58 @@ label {
 #delete-back-button:active {
 	background-color: #89dceb;
 }
+
+/* Restore operation status styles */
+#restore-status-success {
+	color: #a6e3a1;
+	font-weight: bold;
+	padding: 8px 12px;
+	margin-top: 10px;
+	background-color: rgba(166, 227, 161, 0.1);
+	border: 1px solid rgba(166, 227, 161, 0.3);
+	border-radius: 6px;
+}
+
+#restore-status-error {
+	color: #f38ba8;
+	font-weight: bold;
+	padding: 8px 12px;
+	margin-top: 10px;
+	background-color: rgba(243, 139, 168, 0.1);
+	border: 1px solid rgba(243, 139, 168, 0.3);
+	border-radius: 6px;
+}
+
+#restore-status-info {
+	color: #89b4fa;
+	font-weight: bold;
+	padding: 8px 12px;
+	margin-top: 10px;
+	background-color: rgba(137, 180, 250, 0.1);
+	border: 1px solid rgba(137, 180, 250, 0.3);
+	border-radius: 6px;
+}
+
+/* Restore operation buttons */
+#restore-retry-button,
+#restore-back-button {
+	background-color: #a6e3a1;
+	color: #181825;
+	border: none;
+	border-radius: 8px;
+	padding: 12px 20px;
+	font-weight: bold;
+	font-size: 14px;
+	min-width: 160px;
+	margin: 5px;
+}
+
+#restore-retry-button:hover,
+#restore-back-button:hover {
+	background-color: #94e2d5;
+}
+
+#restore-retry-button:active,
+#restore-back-button:active {
+	background-color: #89dceb;
+}
