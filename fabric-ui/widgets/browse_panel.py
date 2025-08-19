@@ -515,7 +515,7 @@ class BrowsePanelWidget(Box):
     def _start_delete_operation(self, session_name):
         """Start the actual delete operation asynchronously"""
         # Set a timeout for the delete operation
-        self.timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_delete_timeout)
+        self.delete_timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_delete_timeout)
         
         def run_delete_operation():
             """Run the delete operation in a separate thread"""
@@ -548,9 +548,9 @@ class BrowsePanelWidget(Box):
 
     def _cleanup_delete_operation(self):
         """Clean up the current delete operation"""
-        if hasattr(self, 'timeout_id'):
-            GLib.source_remove(self.timeout_id)
-            delattr(self, 'timeout_id')
+        if hasattr(self, 'delete_timeout_id'):
+            GLib.source_remove(self.delete_timeout_id)
+            delattr(self, 'delete_timeout_id')
         self.delete_in_progress = False
 
     def _handle_delete_success(self, session_name, result):
@@ -659,61 +659,73 @@ class BrowsePanelWidget(Box):
         # Transition to restoring state
         self.set_state("restoring")
 
-        # For now, simulate the restore operation since we're not connecting to backend yet
-        self._simulate_restore_operation(self.selected_session_for_restore)
+        # Start restore operation with timeout protection
+        self._start_restore_operation(self.selected_session_for_restore)
 
-    def _simulate_restore_operation(self, session_name):
-        """Simulate the restore operation for frontend testing"""
-        # Add timeout protection for consistency with real operations
-        self.timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_restore_timeout)
+    def _start_restore_operation(self, session_name):
+        """Start the actual restore operation asynchronously"""
+        # Set a timeout for the restore operation
+        self.restore_timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_restore_timeout)
         
-        def run_simulate_restore():
+        def run_restore_operation():
+            """Run the restore operation in a separate thread"""
             try:
                 # Ensure restoring state is visible for at least 500ms for better UX
                 start_time = time.time()
                 
-                # Simulate restore operation (2 seconds)
-                time.sleep(2.0)
+                # Call backend to restore session
+                result = self.backend_client.restore_session(session_name)
                 
                 # Calculate minimum delay to show restoring state
                 elapsed = time.time() - start_time
                 if elapsed < self.MIN_DISPLAY_TIME:
                     time.sleep(self.MIN_DISPLAY_TIME - elapsed)
                 
-                # Simulate success (for now - later we'll handle real backend responses)
-                GLib.idle_add(self._handle_restore_success_simulation, session_name)
+                # Schedule UI update on main thread
+                GLib.idle_add(self._handle_restore_success, session_name, result)
+                
+            except BackendError as e:
+                # Schedule error handling on main thread
+                GLib.idle_add(self._handle_restore_error_async, session_name, str(e))
                 
             except Exception as e:
                 # Schedule error handling on main thread
-                GLib.idle_add(self._handle_restore_error_simulation, session_name, str(e))
+                GLib.idle_add(self._handle_restore_error_async, session_name, str(e))
         
-        # Start the simulate operation in a background thread
-        restore_thread = threading.Thread(target=run_simulate_restore, daemon=True)
+        # Start the restore operation in a background thread
+        restore_thread = threading.Thread(target=run_restore_operation, daemon=True)
         restore_thread.start()
 
-    def _handle_restore_success_simulation(self, session_name):
-        """Handle simulated successful restore operation on main thread"""
+    def _handle_restore_success(self, session_name, result):
+        """Handle successful restore operation on main thread"""
         self._cleanup_restore_operation()
         
-        # Success - transition to success state
-        self.set_state("restore_success")
+        if result.get("success", False):
+            # Success - transition to success state
+            self.set_state("restore_success")
+        else:
+            # Backend returned error - transition to error state
+            error_msg = result.get("messages", [{}])[0].get(
+                "message", "Unknown error"
+            )
+            self.set_state("restore_error")
         
         return False  # Don't repeat this idle callback
 
-    def _handle_restore_error_simulation(self, session_name, error_message):
-        """Handle simulated restore operation error on main thread"""
+    def _handle_restore_error_async(self, session_name, error_message):
+        """Handle restore operation error on main thread"""
         self._cleanup_restore_operation()
             
-        # Simulation error
+        # Backend communication error
         self.set_state("restore_error")
         
         return False  # Don't repeat this idle callback
 
     def _cleanup_restore_operation(self):
         """Clean up the current restore operation"""
-        if hasattr(self, 'timeout_id'):
-            GLib.source_remove(self.timeout_id)
-            delattr(self, 'timeout_id')
+        if hasattr(self, 'restore_timeout_id'):
+            GLib.source_remove(self.restore_timeout_id)
+            delattr(self, 'restore_timeout_id')
         self.restore_in_progress = False
 
     def _handle_restore_timeout(self):
@@ -739,7 +751,7 @@ class BrowsePanelWidget(Box):
         # Mark restore as in progress and transition back to restoring state
         self.restore_in_progress = True
         self.set_state("restoring")
-        self._simulate_restore_operation(self.selected_session_for_restore)
+        self._start_restore_operation(self.selected_session_for_restore)
 
     def _handle_back_to_browsing_from_restore_clicked(self, button):
         """Handle back to browsing button click in restore error state"""
