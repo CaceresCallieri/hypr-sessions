@@ -3,17 +3,12 @@ Browse Panel Widget for Hypr Sessions Manager
 """
 
 import sys
-import threading
-import time
 from pathlib import Path
 
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.label import Label
 
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import GLib
 
 # Add parent directory to path for clean imports
 parent_dir = str(Path(__file__).parent.parent)
@@ -22,16 +17,14 @@ if parent_dir not in sys.path:
 
 # Import constants and backend client
 from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
-from utils import BackendClient, BackendError
+from utils import BackendClient
+
+# Import operation classes
+from .operations import DeleteOperation, RestoreOperation
 
 
 class BrowsePanelWidget(Box):
     """Panel widget for browsing and selecting sessions"""
-    
-    # Configuration constants
-    OPERATION_TIMEOUT = 35  # seconds (longer than backend timeout)
-    MIN_DISPLAY_TIME = 0.5  # seconds (minimum deleting state visibility)
-    SUCCESS_AUTO_RETURN_DELAY = 2  # seconds (auto-return from success)
 
     def __init__(self, session_utils, on_session_clicked=None):
         super().__init__(orientation="vertical", spacing=10, name="browse-panel")
@@ -39,12 +32,16 @@ class BrowsePanelWidget(Box):
         self.session_utils = session_utils
         self.on_session_clicked = on_session_clicked
         
-        # Backend client for delete operations
+        # Backend client for operations
         try:
             self.backend_client = BackendClient()
         except FileNotFoundError as e:
             print(f"Warning: Backend client unavailable: {e}")
             self.backend_client = None
+            
+        # Initialize operation handlers
+        self.delete_operation = DeleteOperation(self, self.backend_client)
+        self.restore_operation = RestoreOperation(self, self.backend_client)
 
         # Selection state management
         self.all_session_names = []  # Complete list of all sessions
@@ -62,14 +59,8 @@ class BrowsePanelWidget(Box):
         self.ARROW_UP = "\uf077"  # nf-fa-chevron_down
         self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_up
 
-        # Delete state management
+        # Panel state management
         self.state = "browsing"  # States: "browsing", "delete_confirm", "deleting", "delete_success", "delete_error", "restore_confirm", "restoring", "restore_success", "restore_error"
-        self.selected_session_for_delete = None
-        self.delete_in_progress = False  # Prevent multiple concurrent deletes
-        
-        # Restore state management
-        self.selected_session_for_restore = None
-        self.restore_in_progress = False  # Prevent multiple concurrent restores
 
         # Create panel content
         self._create_content()
@@ -79,21 +70,21 @@ class BrowsePanelWidget(Box):
         if self.state == "browsing":
             self.children = self._create_browsing_ui()
         elif self.state == "delete_confirm":
-            self.children = self._create_delete_confirmation_ui()
+            self.children = self.delete_operation.create_confirmation_ui()
         elif self.state == "deleting":
-            self.children = self._create_deleting_ui()
+            self.children = self.delete_operation.create_progress_ui()
         elif self.state == "delete_success":
-            self.children = self._create_delete_success_ui()
+            self.children = self.delete_operation.create_success_ui()
         elif self.state == "delete_error":
-            self.children = self._create_delete_error_ui()
+            self.children = self.delete_operation.create_error_ui()
         elif self.state == "restore_confirm":
-            self.children = self._create_restore_confirmation_ui()
+            self.children = self.restore_operation.create_confirmation_ui()
         elif self.state == "restoring":
-            self.children = self._create_restoring_ui()
+            self.children = self.restore_operation.create_progress_ui()
         elif self.state == "restore_success":
-            self.children = self._create_restore_success_ui()
+            self.children = self.restore_operation.create_success_ui()
         elif self.state == "restore_error":
-            self.children = self._create_restore_error_ui()
+            self.children = self.restore_operation.create_error_ui()
 
     def _create_browsing_ui(self):
         """Create the normal browsing UI"""
@@ -108,186 +99,6 @@ class BrowsePanelWidget(Box):
 
         return [sessions_header, sessions_container]
 
-    def _create_delete_confirmation_ui(self):
-        """Create the delete confirmation UI"""
-        # For now, just a simple placeholder - we'll enhance this next
-        session_name = self.selected_session_for_delete or "Unknown"
-        
-        # Main warning message
-        warning_message = Label(
-            text=f"Delete Session: {session_name}",
-            name="delete-title"
-        )
-        warning_message.set_markup(f"<span weight='bold' color='#f38ba8'>Delete Session: {session_name}</span>")
-        
-        # Simple confirmation text for now
-        confirm_text = f"Are you sure you wish to delete '{session_name}' session files?\nThis action cannot be undone."
-        confirm_message = Label(text=confirm_text, name="delete-confirmation")
-        
-        # Instructions
-        instructions = Label(
-            text="Press Enter to DELETE • Esc to Cancel",
-            name="delete-instructions"  
-        )
-        instructions.set_markup("<span size='small' style='italic'>Press Enter to DELETE • Esc to Cancel</span>")
-        
-        return [warning_message, confirm_message, instructions]
-
-    def _create_deleting_ui(self):
-        """Create the deleting state UI"""
-        session_name = self.selected_session_for_delete or "Unknown"
-        
-        # Center-aligned deleting message
-        deleting_message = Label(
-            text=f"Deleting session '{session_name}'...",
-            name="delete-status-info"
-        )
-        deleting_message.set_markup(
-            f"<span size='large'>Deleting session</span>\n"
-            f"<span weight='bold'>'{session_name}'</span>\n"
-            f"<span size='small' style='italic'>Please wait...</span>"
-        )
-        
-        return [deleting_message]
-
-    def _create_delete_success_ui(self):
-        """Create the delete success state UI"""
-        session_name = self.selected_session_for_delete or "Unknown"
-        
-        success_message = Label(
-            text=f"Session '{session_name}' deleted successfully!",
-            name="delete-status-success"
-        )
-        success_message.set_markup(
-            f"<span size='large'>Success!</span>\n"
-            f"<span weight='bold'>Session '{session_name}'</span>\n"
-            f"<span>deleted successfully</span>"
-        )
-        
-        # Auto-return to browsing state after configured delay
-        GLib.timeout_add_seconds(self.SUCCESS_AUTO_RETURN_DELAY, self._return_to_browsing)
-        
-        return [success_message]
-
-    def _create_delete_error_ui(self):
-        """Create the delete error state UI with retry option"""
-        session_name = self.selected_session_for_delete or "Unknown"
-        
-        error_message = Label(
-            text="Failed to delete session",
-            name="delete-status-error"
-        )
-        error_message.set_markup(
-            f"<span size='large'>Delete Failed</span>\n"
-            f"<span size='small'>Session '{session_name}'</span>\n"
-            f"<span size='small' style='italic'>Check the error and try again</span>"
-        )
-        
-        # Retry button
-        retry_button = Button(
-            label="Try Again",
-            name="delete-retry-button",
-            on_clicked=self._handle_retry_delete_clicked,
-        )
-        
-        # Back button
-        back_button = Button(
-            label="Back to Sessions",
-            name="delete-back-button",
-            on_clicked=self._handle_back_to_browsing_clicked,
-        )
-        
-        return [error_message, retry_button, back_button]
-
-    def _create_restore_confirmation_ui(self):
-        """Create the restore confirmation UI"""
-        session_name = self.selected_session_for_restore or "Unknown"
-        
-        # Main confirmation message (green theme for restore vs red for delete)
-        warning_message = Label(
-            text=f"Restore Session: {session_name}",
-            name="restore-title"
-        )
-        warning_message.set_markup(f"<span weight='bold' color='#a6e3a1'>Restore Session: {session_name}</span>")
-        
-        # Confirmation text
-        confirm_text = f"Restore '{session_name}' session to current workspace?\nThis will launch all saved applications and windows."
-        confirm_message = Label(text=confirm_text, name="restore-confirmation")
-        
-        # Instructions
-        instructions = Label(
-            text="Press Enter to RESTORE • Esc to Cancel",
-            name="restore-instructions"  
-        )
-        instructions.set_markup("<span size='small' style='italic'>Press Enter to RESTORE • Esc to Cancel</span>")
-        
-        return [warning_message, confirm_message, instructions]
-
-    def _create_restoring_ui(self):
-        """Create the restoring state UI"""
-        session_name = self.selected_session_for_restore or "Unknown"
-        
-        # Center-aligned restoring message
-        restoring_message = Label(
-            text=f"Restoring session '{session_name}'...",
-            name="restore-status-info"
-        )
-        restoring_message.set_markup(
-            f"<span size='large'>Restoring session</span>\n"
-            f"<span weight='bold'>'{session_name}'</span>\n"
-            f"<span size='small' style='italic'>Please wait...</span>"
-        )
-        
-        return [restoring_message]
-
-    def _create_restore_success_ui(self):
-        """Create the restore success state UI"""
-        session_name = self.selected_session_for_restore or "Unknown"
-        
-        success_message = Label(
-            text=f"Session '{session_name}' restored successfully!",
-            name="restore-status-success"
-        )
-        success_message.set_markup(
-            f"<span size='large'>Success!</span>\n"
-            f"<span weight='bold'>Session '{session_name}'</span>\n"
-            f"<span>restored successfully</span>"
-        )
-        
-        # Auto-return to browsing state after configured delay
-        GLib.timeout_add_seconds(self.SUCCESS_AUTO_RETURN_DELAY, self._return_to_browsing_from_restore)
-        
-        return [success_message]
-
-    def _create_restore_error_ui(self):
-        """Create the restore error state UI with retry option"""
-        session_name = self.selected_session_for_restore or "Unknown"
-        
-        error_message = Label(
-            text="Failed to restore session",
-            name="restore-status-error"
-        )
-        error_message.set_markup(
-            f"<span size='large'>Restore Failed</span>\n"
-            f"<span size='small'>Session '{session_name}'</span>\n"
-            f"<span size='small' style='italic'>Check the error and try again</span>"
-        )
-        
-        # Retry button
-        retry_button = Button(
-            label="Try Again",
-            name="restore-retry-button",
-            on_clicked=self._handle_retry_restore_clicked,
-        )
-        
-        # Back button
-        back_button = Button(
-            label="Back to Sessions",
-            name="restore-back-button",
-            on_clicked=self._handle_back_to_browsing_from_restore_clicked,
-        )
-        
-        return [error_message, retry_button, back_button]
 
     def _create_sessions_list(self):
         """Create the sessions list container with buttons for visible window"""
@@ -488,273 +299,35 @@ class BrowsePanelWidget(Box):
             self._create_content()
             self.show_all()
 
-    def _trigger_delete_operation(self):
-        """Trigger the delete operation for the selected session"""
-        # Prevent multiple concurrent deletes
-        if self.delete_in_progress:
-            print("Delete already in progress, ignoring request")
-            return
-            
-        if not self.selected_session_for_delete:
-            print("No session selected for deletion")
-            return
-            
-        if not self.backend_client:
-            print("Backend client unavailable")
-            return
-
-        # Mark delete as in progress
-        self.delete_in_progress = True
-        
-        # Transition to deleting state
-        self.set_state("deleting")
-
-        # Start delete operation with timeout protection
-        self._start_delete_operation(self.selected_session_for_delete)
-
-    def _start_delete_operation(self, session_name):
-        """Start the actual delete operation asynchronously"""
-        # Set a timeout for the delete operation
-        self.delete_timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_delete_timeout)
-        
-        def run_delete_operation():
-            """Run the delete operation in a separate thread"""
-            try:
-                # Ensure deleting state is visible for at least 500ms for better UX
-                start_time = time.time()
-                
-                # Call backend to delete session
-                result = self.backend_client.delete_session(session_name)
-                
-                # Calculate minimum delay to show deleting state
-                elapsed = time.time() - start_time
-                if elapsed < self.MIN_DISPLAY_TIME:
-                    time.sleep(self.MIN_DISPLAY_TIME - elapsed)
-                
-                # Schedule UI update on main thread
-                GLib.idle_add(self._handle_delete_success, session_name, result)
-                
-            except BackendError as e:
-                # Schedule error handling on main thread
-                GLib.idle_add(self._handle_delete_error_async, session_name, str(e))
-                
-            except Exception as e:
-                # Schedule error handling on main thread
-                GLib.idle_add(self._handle_delete_error_async, session_name, str(e))
-        
-        # Start the delete operation in a background thread
-        delete_thread = threading.Thread(target=run_delete_operation, daemon=True)
-        delete_thread.start()
-
-    def _cleanup_delete_operation(self):
-        """Clean up the current delete operation"""
-        if hasattr(self, 'delete_timeout_id'):
-            GLib.source_remove(self.delete_timeout_id)
-            delattr(self, 'delete_timeout_id')
-        self.delete_in_progress = False
-
-    def _handle_delete_success(self, session_name, result):
-        """Handle successful delete operation on main thread"""
-        self._cleanup_delete_operation()
-        
-        if result.get("success", False):
-            # Success - transition to success state
-            self.set_state("delete_success")
-        else:
-            # Backend returned error - transition to error state
-            error_msg = result.get("messages", [{}])[0].get(
-                "message", "Unknown error"
-            )
-            self.set_state("delete_error")
-        
-        return False  # Don't repeat this idle callback
-
-    def _handle_delete_error_async(self, session_name, error_message):
-        """Handle delete operation error on main thread"""
-        self._cleanup_delete_operation()
-            
-        # Backend communication error
-        self.set_state("delete_error")
-        
-        return False  # Don't repeat this idle callback
-
-    def _handle_delete_timeout(self):
-        """Handle delete operation timeout"""
-        print("Delete operation timed out")
-        self._cleanup_delete_operation()
-        self.set_state("delete_error")
-        return False  # Don't repeat timeout
-
-    def _return_to_browsing(self):
-        """Return to browsing state after success"""
-        self.selected_session_for_delete = None
-        self.set_state("browsing")
-        # Refresh session list to remove deleted session
-        self.refresh()
-        return False  # Don't repeat timeout
-
-    def _handle_retry_delete_clicked(self, button):
-        """Handle retry button click in error state"""
-        # Prevent multiple concurrent deletes
-        if self.delete_in_progress:
-            return
-            
-        # Mark delete as in progress and transition back to deleting state
-        self.delete_in_progress = True
-        self.set_state("deleting")
-        self._start_delete_operation(self.selected_session_for_delete)
-
-    def _handle_back_to_browsing_clicked(self, button):
-        """Handle back to browsing button click in error state"""
-        self.selected_session_for_delete = None
-        self.set_state("browsing")
-
+    # Operation methods removed - now handled by operation classes
+    # DeleteOperation and RestoreOperation handle all operation logic
+    
     def handle_key_press(self, keycode):
         """Handle keyboard events for different browse panel states"""        
         if self.state == "delete_confirm":
             if keycode == KEYCODE_ENTER:
                 # Trigger the actual delete operation
-                self._trigger_delete_operation()
+                self.delete_operation.trigger_operation()
                 return True
             elif keycode == KEYCODE_ESCAPE:
                 # Cancel delete operation
-                print(f"DEBUG: Cancelled delete for session: {self.selected_session_for_delete}")
-                self.selected_session_for_delete = None
+                print(f"DEBUG: Cancelled delete for session: {self.delete_operation.selected_session}")
+                self.delete_operation.selected_session = None
                 self.set_state("browsing")
                 return True
         
         elif self.state == "restore_confirm":
             if keycode == KEYCODE_ENTER:
                 # Trigger the actual restore operation
-                self._trigger_restore_operation()
+                self.restore_operation.trigger_operation()
                 return True
             elif keycode == KEYCODE_ESCAPE:
                 # Cancel restore operation
-                print(f"DEBUG: Cancelled restore for session: {self.selected_session_for_restore}")
-                self.selected_session_for_restore = None
+                print(f"DEBUG: Cancelled restore for session: {self.restore_operation.selected_session}")
+                self.restore_operation.selected_session = None
                 self.set_state("browsing")
                 return True
         
         # Let main manager handle other keys in browsing state
         return False
-
-    def _trigger_restore_operation(self):
-        """Trigger the restore operation for the selected session"""
-        # Prevent multiple concurrent restores
-        if self.restore_in_progress:
-            print("Restore already in progress, ignoring request")
-            return
-            
-        if not self.selected_session_for_restore:
-            print("No session selected for restoration")
-            return
-            
-        if not self.backend_client:
-            print("Backend client unavailable")
-            return
-
-        # Mark restore as in progress
-        self.restore_in_progress = True
-        
-        # Transition to restoring state
-        self.set_state("restoring")
-
-        # Start restore operation with timeout protection
-        self._start_restore_operation(self.selected_session_for_restore)
-
-    def _start_restore_operation(self, session_name):
-        """Start the actual restore operation asynchronously"""
-        # Set a timeout for the restore operation
-        self.restore_timeout_id = GLib.timeout_add_seconds(self.OPERATION_TIMEOUT, self._handle_restore_timeout)
-        
-        def run_restore_operation():
-            """Run the restore operation in a separate thread"""
-            try:
-                # Ensure restoring state is visible for at least 500ms for better UX
-                start_time = time.time()
-                
-                # Call backend to restore session
-                result = self.backend_client.restore_session(session_name)
-                
-                # Calculate minimum delay to show restoring state
-                elapsed = time.time() - start_time
-                if elapsed < self.MIN_DISPLAY_TIME:
-                    time.sleep(self.MIN_DISPLAY_TIME - elapsed)
-                
-                # Schedule UI update on main thread
-                GLib.idle_add(self._handle_restore_success, session_name, result)
-                
-            except BackendError as e:
-                # Schedule error handling on main thread
-                GLib.idle_add(self._handle_restore_error_async, session_name, str(e))
-                
-            except Exception as e:
-                # Schedule error handling on main thread
-                GLib.idle_add(self._handle_restore_error_async, session_name, str(e))
-        
-        # Start the restore operation in a background thread
-        restore_thread = threading.Thread(target=run_restore_operation, daemon=True)
-        restore_thread.start()
-
-    def _handle_restore_success(self, session_name, result):
-        """Handle successful restore operation on main thread"""
-        self._cleanup_restore_operation()
-        
-        if result.get("success", False):
-            # Success - transition to success state
-            self.set_state("restore_success")
-        else:
-            # Backend returned error - transition to error state
-            error_msg = result.get("messages", [{}])[0].get(
-                "message", "Unknown error"
-            )
-            self.set_state("restore_error")
-        
-        return False  # Don't repeat this idle callback
-
-    def _handle_restore_error_async(self, session_name, error_message):
-        """Handle restore operation error on main thread"""
-        self._cleanup_restore_operation()
-            
-        # Backend communication error
-        self.set_state("restore_error")
-        
-        return False  # Don't repeat this idle callback
-
-    def _cleanup_restore_operation(self):
-        """Clean up the current restore operation"""
-        if hasattr(self, 'restore_timeout_id'):
-            GLib.source_remove(self.restore_timeout_id)
-            delattr(self, 'restore_timeout_id')
-        self.restore_in_progress = False
-
-    def _handle_restore_timeout(self):
-        """Handle restore operation timeout"""
-        print("Restore operation timed out")
-        self._cleanup_restore_operation()
-        self.set_state("restore_error")
-        return False  # Don't repeat timeout
-
-    def _return_to_browsing_from_restore(self):
-        """Return to browsing state after restore success"""
-        self.selected_session_for_restore = None
-        self.set_state("browsing")
-        # No need to refresh since restore doesn't change session list
-        return False  # Don't repeat timeout
-
-    def _handle_retry_restore_clicked(self, button):
-        """Handle retry button click in restore error state"""
-        # Prevent multiple concurrent restores
-        if self.restore_in_progress:
-            return
-            
-        # Mark restore as in progress and transition back to restoring state
-        self.restore_in_progress = True
-        self.set_state("restoring")
-        self._start_restore_operation(self.selected_session_for_restore)
-
-    def _handle_back_to_browsing_from_restore_clicked(self, button):
-        """Handle back to browsing button click in restore error state"""
-        self.selected_session_for_restore = None
-        self.set_state("browsing")
 

@@ -135,6 +135,17 @@ SessionManagerWidget (WaylandWindow)
 -   **Code Quality**: DRY principles with shared session action logic and consistent patterns
 -   **Backend Integration**: Complete end-to-end functionality with real CLI backend integration
 
+#### Modular Operation Architecture
+
+-   **Abstract Base Class**: `BaseOperation` with shared UI logic, threading, and error handling
+-   **Concrete Implementations**: `DeleteOperation` and `RestoreOperation` require only ~25 lines each
+-   **Code Reduction**: Eliminated 400+ lines of duplication from `browse_panel.py`
+-   **Extensible Design**: New operations inherit full UI workflow (confirmation/progress/success/error states)
+-   **Thread Safety**: Async backend operations with `GLib.idle_add()` for UI thread safety
+-   **Configuration-Driven**: Operation behavior defined via config dictionaries
+-   **Timeout Protection**: 35-second operation timeout with cleanup and error handling
+-   **State Management**: Centralized state machine with validation and transition logging
+
 #### Keyboard Navigation System
 
 ```

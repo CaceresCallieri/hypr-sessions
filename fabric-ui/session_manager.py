@@ -276,10 +276,10 @@ class SessionManagerWidget(WaylandWindow):
         if selected_session:
             print(f"DEBUG: Initiating {action_type} for session: {selected_session}")
             if action_type == "restore":
-                self.browse_panel.selected_session_for_restore = selected_session
+                self.browse_panel.restore_operation.selected_session = selected_session
                 self.browse_panel.set_state("restore_confirm")
             elif action_type == "delete":
-                self.browse_panel.selected_session_for_delete = selected_session
+                self.browse_panel.delete_operation.selected_session = selected_session
                 self.browse_panel.set_state("delete_confirm")
         else:
             print(f"DEBUG: No session selected for {action_type}")
