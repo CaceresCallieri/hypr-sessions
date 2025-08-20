@@ -24,7 +24,7 @@ class SessionSaver(Utils):
         self.debug: bool = debug
         self.config = get_config()
         self.current_session_name: Optional[str] = None
-        self.hyprctl_client: HyprctlClient = HyprctlClient()
+        self.hyprctl_client: HyprctlClient = HyprctlClient(debug=debug)
         self.launch_command_generator: LaunchCommandGenerator = LaunchCommandGenerator(debug=debug)
         self.terminal_handler: TerminalHandler = TerminalHandler()
         self.neovide_handler: NeovideHandler = NeovideHandler(debug=debug)
@@ -67,31 +67,27 @@ class SessionSaver(Utils):
             result.add_error(str(e))
             return result
 
-        # Get all clients (windows) from current workspace
+        # Get current workspace clients only (never loads other workspace data)
         try:
-            clients = self.hyprctl_client.get_hyprctl_data("clients")
-            if not clients:
-                result.add_error("No clients found in Hyprland")
-                return result
-            
-            self.debug_print(f"Found {len(clients)} total clients")
-            result.add_success(f"Found {len(clients)} total windows")
-
-            # Get current workspace to filter clients
+            # Get current workspace ID first
             current_workspace_data = self.hyprctl_client.get_hyprctl_data("activeworkspace")
             current_workspace_id = (
                 current_workspace_data.get("id") if current_workspace_data else None
             )
+            
+            if current_workspace_id is None:
+                result.add_error("Could not determine current workspace")
+                return result
+                
             self.debug_print(f"Current workspace ID: {current_workspace_id}")
 
-            # Filter clients for current workspace only
-            workspace_clients = [
-                client
-                for client in clients
-                if client.get("workspace", {}).get("id") == current_workspace_id
-            ]
-            
-            self.debug_print(f"Filtered to {len(workspace_clients)} clients in current workspace")
+            # Get clients filtered to current workspace only using jq
+            workspace_clients = self.hyprctl_client.get_workspace_clients(current_workspace_id)
+            if workspace_clients is None:
+                result.add_error("Failed to get workspace clients")
+                return result
+
+            self.debug_print(f"Found {len(workspace_clients)} clients in current workspace")
 
             if not workspace_clients:
                 result.add_error(f"No windows found in current workspace ({current_workspace_id})")

@@ -85,6 +85,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 -   **JSON API**: `--json` flag produces clean, parseable output for UI integration
 -   **Error Handling**: Custom exception classes, structured validation, graceful degradation
 -   **Debug Mode**: `--debug` flag with comprehensive logging across all components
+-   **Workspace-Scoped Data**: HyprctlClient filters to current workspace immediately, never exposing other workspace data
 -   **Timing System**: Configurable delays for group restoration (`DELAY_BETWEEN_INSTRUCTIONS = 0.4s`)
 -   **Thread Safety**: Proper async patterns with UI thread protection in Fabric UI
 
