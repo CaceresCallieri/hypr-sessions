@@ -93,6 +93,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 ### Architecture Excellence
 
 -   **Wayland Layer Widget**: Native overlay using WaylandWindow with layer shell support
+-   **Focus Management**: GTK Layer Shell exclusive keyboard mode prevents focus loss under Hyprland compositor
 -   **State-Based UI**: Save panel with input/saving/success/error states and smooth transitions
 -   **Asynchronous Operations**: Non-blocking save operations with proper thread safety and timeout handling
 -   **Keyboard Navigation**: Comprehensive control (Tab, arrows, Enter, Esc) with mode-aware routing
@@ -227,6 +228,29 @@ from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 -   **Smooth Scrolling Support**: Handles both discrete wheel clicks and smooth trackpad scrolling via delta detection
 -   **State-Aware Operation**: Only active in browse mode during "browsing" state, disabled during delete confirmation
 -   **Clean Architecture**: Helper methods _get_scroll_direction() and _can_handle_scroll() for maintainability
+
+### GTK Layer Shell Focus Management Implementation (2025-08-20)
+
+-   **Problem Resolution**: Fixed keyboard focus loss in Hyprland compositor where layer UI becomes unresponsive to keyboard input
+-   **Solution Approach**: Implemented exclusive keyboard mode using GTK Layer Shell protocol (Solution 1 from focus guide)
+-   **Technical Implementation**: Added `GtkLayerShell.set_keyboard_mode(window, GtkLayerShell.KeyboardMode.EXCLUSIVE)`
+-   **Reliability**: Prevents focus loss at compositor level - most reliable solution for application launcher use case
+-   **Graceful Handling**: Error handling ensures application continues with default behavior if layer shell unavailable
+-   **Debug Output**: Added logging to confirm successful focus management configuration
+
+```python
+def _configure_layer_shell_focus(self):
+    """Configure layer shell properties for reliable keyboard focus management"""
+    try:
+        if not GtkLayerShell.is_layer_window(self):
+            GtkLayerShell.init_for_window(self)
+        
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+        print("DEBUG: Configured layer shell with exclusive keyboard mode")
+        
+    except Exception as e:
+        print(f"Warning: Failed to configure layer shell focus management: {e}")
+```
 
 ## Browser Integration Evolution
 

@@ -13,7 +13,8 @@ from fabric.widgets.label import Label
 from fabric.widgets.wayland import WaylandWindow
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, Gtk
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, Gtk, GtkLayerShell
 
 # Add parent directory to path to import session utilities
 sys.path.append(str(Path(__file__).parent.parent))
@@ -122,8 +123,28 @@ class SessionManagerWidget(WaylandWindow):
             Gdk.EventMask.SMOOTH_SCROLL_MASK
         )
 
+        # Configure layer shell for exclusive keyboard focus to prevent focus loss
+        self._configure_layer_shell_focus()
+        
         # Show window after all content is added
         self.show_all()
+
+    def _configure_layer_shell_focus(self):
+        """Configure layer shell properties for reliable keyboard focus management"""
+        try:
+            # Initialize layer shell for this window if not already done by Fabric
+            if not GtkLayerShell.is_layer_window(self):
+                GtkLayerShell.init_for_window(self)
+            
+            # Set exclusive keyboard mode to prevent focus loss
+            # This ensures the layer surface always maintains keyboard focus when visible
+            GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+            
+            print("DEBUG: Configured layer shell with exclusive keyboard mode")
+            
+        except Exception as e:
+            print(f"Warning: Failed to configure layer shell focus management: {e}")
+            print("Application will continue with default focus behavior")
 
     def _on_browse_mode(self):
         """Handle switch to browse mode"""
