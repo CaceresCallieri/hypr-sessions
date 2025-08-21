@@ -1,34 +1,38 @@
-/* Hypr Sessions Manager - Fabric Layer Widget Styles */
+/* Hypr Sessions Manager - Mac Tahoe Aesthetic (GTK3 Compatible) */
 
 * {
 	all: unset;
-	font-family: "JetBrains Mono", monospace;
+	font-family: "SF Pro Rounded", "JetBrains Mono", monospace;
 	font-size: 14px;
 }
 
 window {
-	background-color: rgba(30, 30, 46, 0.95);
-	border: 3px solid #cba6f7;
-	border-radius: 12px;
-	padding: 30px;
-	margin: 20px;
-	min-width: 300px;
-	min-height: 150px;
+	background-color: alpha(#1a1a1a, 0.1);
+	background-image: linear-gradient(to bottom, alpha(#2a2a2a, 0.3), alpha(#141414, 0.5));
+	border: 2px solid alpha(#ffffff, 0.3);
+	border-radius: 24px;
+	padding: 40px;
+	margin: 25px;
+	min-width: 320px;
+	min-height: 180px;
+	transition-property: background-color, border-color;
+	transition-duration: 0.4s;
+	transition-timing-function: ease-out;
 }
 
 #hello-label {
-	color: #cba6f7;
+	color: #ffffff;
 	font-weight: bold;
-	font-size: 18px;
-	margin: 10px;
-	padding: 5px;
+	font-size: 20px;
+	margin: 15px;
+	padding: 8px;
 }
 
 #subtitle-label {
-	color: #a6adc8;
+	color: alpha(#ffffff, 0.7);
 	font-size: 14px;
-	margin: 5px;
-	padding: 5px;
+	margin: 8px;
+	padding: 6px;
 }
 
 label {
@@ -38,126 +42,154 @@ label {
 
 #content-box {
 	background-color: transparent;
-	padding: 10px;
+	padding: 15px;
 }
 
 /* Sessions section */
 #sessions-header {
-	color: #fab387;
+	color: #ffffff;
 	font-weight: bold;
-	margin: 5px 0;
+	margin: 8px 0;
 }
 
 #sessions-container {
-	background-color: rgba(49, 50, 68, 0.3);
-	border-radius: 8px;
-	padding: 10px;
-	min-height: 80px;
+	background-color: alpha(#2a2a2a, 0.4);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.05), alpha(#ffffff, 0.02));
+	border: 1px solid alpha(#ffffff, 0.1);
+	border-radius: 16px;
+	padding: 16px;
+	min-height: 100px;
 }
 
 #session-button {
-	background-color: rgba(69, 71, 90, 0.6);
-	color: #cdd6f4;
-	border: 1px solid #585b70;
-	border-radius: 6px;
-	padding: 10px 15px;
-	margin: 2px 0;
-	min-width: 250px;
+	background-color: alpha(#ffffff, 0.08);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.1), alpha(#ffffff, 0.05));
+	color: alpha(#ffffff, 0.8);
+	border: 1px solid alpha(#ffffff, 0.15);
+	border-radius: 12px;
+	padding: 14px 18px;
+	margin: 4px 0;
+	min-width: 260px;
+	transition-property: background-color, border-color, color;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
 }
 
 #session-button:hover {
-	background-color: rgba(69, 71, 90, 0.9);
-	border-color: #89b4fa;
+	background-color: alpha(#ffffff, 0.12);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.15), alpha(#ffffff, 0.08));
+	border-color: alpha(#ffffff, 0.4);
 }
 
 #session-button.selected {
-	background-color: #89b4fa;
-	color: #181825;
-	border: 2px solid #cba6f7;
+	background-color: alpha(#ffffff, 0.25);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.3), alpha(#ffffff, 0.2));
+	color: #262424;
+	border: 2px solid alpha(#ffffff, 0.6);
 	font-weight: bold;
-	box-shadow: 0 0 8px rgba(137, 180, 250, 0.3);
+}
+
+#session-button.selected label {
+	color: #262424;
 }
 
 #no-sessions-label {
-	color: #6c7086;
-	padding: 20px;
+	color: alpha(#ffffff, 0.5);
+	padding: 24px;
 }
 
 /* Scroll indicators */
 #scroll-indicator {
-	color: #89b4fa;
+	color: #ffffff;
 	font-size: 16px;
 	font-weight: bold;
 }
 
 /* Toggle switch section */
 #toggle-container {
-	background-color: rgba(49, 50, 68, 0.4);
-	border-radius: 8px;
-	padding: 15px;
-	margin: 10px;
+	background-color: alpha(#2a2a2a, 0.3);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.05), alpha(#ffffff, 0.02));
+	border: 1px solid alpha(#ffffff, 0.1);
+	border-radius: 16px;
+	padding: 20px;
+	margin: 12px;
 }
 
 /* Segmented toggle switch container */
 #segmented-toggle {
-	background-color: #585b70;
-	border-radius: 20px;
-	padding: 4px;
-	border: 2px solid #6c7086;
+	background-color: alpha(#1a1a1a, 0.6);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.03), alpha(#000000, 0.1));
+	border-radius: 24px;
+	padding: 6px;
+	border: 1px solid alpha(#ffffff, 0.2);
 }
 
 /* Left button - active state */
 #toggle-left-active {
-	background-color: #cba6f7;
-	color: #181825;
-	border: none;
-	border-radius: 16px;
-	padding: 8px 10px;
+	background-color: alpha(#ffffff, 0.8);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
+	color: #262424;
+	border: 1px solid alpha(#ffffff, 0.4);
+	border-radius: 18px;
+	padding: 10px 14px;
 	font-weight: bold;
-	font-size: 12px;
-	min-width: 120px;
+	font-size: 13px;
+	min-width: 130px;
+}
+
+#toggle-left-active label {
+	color: #262424;
 }
 
 /* Left button - inactive state */
 #toggle-left-inactive {
 	background-color: transparent;
-	color: #cdd6f4;
-	border: none;
-	border-radius: 16px;
-	padding: 8px 10px;
+	background-image: none;
+	color: alpha(#ffffff, 0.7);
+	border: 1px solid transparent;
+	border-radius: 18px;
+	padding: 10px 14px;
 	font-weight: bold;
-	font-size: 12px;
-	min-width: 120px;
+	font-size: 13px;
+	min-width: 130px;
 }
 
 /* Right button - active state */
 #toggle-right-active {
-	background-color: #cba6f7;
-	color: #181825;
-	border: none;
-	border-radius: 16px;
-	padding: 8px 10px;
+	background-color: alpha(#ffffff, 0.8);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
+	color: #262424;
+	border: 1px solid alpha(#ffffff, 0.4);
+	border-radius: 18px;
+	padding: 10px 14px;
 	font-weight: bold;
-	font-size: 12px;
-	min-width: 120px;
+	font-size: 13px;
+	min-width: 130px;
+}
+
+#toggle-right-active label {
+	color: #262424;
 }
 
 /* Right button - inactive state */
 #toggle-right-inactive {
 	background-color: transparent;
-	color: #cdd6f4;
-	border: none;
-	border-radius: 16px;
-	padding: 8px 10px;
+	background-image: none;
+	color: alpha(#ffffff, 0.7);
+	border: 1px solid transparent;
+	border-radius: 18px;
+	padding: 10px 14px;
 	font-weight: bold;
-	font-size: 12px;
-	min-width: 120px;
+	font-size: 13px;
+	min-width: 130px;
 }
 
 /* Hover effects for inactive buttons */
 #toggle-left-inactive:hover,
 #toggle-right-inactive:hover {
-	background-color: rgba(203, 166, 247, 0.2);
+	background-color: alpha(#ffffff, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.08), alpha(#ffffff, 0.04));
+	border-color: alpha(#ffffff, 0.3);
 }
 
 /* Dynamic content area */
@@ -173,189 +205,240 @@ label {
 
 /* Save panel */
 #save-panel {
-	background-color: rgba(49, 50, 68, 0.3);
-	border-radius: 8px;
-	padding: 20px;
-	margin: 10px 0;
+	background-color: alpha(#2a2a2a, 0.4);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.05), alpha(#ffffff, 0.02));
+	border: 1px solid alpha(#ffffff, 0.1);
+	border-radius: 16px;
+	padding: 24px;
+	margin: 12px 0;
 }
 
 #save-header {
-	color: #a6e3a1;
+	color: #ffffff;
 	font-weight: bold;
-	margin-bottom: 10px;
+	margin-bottom: 15px;
 }
 
 #session-name-input {
-	background-color: #313244;
-	border: 1px solid #585b70;
-	border-radius: 6px;
-	padding: 10px 12px;
-	color: #cdd6f4;
+	background-color: alpha(#1a1a1a, 0.6);
+	background-image: linear-gradient(to bottom, alpha(#000000, 0.1), alpha(#ffffff, 0.05));
+	border: 2px solid alpha(#ffffff, 0.2);
+	border-radius: 12px;
+	padding: 12px 16px;
+	color: #ffffff;
 	font-size: 14px;
-	min-width: 250px;
+	min-width: 270px;
+	transition-property: border-color, background-color;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
 }
 
 #session-name-input:focus {
-	border-color: #a6e3a1;
-	box-shadow: 0 0 0 2px rgba(166, 227, 161, 0.3);
+	border-color: alpha(#ffffff, 0.6);
+	background-color: alpha(#1a1a1a, 0.8);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.05), alpha(#ffffff, 0.08));
 }
 
 #save-session-button {
-	background-color: #a6e3a1;
-	color: #181825;
-	border: none;
-	border-radius: 8px;
-	padding: 12px 20px;
+	background-color: alpha(#ffffff, 0.8);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
+	color: #262424;
+	border: 2px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
+	padding: 14px 24px;
 	font-weight: bold;
 	font-size: 14px;
-	min-width: 180px;
+	min-width: 200px;
+	transition-property: all;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+}
+
+#save-session-button label {
+	color: #262424;
 }
 
 #save-session-button:hover {
-	background-color: #94e2d5;
+	background-color: alpha(#ffffff, 0.9);
+	background-image: linear-gradient(to bottom, alpha(#f5f5f5, 1), alpha(#ffffff, 0.8));
+	border-color: alpha(#ffffff, 0.6);
 }
 
 #save-session-button:active {
-	background-color: #89dceb;
+	background-color: alpha(#e0e0e0, 1);
+	background-image: linear-gradient(to bottom, alpha(#e0e0e0, 1), alpha(#cccccc, 0.9));
 }
 
 /* Status message styles */
 #save-status-success {
-	color: #a6e3a1;
+	color: #ffffff;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(166, 227, 161, 0.1);
-	border: 1px solid rgba(166, 227, 161, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ffffff, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
+	border: 1px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
 }
 
 #save-status-error {
-	color: #f38ba8;
+	color: #ff6b7a;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(243, 139, 168, 0.1);
-	border: 1px solid rgba(243, 139, 168, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ff6b7a, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ff6b7a, 0.2), alpha(#ff6b7a, 0.1));
+	border: 1px solid alpha(#ff6b7a, 0.3);
+	border-radius: 12px;
 }
 
 #save-status-info {
-	color: #89b4fa;
+	color: #ffffff;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(137, 180, 250, 0.1);
-	border: 1px solid rgba(137, 180, 250, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ffffff, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
+	border: 1px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
 }
 
 /* Delete operation status styles */
 #delete-status-success {
-	color: #a6e3a1;
+	color: #ffffff;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(166, 227, 161, 0.1);
-	border: 1px solid rgba(166, 227, 161, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ffffff, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
+	border: 1px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
 }
 
 #delete-status-error {
-	color: #f38ba8;
+	color: #ff6b7a;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(243, 139, 168, 0.1);
-	border: 1px solid rgba(243, 139, 168, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ff6b7a, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ff6b7a, 0.2), alpha(#ff6b7a, 0.1));
+	border: 1px solid alpha(#ff6b7a, 0.3);
+	border-radius: 12px;
 }
 
 #delete-status-info {
-	color: #89b4fa;
+	color: #ffffff;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(137, 180, 250, 0.1);
-	border: 1px solid rgba(137, 180, 250, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ffffff, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
+	border: 1px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
 }
 
 /* Delete operation buttons */
 #delete-retry-button,
 #delete-back-button {
-	background-color: #89b4fa;
-	color: #181825;
-	border: none;
-	border-radius: 8px;
-	padding: 12px 20px;
+	background-color: alpha(#ffffff, 0.8);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
+	color: #262424;
+	border: 2px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
+	padding: 14px 22px;
 	font-weight: bold;
 	font-size: 14px;
-	min-width: 160px;
-	margin: 5px;
+	min-width: 180px;
+	margin: 8px;
+	transition-property: all;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+}
+
+#delete-retry-button label,
+#delete-back-button label {
+	color: #262424;
 }
 
 #delete-retry-button:hover,
 #delete-back-button:hover {
-	background-color: #94e2d5;
+	background-color: alpha(#ffffff, 0.9);
+	background-image: linear-gradient(to bottom, alpha(#f5f5f5, 1), alpha(#ffffff, 0.8));
+	border-color: alpha(#ffffff, 0.6);
 }
 
 #delete-retry-button:active,
 #delete-back-button:active {
-	background-color: #89dceb;
+	background-color: alpha(#e0e0e0, 1);
+	background-image: linear-gradient(to bottom, alpha(#e0e0e0, 1), alpha(#cccccc, 0.9));
 }
 
 /* Restore operation status styles */
 #restore-status-success {
-	color: #a6e3a1;
+	color: #ffffff;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(166, 227, 161, 0.1);
-	border: 1px solid rgba(166, 227, 161, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ffffff, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
+	border: 1px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
 }
 
 #restore-status-error {
-	color: #f38ba8;
+	color: #ff6b7a;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(243, 139, 168, 0.1);
-	border: 1px solid rgba(243, 139, 168, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ff6b7a, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ff6b7a, 0.2), alpha(#ff6b7a, 0.1));
+	border: 1px solid alpha(#ff6b7a, 0.3);
+	border-radius: 12px;
 }
 
 #restore-status-info {
-	color: #89b4fa;
+	color: #ffffff;
 	font-weight: bold;
-	padding: 8px 12px;
-	margin-top: 10px;
-	background-color: rgba(137, 180, 250, 0.1);
-	border: 1px solid rgba(137, 180, 250, 0.3);
-	border-radius: 6px;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ffffff, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
+	border: 1px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
 }
 
 /* Restore operation buttons */
 #restore-retry-button,
 #restore-back-button {
-	background-color: #a6e3a1;
-	color: #181825;
-	border: none;
-	border-radius: 8px;
-	padding: 12px 20px;
+	background-color: alpha(#ffffff, 0.8);
+	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
+	color: #262424;
+	border: 2px solid alpha(#ffffff, 0.3);
+	border-radius: 12px;
+	padding: 14px 22px;
 	font-weight: bold;
 	font-size: 14px;
-	min-width: 160px;
-	margin: 5px;
+	min-width: 180px;
+	margin: 8px;
+	transition-property: all;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+}
+
+#restore-retry-button label,
+#restore-back-button label {
+	color: #262424;
 }
 
 #restore-retry-button:hover,
 #restore-back-button:hover {
-	background-color: #94e2d5;
+	background-color: alpha(#ffffff, 0.9);
+	background-image: linear-gradient(to bottom, alpha(#f5f5f5, 1), alpha(#ffffff, 0.8));
+	border-color: alpha(#ffffff, 0.6);
 }
 
 #restore-retry-button:active,
 #restore-back-button:active {
-	background-color: #89dceb;
+	background-color: alpha(#e0e0e0, 1);
+	background-image: linear-gradient(to bottom, alpha(#e0e0e0, 1), alpha(#cccccc, 0.9));
 }

@@ -504,5 +504,55 @@ After every change to this codebase:
 -   Legacy support methods available but not used in production
 -   Comprehensive testing verified across save/restore/list/delete operations
 
+## Mac Tahoe UI Aesthetic
+
+### Design System Implementation
+
+**Status**: Complete transformation from Catppuccin to white-based Mac Tahoe aesthetic
+
+#### Core Design Principles
+- **Glassmorphism**: GTK3-compatible transparency using `alpha()` function with layered gradients
+- **Rounded Design**: 16-24px container radius, 12-18px button radius for Mac-like softness
+- **White Color Palette**: Primary white (#ffffff) with warm gray accents (#e0e0e0, #f5f5f5)
+- **Warm Text**: Dark button text uses #262424 (warm gray) instead of harsh black
+
+#### Critical Technical Knowledge
+
+**GTK3 CSS Limitations Discovered**:
+- No `!important` declarations supported
+- No backdrop-filter or advanced web CSS properties
+- Button styling requires targeting both element AND nested labels
+
+**CSS Specificity Issue & Solution**:
+```css
+/* PROBLEM: Broad label selector overrides specific button colors */
+label { color: #ffffff; }  /* This overrides button text colors */
+
+/* SOLUTION: Nested selectors for proper specificity */
+#save-session-button { color: #262424; }
+#save-session-button label { color: #262424; }  /* Required for GTK buttons */
+```
+
+**GTK3-Compatible Glassmorphism Pattern**:
+```css
+background-color: alpha(#ffffff, 0.8);
+background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
+border: 2px solid alpha(#ffffff, 0.3);
+```
+
+#### Color System Reference
+- **Primary**: #ffffff (buttons, accents, borders)
+- **Secondary**: #e0e0e0 (gradients, hover states)  
+- **Tertiary**: #f5f5f5 (subtle highlights)
+- **Text Dark**: #262424 (warm gray for button text)
+- **Text Light**: #ffffff (general UI text)
+- **Error**: #ff6b7a (status messages)
+
+#### Implementation Notes
+- Font stack: "SF Pro Rounded", "JetBrains Mono", monospace
+- Transitions: 0.3-0.4s ease-out for smooth interactions
+- Spacing: Increased padding/margins by 25-50% for breathing room
+- Opacity ranges: 0.05-0.9 depending on context and layering needs
+
 This documentation provides comprehensive guidance while maintaining clarity and avoiding redundancy. It serves as both development reference and architectural overview for the Hyprland Session Manager project.
 
