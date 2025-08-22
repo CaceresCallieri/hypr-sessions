@@ -372,24 +372,34 @@ label {
 
 /* Confirmation buttons container */
 #confirmation-buttons {
-	margin-top: 20px;
 	padding: 15px;
 	background-color: transparent;
+}
+
+/* Shared confirmation button properties */
+#delete-cancel-button,
+#delete-confirm-button,
+#restore-cancel-button,
+#restore-confirm-button {
+	border-radius: 12px;
+	padding: 12px 20px;
+	font-weight: bold;
+	font-size: 14px;
+	transition: all 0.3s ease-out;
 }
 
 /* Cancel buttons (neutral styling) */
 #delete-cancel-button,
 #restore-cancel-button {
 	background-color: alpha(@primary_white, 0.15);
-	background-image: linear-gradient(to bottom, alpha(@primary_white, 0.2), alpha(@primary_white, 0.1));
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.2),
+		alpha(@primary_white, 0.1)
+	);
 	color: @primary_white;
 	border: 1px solid alpha(@primary_white, 0.3);
-	border-radius: 12px;
-	padding: 12px 20px;
 	min-width: 120px;
-	font-weight: bold;
-	font-size: 14px;
-	transition: all 0.3s ease-out;
 }
 
 #delete-cancel-button label,
@@ -400,22 +410,25 @@ label {
 #delete-cancel-button:hover,
 #restore-cancel-button:hover {
 	background-color: alpha(@primary_white, 0.25);
-	background-image: linear-gradient(to bottom, alpha(@primary_white, 0.3), alpha(@primary_white, 0.15));
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.3),
+		alpha(@primary_white, 0.15)
+	);
 	border-color: alpha(@primary_white, 0.5);
 }
 
 /* Delete confirm button (destructive action - red theme) */
 #delete-confirm-button {
 	background-color: alpha(@error_color, 0.8);
-	background-image: linear-gradient(to bottom, alpha(@error_color, 0.9), alpha(@error_color, 0.7));
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@error_color, 0.9),
+		alpha(@error_color, 0.7)
+	);
 	color: @primary_white;
 	border: 2px solid alpha(@error_color, 0.6);
-	border-radius: 12px;
-	padding: 12px 20px;
 	min-width: 140px;
-	font-weight: bold;
-	font-size: 14px;
-	transition: all 0.3s ease-out;
 }
 
 #delete-confirm-button label {
@@ -431,15 +444,14 @@ label {
 /* Restore confirm button (positive action - white theme) */
 #restore-confirm-button {
 	background-color: alpha(@primary_white, 0.8);
-	background-image: linear-gradient(to bottom, alpha(@primary_white, 0.9), alpha(@secondary_white, 0.8));
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.9),
+		alpha(@secondary_white, 0.8)
+	);
 	color: @warm_dark;
 	border: 2px solid alpha(@primary_white, 0.4);
-	border-radius: 12px;
-	padding: 12px 20px;
 	min-width: 140px;
-	font-weight: bold;
-	font-size: 14px;
-	transition: all 0.3s ease-out;
 }
 
 #restore-confirm-button label {
@@ -448,8 +460,18 @@ label {
 
 #restore-confirm-button:hover {
 	background-color: alpha(@primary_white, 0.9);
-	background-image: linear-gradient(to bottom, alpha(@tertiary_white, 1), alpha(@primary_white, 0.8));
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@tertiary_white, 1),
+		alpha(@primary_white, 0.8)
+	);
 	border-color: alpha(@primary_white, 0.6);
+}
+
+/* Confirmation title spacing */
+#delete-title,
+#restore-title {
+	margin-top: 28px;
 }
 
 /* Keyboard hint styling */
