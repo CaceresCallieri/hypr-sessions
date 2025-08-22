@@ -7,7 +7,6 @@ import glob
 import os
 import shlex
 import subprocess
-import tempfile
 import time
 from pathlib import Path
 
@@ -81,13 +80,20 @@ class NeovideHandler:
             return None
         
         try:
+            # Ensure session directory exists
+            session_dir_path = Path(session_dir)
+            session_dir_path.mkdir(parents=True, exist_ok=True)
+            self.debug_print(f"Ensured session directory exists: {session_dir_path}")
+            
             # Create session filename
             session_filename = f"neovide-session-{pid}.vim"
-            session_file = Path(session_dir) / session_filename
+            session_file = session_dir_path / session_filename
             self.debug_print(f"Creating session file: {session_file}")
             
             # Execute :mksession command via remote API
-            mksession_cmd = f":mksession! {shlex.quote(str(session_file))}"
+            # Note: Use backslash escaping for spaces, not shell quoting for Neovim commands
+            escaped_path = str(session_file).replace(' ', '\\ ')
+            mksession_cmd = f":mksession! {escaped_path}"
             result = subprocess.run([
                 "nvim", "--server", socket_path, "--remote-send", mksession_cmd + "<CR>"
             ], capture_output=True, text=True, timeout=10)
@@ -164,9 +170,14 @@ class NeovideHandler:
             working_dir = str(cwd_path.resolve())
             self.debug_print(f"Using working directory: {working_dir}")
             
+            # Ensure session directory exists
+            session_dir_path = Path(session_dir)
+            session_dir_path.mkdir(parents=True, exist_ok=True)
+            self.debug_print(f"Ensured session directory exists: {session_dir_path}")
+            
             # Create session filename based on PID to avoid conflicts
             session_filename = f"hypr-session-neovide-{pid}.vim"
-            session_file = Path(session_dir) / session_filename
+            session_file = session_dir_path / session_filename
             self.debug_print(f"Creating basic session file: {session_file}")
             
             # Create a basic session file that restores working directory
