@@ -20,6 +20,24 @@ class NeovideHandler:
         if self.debug:
             print(f"[DEBUG NeovideHandler] {message}")
     
+    def _ensure_session_directory(self, session_dir):
+        """Ensure session directory exists"""
+        session_dir_path = Path(session_dir)
+        session_dir_path.mkdir(parents=True, exist_ok=True)
+        self.debug_print(f"Ensured session directory exists: {session_dir_path}")
+        return session_dir_path
+    
+    def _get_working_directory(self, pid):
+        """Get working directory for a process PID"""
+        cwd_path = Path(f"/proc/{pid}/cwd")
+        if cwd_path.exists():
+            working_dir = str(cwd_path.resolve())
+            self.debug_print(f"Working directory for PID {pid}: {working_dir}")
+            return working_dir
+        else:
+            self.debug_print(f"Working directory path does not exist: {cwd_path}")
+            return None
+    
     def is_neovide_window(self, window_data):
         """Check if a window is running Neovide"""
         class_name = window_data.get("class", "").lower()
@@ -81,9 +99,7 @@ class NeovideHandler:
         
         try:
             # Ensure session directory exists
-            session_dir_path = Path(session_dir)
-            session_dir_path.mkdir(parents=True, exist_ok=True)
-            self.debug_print(f"Ensured session directory exists: {session_dir_path}")
+            session_dir_path = self._ensure_session_directory(session_dir)
             
             # Create session filename
             session_filename = f"neovide-session-{pid}.vim"
@@ -125,9 +141,7 @@ class NeovideHandler:
         self.debug_print(f"Getting session info for Neovide PID {pid}")
         try:
             # Get the working directory from Neovide process
-            cwd_path = Path(f"/proc/{pid}/cwd")
-            working_dir = str(cwd_path.resolve()) if cwd_path.exists() else None
-            self.debug_print(f"Working directory for PID {pid}: {working_dir}")
+            working_dir = self._get_working_directory(pid)
             
             session_data = {
                 "working_directory": working_dir,
@@ -162,18 +176,12 @@ class NeovideHandler:
         self.debug_print(f"Falling back to basic session file for PID {pid}")
         try:
             # Get working directory
-            cwd_path = Path(f"/proc/{pid}/cwd")
-            if not cwd_path.exists():
-                self.debug_print(f"Working directory path does not exist: {cwd_path}")
+            working_dir = self._get_working_directory(pid)
+            if not working_dir:
                 return None
-                
-            working_dir = str(cwd_path.resolve())
-            self.debug_print(f"Using working directory: {working_dir}")
             
             # Ensure session directory exists
-            session_dir_path = Path(session_dir)
-            session_dir_path.mkdir(parents=True, exist_ok=True)
-            self.debug_print(f"Ensured session directory exists: {session_dir_path}")
+            session_dir_path = self._ensure_session_directory(session_dir)
             
             # Create session filename based on PID to avoid conflicts
             session_filename = f"hypr-session-neovide-{pid}.vim"
