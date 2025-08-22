@@ -8,6 +8,7 @@ from pathlib import Path
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.label import Label
+from fabric.widgets.entry import Entry
 
 
 # Add parent directory to path for clean imports
@@ -17,7 +18,7 @@ if parent_dir not in sys.path:
 
 # Import constants and backend client
 from constants import (
-    KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q,
+    KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q, KEYCODE_TAB, KEYCODE_UP_ARROW, KEYCODE_DOWN_ARROW,
     BROWSING_STATE, DELETE_CONFIRM_STATE, DELETING_STATE, DELETE_SUCCESS_STATE, DELETE_ERROR_STATE,
     RESTORE_CONFIRM_STATE, RESTORING_STATE, RESTORE_SUCCESS_STATE, RESTORE_ERROR_STATE
 )
@@ -49,7 +50,12 @@ class BrowsePanelWidget(Box):
 
         # Selection state management
         self.all_session_names = []  # Complete list of all sessions
+        self.filtered_sessions = []  # Filtered session names based on search
         self.session_buttons = []  # List of currently visible session button widgets
+
+        # Search functionality
+        self.search_input = None  # GTK Entry widget for search
+        self.search_query = ""  # Current search text
 
         # Scrollable window management
         self.VISIBLE_WINDOW_SIZE = (
@@ -68,6 +74,33 @@ class BrowsePanelWidget(Box):
 
         # Create panel content
         self._create_content()
+
+    def _is_printable_character(self, keycode):
+        """Check if keycode represents a printable character"""
+        # Navigation and special keys that should NOT be treated as text input
+        navigation_keys = {
+            KEYCODE_UP_ARROW, KEYCODE_DOWN_ARROW, KEYCODE_ENTER, KEYCODE_ESCAPE, 
+            KEYCODE_TAB, KEYCODE_Q,
+            # Additional special keys
+            113, 114,  # Left/Right arrows (from constants)
+            65307,     # Escape (alternative code)
+            65293,     # Return/Enter (alternative code)
+            65289,     # Tab (alternative code)
+            65361, 65362, 65363, 65364,  # Arrow keys (alternative codes)
+            65365, 65366,  # Page Up/Down
+            65367, 65368,  # End/Home
+            65535,     # Delete
+            65288,     # Backspace
+            65470, 65471, 65472, 65473, 65474, 65475, 65476, 65477, 65478, 65479, 65480, 65481,  # Function keys F1-F12
+        }
+        
+        # If it's a known navigation key, it's not printable
+        if keycode in navigation_keys:
+            return False
+            
+        # Printable ASCII range and extended characters
+        # Letters, numbers, symbols, space, punctuation
+        return (32 <= keycode <= 126) or (160 <= keycode <= 255) or keycode in range(48, 58) or keycode in range(65, 91) or keycode in range(97, 123)
 
     def _create_content(self):
         """Create the browse panel content based on current state"""
@@ -95,14 +128,74 @@ class BrowsePanelWidget(Box):
         # Get and create session buttons first
         sessions_container = self._create_sessions_list()
         
-        # Sessions list section header with total count (now that we have the actual count)
+        # Sessions list section header with filtered/total count
         total_sessions = len(self.all_session_names)
-        header_text = f"Available Sessions ({total_sessions}):"
+        filtered_count = len(self.filtered_sessions)
+        if self.search_query:
+            header_text = f"Available Sessions ({filtered_count}/{total_sessions}):"
+        else:
+            header_text = f"Available Sessions ({total_sessions}):"
         sessions_header = Label(text=header_text, name="sessions-header")
         sessions_header.set_markup(f"<span weight='bold'>{header_text}</span>")
 
-        return [sessions_header, sessions_container]
+        # Create search input widget
+        search_input = self._create_search_input()
 
+        return [sessions_header, search_input, sessions_container]
+
+    def _create_search_input(self):
+        """Create the search input widget with permanent focus"""
+        if not self.search_input:
+            self.search_input = Entry(
+                text=self.search_query,
+                placeholder_text="🔍 Search sessions...",
+                name="session-search-input"
+            )
+            # Connect search input change event
+            self.search_input.connect("changed", self._on_search_changed)
+            
+            # Ensure search input can receive focus and maintains it
+            self.search_input.set_can_focus(True)
+            
+        # Focus will be set by delayed focus setup in main session manager
+        return self.search_input
+
+    def _on_search_changed(self, entry):
+        """Handle search input text changes"""
+        self.search_query = entry.get_text().strip()
+        self._update_filtered_sessions()
+        self.update_display()
+
+    def _update_filtered_sessions(self):
+        """Update filtered sessions based on current search query"""
+        if not self.search_query:
+            # No search query - show all sessions
+            self.filtered_sessions = self.all_session_names.copy()
+        else:
+            # Filter sessions with case-insensitive substring matching
+            query_lower = self.search_query.lower()
+            self.filtered_sessions = [
+                session for session in self.all_session_names
+                if query_lower in session.lower()
+            ]
+        
+        # Reset selection if current selection is not in filtered results
+        if self.filtered_sessions:
+            selected_session = self.get_selected_session()
+            if selected_session not in self.filtered_sessions:
+                # Reset to first filtered session
+                self.selected_global_index = self.all_session_names.index(self.filtered_sessions[0])
+        else:
+            # No filtered results
+            self.selected_global_index = -1
+
+    def clear_search(self):
+        """Clear the search input (maintains permanent focus)"""
+        if self.search_input:
+            self.search_input.set_text("")
+            self.search_query = ""
+            self._update_filtered_sessions()
+            self.update_display()
 
     def _create_sessions_list(self):
         """Create the sessions list container with buttons for visible window"""
@@ -112,15 +205,25 @@ class BrowsePanelWidget(Box):
         self.all_session_names = all_sessions
         self.session_buttons = []
 
-        if not all_sessions:
-            # No sessions available
+        # Initialize filtered sessions on first load
+        if not hasattr(self, 'filtered_sessions') or not self.filtered_sessions:
+            self._update_filtered_sessions()
+
+        if not self.filtered_sessions:
+            # No sessions available (either none exist or none match search)
             self.selected_global_index = -1
             self.selected_local_index = -1
+            
+            if not all_sessions:
+                message = "No sessions found"
+            else:
+                message = f"No sessions match '{self.search_query}'"
+                
             no_sessions_label = Label(
-                text="No sessions found", name="no-sessions-label"
+                text=message, name="no-sessions-label"
             )
             no_sessions_label.set_markup(
-                "<span style='italic'>No sessions found</span>"
+                f"<span style='italic'>{message}</span>"
             )
 
             return Box(
@@ -131,10 +234,11 @@ class BrowsePanelWidget(Box):
             )
 
         # Initialize selection state for first run
-        if self.selected_global_index >= len(all_sessions):
-            self.selected_global_index = 0
+        if self.selected_global_index >= len(all_sessions) or self.selected_global_index == -1:
+            if self.filtered_sessions:
+                self.selected_global_index = self.all_session_names.index(self.filtered_sessions[0])
 
-        # Get visible sessions for current window
+        # Get visible sessions for current window (from filtered results)
         visible_sessions = self.get_visible_sessions()
 
         # Create widget list with reserved space for scroll indicators
@@ -157,6 +261,9 @@ class BrowsePanelWidget(Box):
                     name
                 ),
             )
+
+            # Make button non-focusable to prevent focus stealing from search input
+            button.set_can_focus(False)
 
             # Add selected class if this is the selected session
             if global_index == self.selected_global_index:
@@ -185,44 +292,51 @@ class BrowsePanelWidget(Box):
             self.on_session_clicked(session_name)
 
     def calculate_visible_window(self):
-        """Calculate which sessions should be visible based on current selection"""
-        total_sessions = len(self.all_session_names)
+        """Calculate which sessions should be visible based on current selection and filtering"""
+        total_filtered = len(self.filtered_sessions)
 
-        if total_sessions <= self.VISIBLE_WINDOW_SIZE:
-            # All sessions fit in window
+        if total_filtered <= self.VISIBLE_WINDOW_SIZE:
+            # All filtered sessions fit in window
             self.visible_start_index = 0
-            return list(range(total_sessions))
+            return list(range(total_filtered))
+
+        # Convert global selection to filtered index
+        selected_session = self.get_selected_session()
+        if selected_session and selected_session in self.filtered_sessions:
+            selected_filtered_index = self.filtered_sessions.index(selected_session)
+        else:
+            selected_filtered_index = 0
 
         # Calculate window position to keep selection visible
         window_end = self.visible_start_index + self.VISIBLE_WINDOW_SIZE
 
         # If selection is outside current window, adjust window
-        if self.selected_global_index < self.visible_start_index:
+        if selected_filtered_index < self.visible_start_index:
             # Selection is above visible window
-            self.visible_start_index = self.selected_global_index
-        elif self.selected_global_index >= window_end:
+            self.visible_start_index = selected_filtered_index
+        elif selected_filtered_index >= window_end:
             # Selection is below visible window
             self.visible_start_index = (
-                self.selected_global_index - self.VISIBLE_WINDOW_SIZE + 1
+                selected_filtered_index - self.VISIBLE_WINDOW_SIZE + 1
             )
 
-        # Ensure window doesn't go past end of list
+        # Ensure window doesn't go past end of filtered list
         self.visible_start_index = min(
-            self.visible_start_index, total_sessions - self.VISIBLE_WINDOW_SIZE
+            self.visible_start_index, total_filtered - self.VISIBLE_WINDOW_SIZE
         )
         self.visible_start_index = max(0, self.visible_start_index)
 
         # Calculate local selection index
         self.selected_local_index = (
-            self.selected_global_index - self.visible_start_index
+            selected_filtered_index - self.visible_start_index
         )
 
-        # Return indices of visible sessions
+        # Return indices of visible filtered sessions
         return list(
             range(
                 self.visible_start_index,
                 min(
-                    self.visible_start_index + self.VISIBLE_WINDOW_SIZE, total_sessions
+                    self.visible_start_index + self.VISIBLE_WINDOW_SIZE, total_filtered
                 ),
             )
         )
@@ -230,7 +344,7 @@ class BrowsePanelWidget(Box):
     def get_visible_sessions(self):
         """Get the list of sessions that should be currently visible"""
         visible_indices = self.calculate_visible_window()
-        return [self.all_session_names[i] for i in visible_indices]
+        return [self.filtered_sessions[i] for i in visible_indices]
 
     def has_sessions_above(self):
         """Check if there are sessions above the visible window"""
@@ -238,8 +352,8 @@ class BrowsePanelWidget(Box):
 
     def has_sessions_below(self):
         """Check if there are sessions below the visible window"""
-        total_sessions = len(self.all_session_names)
-        return (self.visible_start_index + self.VISIBLE_WINDOW_SIZE) < total_sessions
+        total_filtered = len(self.filtered_sessions)
+        return (self.visible_start_index + self.VISIBLE_WINDOW_SIZE) < total_filtered
 
     def _create_scroll_indicator(self, arrow_symbol, show_condition):
         """Create a scroll indicator with reserved space"""
@@ -256,27 +370,64 @@ class BrowsePanelWidget(Box):
 
     def select_next(self):
         """Select the next session with intelligent scrolling"""
-        if not self.all_session_names:
+        if not self.filtered_sessions:
             return
 
-        # Move to next session in global list (with wraparound)
-        total_sessions = len(self.all_session_names)
-        self.selected_global_index = (self.selected_global_index + 1) % total_sessions
+        # Get current position in filtered list
+        selected_session = self.get_selected_session()
+        if selected_session in self.filtered_sessions:
+            current_filtered_index = self.filtered_sessions.index(selected_session)
+        else:
+            current_filtered_index = -1
+
+        # Move to next session in filtered list (with wraparound)
+        total_filtered = len(self.filtered_sessions)
+        next_filtered_index = (current_filtered_index + 1) % total_filtered
+        next_session = self.filtered_sessions[next_filtered_index]
+        
+        # Update global index to match the new selection
+        self.selected_global_index = self.all_session_names.index(next_session)
 
         # Refresh display to show new selection and handle scrolling
         self.update_display()
+        
+        # Ensure search input maintains focus after navigation
+        self._ensure_search_focus()
 
     def select_previous(self):
         """Select the previous session with intelligent scrolling"""
-        if not self.all_session_names:
+        if not self.filtered_sessions:
             return
 
-        # Move to previous session in global list (with wraparound)
-        total_sessions = len(self.all_session_names)
-        self.selected_global_index = (self.selected_global_index - 1) % total_sessions
+        # Get current position in filtered list
+        selected_session = self.get_selected_session()
+        if selected_session in self.filtered_sessions:
+            current_filtered_index = self.filtered_sessions.index(selected_session)
+        else:
+            current_filtered_index = 0
+
+        # Move to previous session in filtered list (with wraparound)
+        total_filtered = len(self.filtered_sessions)
+        prev_filtered_index = (current_filtered_index - 1) % total_filtered
+        prev_session = self.filtered_sessions[prev_filtered_index]
+        
+        # Update global index to match the new selection
+        self.selected_global_index = self.all_session_names.index(prev_session)
 
         # Refresh display to show new selection and handle scrolling
         self.update_display()
+        
+        # Ensure search input maintains focus after navigation
+        self._ensure_search_focus()
+
+    def _ensure_search_focus(self):
+        """Ensure search input maintains focus for continuous typing"""
+        try:
+            if self.search_input and not self.search_input.has_focus():
+                self.search_input.grab_focus()
+                print("DEBUG: Restored search input focus after navigation")
+        except Exception as e:
+            print(f"Warning: Failed to restore search input focus: {e}")
 
     def update_display(self):
         """Update the display to show current selection and scroll position"""
@@ -307,7 +458,7 @@ class BrowsePanelWidget(Box):
     # DeleteOperation and RestoreOperation handle all operation logic
     
     def handle_key_press(self, keycode):
-        """Handle keyboard events for different browse panel states"""        
+        """Handle keyboard events using dual focus system"""        
         if self.state == DELETE_CONFIRM_STATE:
             if keycode == KEYCODE_ENTER:
                 # Trigger the actual delete operation
@@ -332,6 +483,30 @@ class BrowsePanelWidget(Box):
                 self.set_state(BROWSING_STATE)
                 return True
         
-        # Let main manager handle other keys in browsing state
+        elif self.state == BROWSING_STATE:
+            # Dual focus system: route keys by type, not focus state
+            if self._is_printable_character(keycode):
+                # Printable characters: let GTK route to search input (always focused)
+                # Don't handle here - let it fall through to GTK's text input system
+                return False
+            
+            elif keycode == KEYCODE_ESCAPE:
+                # Clear search (search input maintains focus)
+                self.clear_search()
+                return True
+                
+            elif keycode == KEYCODE_ENTER:
+                # Restore selected session (independent of input focus)
+                return False  # Let main manager handle session activation
+                
+            elif keycode in [KEYCODE_UP_ARROW, KEYCODE_DOWN_ARROW]:
+                # Navigation keys: handle directly to prevent focus loss
+                if keycode == KEYCODE_UP_ARROW:
+                    self.select_previous()
+                elif keycode == KEYCODE_DOWN_ARROW:
+                    self.select_next()
+                return True  # Handled here, don't pass to main manager
+        
+        # Let main manager handle other keys
         return False
 

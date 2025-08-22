@@ -261,6 +261,32 @@ label {
 	);
 }
 
+/* Search input styling - Mac Tahoe theme */
+#session-search-input {
+	background-color: alpha(@glass_dark_primary, 0.6);
+	background-image: linear-gradient(to bottom, alpha(#000000, 0.1), alpha(@primary_white, 0.05));
+	border: 2px solid alpha(@primary_white, 0.2);
+	border-radius: 12px;
+	padding: 12px 16px;
+	color: @primary_white;
+	font-size: 14px;
+	min-width: 270px;
+	margin-bottom: 12px;
+	transition-property: border-color, background-color;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-out;
+}
+
+#session-search-input:focus {
+	border-color: alpha(@primary_white, 0.6);
+	background-color: alpha(@glass_dark_primary, 0.8);
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.05),
+		alpha(@primary_white, 0.08)
+	);
+}
+
 /* Shared white button styling */
 #save-session-button,
 #delete-retry-button,

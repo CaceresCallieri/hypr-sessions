@@ -14,7 +14,7 @@ from fabric.widgets.wayland import WaylandWindow
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import Gdk, Gtk, GtkLayerShell
+from gi.repository import Gdk, Gtk, GtkLayerShell, GLib
 
 # Add parent directory to path to import session utilities
 sys.path.append(str(Path(__file__).parent.parent))
@@ -130,6 +130,9 @@ class SessionManagerWidget(WaylandWindow):
 
         # Show window after all content is added
         self.show_all()
+        
+        # Delay focus setting until after window is fully shown and widgets are realized
+        GLib.timeout_add(100, self._delayed_focus_setup)
 
     def _configure_layer_shell_focus(self):
         """Configure layer shell properties for reliable keyboard focus management"""
@@ -148,6 +151,29 @@ class SessionManagerWidget(WaylandWindow):
             print(f"Warning: Failed to configure layer shell focus management: {e}")
             print("Application will continue with default focus behavior")
 
+    def _delayed_focus_setup(self):
+        """Set up initial focus after window is fully realized"""
+        try:
+            # Start in browse mode and ensure search input gets focus
+            if not self.toggle_switch.is_save_mode and self.browse_panel.search_input:
+                self.browse_panel.search_input.grab_focus()
+                print("DEBUG: Search input focused on startup")
+        except Exception as e:
+            print(f"Warning: Failed to set initial focus: {e}")
+        
+        return False  # Don't repeat this timeout
+
+    def _focus_search_input(self):
+        """Focus the search input with error handling"""
+        try:
+            if self.browse_panel.search_input and self.browse_panel.search_input.get_realized():
+                self.browse_panel.search_input.grab_focus()
+                print("DEBUG: Search input focused")
+        except Exception as e:
+            print(f"Warning: Failed to focus search input: {e}")
+        
+        return False  # Don't repeat this timeout
+
     def _on_browse_mode(self):
         """Handle switch to browse mode"""
         print("Switched to Browse Sessions mode")
@@ -155,6 +181,10 @@ class SessionManagerWidget(WaylandWindow):
         # Switch to browse panel
         self.content_area.children = [self.browse_panel]
         self.content_area.show_all()
+        
+        # Auto-focus the search input for immediate typing (permanent focus)
+        # Use a small delay to ensure widget is fully realized
+        GLib.timeout_add(50, self._focus_search_input)
 
     def _on_save_mode(self):
         """Handle switch to save mode"""
@@ -208,7 +238,7 @@ class SessionManagerWidget(WaylandWindow):
                 self.close()  # Fallback to just closing window
             return True  # Event handled
 
-        # Check for Tab key
+        # Check for Tab key - panel switching only
         elif keycode == KEYCODE_TAB:
             # Toggle between panels - toggle switch handles everything automatically
             if self.toggle_switch.is_save_mode:
@@ -228,23 +258,15 @@ class SessionManagerWidget(WaylandWindow):
                 self.toggle_switch.set_browse_mode()
             return True
 
-        # Browse mode navigation (only for keys not handled by browse panel)
+        # Browse mode actions (navigation now handled by browse panel directly)
         elif not self.toggle_switch.is_save_mode:  # Browse mode
-            # Standard navigation
-            if keycode == KEYCODE_UP_ARROW:
-                self.browse_panel.select_previous()
-                return True
-            elif keycode == KEYCODE_DOWN_ARROW:
-                self.browse_panel.select_next()
-                return True
-            elif keycode == KEYCODE_ENTER:
+            # Session actions (navigation handled by browse panel)
+            if keycode == KEYCODE_ENTER:
                 # Trigger restore confirmation instead of direct activation
                 self._initiate_session_action("restore")
                 return True
-            elif keycode == KEYCODE_D:
-                # Check if a session is selected, then trigger delete confirmation
-                self._initiate_session_action("delete")
-                return True
+            # Note: Arrow keys handled by browse panel to prevent focus loss
+            # Note: Remove KEYCODE_D handling as requested
 
         return False  # Event not handled
 

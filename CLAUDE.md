@@ -576,5 +576,43 @@ background-color: alpha(@primary_white, 0.8);
 - Spacing: Increased padding/margins by 25-50% for breathing room
 - Opacity ranges: 0.05-0.9 depending on context and layering needs
 
+## Fuzzy Search System
+
+### Dual Focus Architecture
+
+**Revolutionary approach**: Separates text input focus from visual navigation focus for frictionless session discovery.
+
+- **Search Input**: Maintains permanent GTK focus for continuous typing
+- **Session Navigation**: Independent visual selection with non-focusable buttons
+- **Key Routing**: Routes by type (printable vs navigation) rather than focus state
+
+### Implementation
+
+**Core Components**:
+- `_is_printable_character()` - Character detection for key routing
+- `_create_search_input()` - Always-active search widget
+- `_update_filtered_sessions()` - Real-time filtering
+- `_ensure_search_focus()` - Focus persistence
+
+**Focus Management**:
+```python
+button.set_can_focus(False)  # Prevents focus stealing
+# Direct navigation handling maintains search focus
+```
+
+### User Experience
+
+**Frictionless Workflow**:
+1. Type "dev" → Filters sessions, input stays active
+2. Press ↓ → Navigate while maintaining typing ability
+3. Type "work" → Refilters without interruption
+4. Enter → Restore session
+
+**Navigation**: Printable characters → search filtering, Arrow keys → session navigation, Escape → clear search, Tab → panel switching.
+
+**Startup Focus**: Delayed focus setup resolves initial focus issues with `GLib.timeout_add(100, self._delayed_focus_setup)`.
+
+This implementation provides frictionless session discovery for power users managing large session collections.
+
 This documentation provides comprehensive guidance while maintaining clarity and avoiding redundancy. It serves as both development reference and architectural overview for the Hyprland Session Manager project.
 
