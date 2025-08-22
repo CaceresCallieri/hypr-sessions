@@ -567,6 +567,9 @@ background-color: alpha(@primary_white, 0.8);
 - ❌ FASS variables (`:vars`) from Fabric documentation don't work
 - ✅ GTK3 `@define-color` provides centralized color management with alpha transparency support
 
+#### Enhanced Confirmation UI
+**Hybrid Button + Keyboard Interface**: Confirmation states feature visual buttons (Cancel/Confirm) while maintaining existing keyboard shortcuts (Enter/Esc), providing both accessibility and power user efficiency.
+
 #### Implementation Notes
 - Font stack: "SF Pro Rounded", "JetBrains Mono", monospace
 - Transitions: 0.3-0.4s ease-out for smooth interactions

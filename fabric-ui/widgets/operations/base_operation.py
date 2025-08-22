@@ -9,6 +9,7 @@ from typing import Dict, Any, List
 
 from fabric.widgets.button import Button
 from fabric.widgets.label import Label
+from fabric.widgets.box import Box
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -85,7 +86,7 @@ class BaseOperation(ABC):
     # Shared implementation methods
     
     def create_confirmation_ui(self) -> List:
-        """Create the confirmation UI"""
+        """Create enhanced confirmation UI with both text and buttons"""
         session_name = self.selected_session or "Unknown"
         config = self.get_operation_config()
         
@@ -99,14 +100,33 @@ class BaseOperation(ABC):
         # Confirmation text
         confirm_message = Label(text=config['description'].format(session_name=session_name), name=f"{config['button_prefix']}-confirmation")
         
-        # Instructions
-        instructions = Label(
-            text=f"Press Enter to {config['action_verb'].upper()} • Esc or Q to Cancel",
-            name=f"{config['button_prefix']}-instructions"
-        )
-        instructions.set_markup(f"<span size='small' style='italic'>Press Enter to {config['action_verb'].upper()} • Esc or Q to Cancel</span>")
+        # Button container
+        button_container = Box(orientation="horizontal", spacing=15, name="confirmation-buttons")
         
-        return [warning_message, confirm_message, instructions]
+        # Cancel button (left side)
+        cancel_button = Button(
+            label="Cancel",
+            name=f"{config['button_prefix']}-cancel-button",
+            on_clicked=self._handle_cancel_button
+        )
+        
+        # Confirm button (right side)
+        confirm_button = Button(
+            label=f"{config['action_verb']} Session",
+            name=f"{config['button_prefix']}-confirm-button",
+            on_clicked=self._handle_confirm_button
+        )
+        
+        button_container.children = [cancel_button, confirm_button]
+        
+        # Keyboard hint (smaller, less prominent)
+        keyboard_hint = Label(
+            text=f"Keyboard: Enter to confirm • Esc to cancel",
+            name=f"{config['button_prefix']}-keyboard-hint"
+        )
+        keyboard_hint.set_markup(f"<span size='small' style='italic'>Keyboard: Enter to confirm • Esc to cancel</span>")
+        
+        return [warning_message, confirm_message, button_container, keyboard_hint]
     
     def create_progress_ui(self) -> List:
         """Create the operation progress UI"""
@@ -365,3 +385,15 @@ class BaseOperation(ABC):
         if timeout is not None:
             if not isinstance(timeout, (int, float)) or timeout <= 0:
                 raise ValueError("Config 'operation_timeout' must be a positive number")
+    
+    # Button event handlers
+    
+    def _handle_confirm_button(self, *args):
+        """Handle confirm button click - triggers the operation"""
+        self.trigger_operation()
+    
+    def _handle_cancel_button(self, *args):
+        """Handle cancel button click - returns to browsing state"""
+        print(f"DEBUG: Cancelled {self.get_operation_config()['action_verb'].lower()} for session: {self.selected_session}")
+        self.selected_session = None
+        self.panel.set_state(BROWSING_STATE)
