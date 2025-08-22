@@ -23,19 +23,23 @@ class ToggleSwitchWidget(Box):
         self.on_browse_clicked = on_browse_clicked
         self.on_save_clicked = on_save_clicked
         
-        # Create left button (Browse Sessions)
+        # Create browse button (start as active)
         self.browse_button = Button(
             label="Browse Sessions",
-            name="toggle-left-active",  # Start as active
+            name="browse-button",
             on_clicked=self._handle_browse_clicked
         )
         
-        # Create right button (Save Session)
+        # Create save button (start as inactive)
         self.save_button = Button(
             label="Save Session",
-            name="toggle-right-inactive",  # Start as inactive
+            name="save-button",
             on_clicked=self._handle_save_clicked
         )
+        
+        # Set initial state: browse active, save inactive
+        self.browse_button.get_style_context().add_class("active")
+        # save button starts without active class (inactive by default)
         
         # Add buttons to container
         self.children = [self.browse_button, self.save_button]
@@ -59,8 +63,10 @@ class ToggleSwitchWidget(Box):
             return  # Already in browse mode
             
         self.is_save_mode = False
-        self.browse_button.set_name("toggle-left-active")
-        self.save_button.set_name("toggle-right-inactive")
+        
+        # Update CSS classes for state management
+        self.browse_button.get_style_context().add_class("active")
+        self.save_button.get_style_context().remove_class("active")
         
         # Automatically trigger callback for panel switching
         if self.on_browse_clicked:
@@ -72,8 +78,10 @@ class ToggleSwitchWidget(Box):
             return  # Already in save mode
             
         self.is_save_mode = True
-        self.browse_button.set_name("toggle-left-inactive")
-        self.save_button.set_name("toggle-right-active")
+        
+        # Update CSS classes for state management
+        self.browse_button.get_style_context().remove_class("active")
+        self.save_button.get_style_context().add_class("active")
         
         # Automatically trigger callback for panel switching
         if self.on_save_clicked:
