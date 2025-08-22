@@ -1,5 +1,19 @@
 /* Hypr Sessions Manager - Mac Tahoe Aesthetic (GTK3 Compatible) */
 
+/* GTK3 Color Variables - Mac Tahoe Palette */
+@define-color primary_white #ffffff;
+@define-color secondary_white #e0e0e0;
+@define-color tertiary_white #f5f5f5;
+@define-color warm_dark #262424;
+
+/* Glass Background Colors */
+@define-color glass_dark_primary #1a1a1a;
+@define-color glass_dark_secondary #2a2a2a;
+@define-color glass_dark_tertiary #141414;
+
+/* Status Colors */
+@define-color error_color #ff6b7a;
+
 * {
 	all: unset;
 	font-family: "SF Pro Rounded", "JetBrains Mono", monospace;
@@ -7,21 +21,25 @@
 }
 
 window {
-	background-color: alpha(#1a1a1a, 0.1);
-	background-image: linear-gradient(to bottom, alpha(#2a2a2a, 0.3), alpha(#141414, 0.5));
-	border: 2px solid alpha(#ffffff, 0.3);
+	background-color: alpha(@glass_dark_primary, 0.1);
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@glass_dark_secondary, 0.3),
+		alpha(@glass_dark_tertiary, 0.5)
+	);
+	border: 2px solid alpha(@primary_white, 0.3);
 	border-radius: 24px;
 	padding: 40px;
 	margin: 25px;
 	min-width: 320px;
 	min-height: 180px;
-	transition-property: background-color, border-color;
-	transition-duration: 0.4s;
-	transition-timing-function: ease-out;
+	transition:
+		background-color 0.4s ease-out,
+		border-color 0.4s ease-out;
 }
 
 #hello-label {
-	color: #ffffff;
+	color: @primary_white;
 	font-weight: bold;
 	font-size: 20px;
 	margin: 15px;
@@ -29,14 +47,14 @@ window {
 }
 
 #subtitle-label {
-	color: alpha(#ffffff, 0.7);
+	color: alpha(@primary_white, 0.7);
 	font-size: 14px;
 	margin: 8px;
 	padding: 6px;
 }
 
 label {
-	color: #ffffff;
+	color: @primary_white;
 	background-color: transparent;
 }
 
@@ -47,25 +65,33 @@ label {
 
 /* Sessions section */
 #sessions-header {
-	color: #ffffff;
+	color: @primary_white;
 	font-weight: bold;
 	margin: 8px 0;
 }
 
 #sessions-container {
-	background-color: alpha(#2a2a2a, 0.4);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.05), alpha(#ffffff, 0.02));
-	border: 1px solid alpha(#ffffff, 0.1);
+	background-color: alpha(@glass_dark_secondary, 0.4);
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.05),
+		alpha(@primary_white, 0.02)
+	);
+	border: 1px solid alpha(@primary_white, 0.1);
 	border-radius: 16px;
 	padding: 16px;
 	min-height: 100px;
 }
 
 #session-button {
-	background-color: alpha(#ffffff, 0.08);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.1), alpha(#ffffff, 0.05));
-	color: alpha(#ffffff, 0.8);
-	border: 1px solid alpha(#ffffff, 0.15);
+	background-color: alpha(@primary_white, 0.08);
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.1),
+		alpha(@primary_white, 0.05)
+	);
+	color: alpha(@primary_white, 0.8);
+	border: 1px solid alpha(@primary_white, 0.15);
 	border-radius: 12px;
 	padding: 14px 18px;
 	margin: 4px 0;
@@ -76,31 +102,39 @@ label {
 }
 
 #session-button:hover {
-	background-color: alpha(#ffffff, 0.12);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.15), alpha(#ffffff, 0.08));
-	border-color: alpha(#ffffff, 0.4);
+	background-color: alpha(@primary_white, 0.12);
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.15),
+		alpha(@primary_white, 0.08)
+	);
+	border-color: alpha(@primary_white, 0.4);
 }
 
 #session-button.selected {
-	background-color: alpha(#ffffff, 0.25);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.3), alpha(#ffffff, 0.2));
-	color: #262424;
-	border: 2px solid alpha(#ffffff, 0.6);
+	background-color: alpha(@primary_white, 0.25);
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.3),
+		alpha(@primary_white, 0.2)
+	);
+	color: @warm_dark;
+	border: 2px solid alpha(@primary_white, 0.6);
 	font-weight: bold;
 }
 
 #session-button.selected label {
-	color: #262424;
+	color: @warm_dark;
 }
 
 #no-sessions-label {
-	color: alpha(#ffffff, 0.5);
+	color: alpha(@primary_white, 0.5);
 	padding: 24px;
 }
 
 /* Scroll indicators */
 #scroll-indicator {
-	color: #ffffff;
+	color: @primary_white;
 	font-size: 16px;
 	font-weight: bold;
 }
@@ -240,9 +274,13 @@ label {
 }
 
 #save-session-button {
-	background-color: alpha(#ffffff, 0.8);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
-	color: #262424;
+	background-color: alpha(@primary_white, 0.8);
+	background-image: linear-gradient(
+		to bottom,
+		alpha(@primary_white, 0.9),
+		alpha(@secondary_white, 0.8)
+	);
+	color: @warm_dark;
 	border: 2px solid alpha(#ffffff, 0.3);
 	border-radius: 12px;
 	padding: 14px 24px;
@@ -255,7 +293,7 @@ label {
 }
 
 #save-session-button label {
-	color: #262424;
+	color: @warm_dark;
 }
 
 #save-session-button:hover {
@@ -270,132 +308,11 @@ label {
 }
 
 /* Status message styles */
-#save-status-success {
-	color: #ffffff;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ffffff, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
-	border: 1px solid alpha(#ffffff, 0.3);
-	border-radius: 12px;
-}
-
-#save-status-error {
-	color: #ff6b7a;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ff6b7a, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ff6b7a, 0.2), alpha(#ff6b7a, 0.1));
-	border: 1px solid alpha(#ff6b7a, 0.3);
-	border-radius: 12px;
-}
-
-#save-status-info {
-	color: #ffffff;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ffffff, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
-	border: 1px solid alpha(#ffffff, 0.3);
-	border-radius: 12px;
-}
-
-/* Delete operation status styles */
-#delete-status-success {
-	color: #ffffff;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ffffff, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
-	border: 1px solid alpha(#ffffff, 0.3);
-	border-radius: 12px;
-}
-
-#delete-status-error {
-	color: #ff6b7a;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ff6b7a, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ff6b7a, 0.2), alpha(#ff6b7a, 0.1));
-	border: 1px solid alpha(#ff6b7a, 0.3);
-	border-radius: 12px;
-}
-
-#delete-status-info {
-	color: #ffffff;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ffffff, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
-	border: 1px solid alpha(#ffffff, 0.3);
-	border-radius: 12px;
-}
-
-/* Delete operation buttons */
-#delete-retry-button,
-#delete-back-button {
-	background-color: alpha(#ffffff, 0.8);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
-	color: #262424;
-	border: 2px solid alpha(#ffffff, 0.3);
-	border-radius: 12px;
-	padding: 14px 22px;
-	font-weight: bold;
-	font-size: 14px;
-	min-width: 180px;
-	margin: 8px;
-	transition-property: all;
-	transition-duration: 0.3s;
-	transition-timing-function: ease-out;
-}
-
-#delete-retry-button label,
-#delete-back-button label {
-	color: #262424;
-}
-
-#delete-retry-button:hover,
-#delete-back-button:hover {
-	background-color: alpha(#ffffff, 0.9);
-	background-image: linear-gradient(to bottom, alpha(#f5f5f5, 1), alpha(#ffffff, 0.8));
-	border-color: alpha(#ffffff, 0.6);
-}
-
-#delete-retry-button:active,
-#delete-back-button:active {
-	background-color: alpha(#e0e0e0, 1);
-	background-image: linear-gradient(to bottom, alpha(#e0e0e0, 1), alpha(#cccccc, 0.9));
-}
-
-/* Restore operation status styles */
-#restore-status-success {
-	color: #ffffff;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ffffff, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ffffff, 0.2), alpha(#ffffff, 0.1));
-	border: 1px solid alpha(#ffffff, 0.3);
-	border-radius: 12px;
-}
-
-#restore-status-error {
-	color: #ff6b7a;
-	font-weight: bold;
-	padding: 12px 16px;
-	margin-top: 15px;
-	background-color: alpha(#ff6b7a, 0.15);
-	background-image: linear-gradient(to bottom, alpha(#ff6b7a, 0.2), alpha(#ff6b7a, 0.1));
-	border: 1px solid alpha(#ff6b7a, 0.3);
-	border-radius: 12px;
-}
-
+#save-status-success,
+#save-status-info,
+#delete-status-success,
+#delete-status-info,
+#restore-status-success,
 #restore-status-info {
 	color: #ffffff;
 	font-weight: bold;
@@ -407,7 +324,22 @@ label {
 	border-radius: 12px;
 }
 
-/* Restore operation buttons */
+#save-status-error,
+#delete-status-error,
+#restore-status-error {
+	color: #ff6b7a;
+	font-weight: bold;
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(#ff6b7a, 0.15);
+	background-image: linear-gradient(to bottom, alpha(#ff6b7a, 0.2), alpha(#ff6b7a, 0.1));
+	border: 1px solid alpha(#ff6b7a, 0.3);
+	border-radius: 12px;
+}
+
+/* Operation buttons (delete/restore) */
+#delete-retry-button,
+#delete-back-button,
 #restore-retry-button,
 #restore-back-button {
 	background-color: alpha(#ffffff, 0.8);
@@ -420,25 +352,29 @@ label {
 	font-size: 14px;
 	min-width: 180px;
 	margin: 8px;
-	transition-property: all;
-	transition-duration: 0.3s;
-	transition-timing-function: ease-out;
+	transition: all 0.3s ease-out;
 }
 
+#delete-retry-button label,
+#delete-back-button label,
 #restore-retry-button label,
 #restore-back-button label {
 	color: #262424;
 }
 
+#delete-retry-button:hover,
+#delete-back-button:hover,
 #restore-retry-button:hover,
 #restore-back-button:hover {
 	background-color: alpha(#ffffff, 0.9);
-	background-image: linear-gradient(to bottom, alpha(#f5f5f5, 1), alpha(#ffffff, 0.8));
+	background-image: linear-gradient(to bottom, #f5f5f5, alpha(#ffffff, 0.8));
 	border-color: alpha(#ffffff, 0.6);
 }
 
+#delete-retry-button:active,
+#delete-back-button:active,
 #restore-retry-button:active,
 #restore-back-button:active {
-	background-color: alpha(#e0e0e0, 1);
-	background-image: linear-gradient(to bottom, alpha(#e0e0e0, 1), alpha(#cccccc, 0.9));
+	background-color: #e0e0e0;
+	background-image: linear-gradient(to bottom, #e0e0e0, alpha(#cccccc, 0.9));
 }

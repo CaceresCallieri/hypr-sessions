@@ -19,23 +19,25 @@ from gi.repository import Gdk, Gtk, GtkLayerShell
 # Add parent directory to path to import session utilities
 sys.path.append(str(Path(__file__).parent.parent))
 
+from constants import (
+    BROWSING_STATE,
+    DELETE_CONFIRM_STATE,
+    KEYCODE_D,
+    KEYCODE_DOWN_ARROW,
+    KEYCODE_ENTER,
+    KEYCODE_ESCAPE,
+    KEYCODE_LEFT_ARROW,
+    KEYCODE_Q,
+    KEYCODE_RIGHT_ARROW,
+    KEYCODE_TAB,
+    KEYCODE_UP_ARROW,
+    RESTORE_CONFIRM_STATE,
+)
+
 # Import our custom widgets and utilities
 from widgets import BrowsePanelWidget, SavePanelWidget, ToggleSwitchWidget
+
 from utils import SessionUtils
-from constants import (
-    KEYCODE_ESCAPE,
-    KEYCODE_TAB,
-    KEYCODE_ENTER,
-    KEYCODE_LEFT_ARROW,
-    KEYCODE_RIGHT_ARROW,
-    KEYCODE_UP_ARROW,
-    KEYCODE_DOWN_ARROW,
-    KEYCODE_D,
-    KEYCODE_Q,
-    BROWSING_STATE,
-    RESTORE_CONFIRM_STATE,
-    DELETE_CONFIRM_STATE,
-)
 
 
 class SessionManagerWidget(WaylandWindow):
@@ -112,20 +114,20 @@ class SessionManagerWidget(WaylandWindow):
 
         # Connect keyboard and scroll events
         self.connect("key-press-event", self.on_key_press)
-        
+
         # Connect scroll events and enable event masks
         self.connect("scroll-event", self.on_scroll_event)
-        
+
         # Enable scroll event masks so the window receives scroll events
         self.set_events(
-            self.get_events() | 
-            Gdk.EventMask.SCROLL_MASK |
-            Gdk.EventMask.SMOOTH_SCROLL_MASK
+            self.get_events()
+            | Gdk.EventMask.SCROLL_MASK
+            | Gdk.EventMask.SMOOTH_SCROLL_MASK
         )
 
         # Configure layer shell for exclusive keyboard focus to prevent focus loss
         self._configure_layer_shell_focus()
-        
+
         # Show window after all content is added
         self.show_all()
 
@@ -135,13 +137,13 @@ class SessionManagerWidget(WaylandWindow):
             # Initialize layer shell for this window if not already done by Fabric
             if not GtkLayerShell.is_layer_window(self):
                 GtkLayerShell.init_for_window(self)
-            
+
             # Set exclusive keyboard mode to prevent focus loss
             # This ensures the layer surface always maintains keyboard focus when visible
             GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
-            
+
             print("DEBUG: Configured layer shell with exclusive keyboard mode")
-            
+
         except Exception as e:
             print(f"Warning: Failed to configure layer shell focus management: {e}")
             print("Application will continue with default focus behavior")
@@ -252,28 +254,28 @@ class SessionManagerWidget(WaylandWindow):
         is_scroll_up = self._get_scroll_direction(event)
         if is_scroll_up is None:
             return False  # Unknown direction or no vertical movement
-        
+
         # Only handle scroll in browse mode during browsing state
         if not self._can_handle_scroll():
             return True  # Consume event but don't navigate
-        
+
         # Navigate with natural scroll behavior
         if is_scroll_up:
             self.browse_panel.select_next()  # Scroll up moves down in list
         else:
             self.browse_panel.select_previous()  # Scroll down moves up in list
-        
+
         return True  # Consume scroll events
 
     def _get_scroll_direction(self, event):
         """
         Determine scroll direction from event.
-        
+
         Returns:
             True if scrolling up, False if scrolling down, None if unknown/no movement
         """
         direction = event.direction
-        
+
         if direction == Gdk.ScrollDirection.UP:
             return True
         elif direction == Gdk.ScrollDirection.DOWN:
@@ -292,8 +294,10 @@ class SessionManagerWidget(WaylandWindow):
 
     def _can_handle_scroll(self):
         """Check if scroll navigation is currently allowed"""
-        return (not self.toggle_switch.is_save_mode and 
-                getattr(self.browse_panel, 'state', BROWSING_STATE) == BROWSING_STATE)
+        return (
+            not self.toggle_switch.is_save_mode
+            and getattr(self.browse_panel, "state", BROWSING_STATE) == BROWSING_STATE
+        )
 
     def _initiate_session_action(self, action_type):
         """Helper method to initiate session actions (restore/delete) with consistent logic"""

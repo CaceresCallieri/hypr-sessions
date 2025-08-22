@@ -548,6 +548,25 @@ border: 2px solid alpha(#ffffff, 0.3);
 - **Text Light**: #ffffff (general UI text)
 - **Error**: #ff6b7a (status messages)
 
+#### GTK3 CSS Variables Support
+
+**CSS Variables Implementation**: GTK3 uses native `@define-color` directive, not web CSS custom properties
+
+```css
+/* Define colors using GTK3 syntax */
+@define-color primary_white #ffffff;
+@define-color warm_dark #262424;
+
+/* Use colors with @ syntax */
+color: @primary_white;
+background-color: alpha(@primary_white, 0.8);
+```
+
+**Critical Limitations**:
+- ❌ CSS custom properties (`:root`, `var()`) cause parsing errors in GTK3
+- ❌ FASS variables (`:vars`) from Fabric documentation don't work
+- ✅ GTK3 `@define-color` provides centralized color management with alpha transparency support
+
 #### Implementation Notes
 - Font stack: "SF Pro Rounded", "JetBrains Mono", monospace
 - Transitions: 0.3-0.4s ease-out for smooth interactions
