@@ -10,6 +10,10 @@ from fabric.widgets.button import Button
 from fabric.widgets.label import Label
 from fabric.widgets.entry import Entry
 
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gdk
+
 
 # Add parent directory to path for clean imports
 parent_dir = str(Path(__file__).parent.parent)
@@ -18,7 +22,6 @@ if parent_dir not in sys.path:
 
 # Import constants and backend client
 from constants import (
-    KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q, KEYCODE_TAB, KEYCODE_UP_ARROW, KEYCODE_DOWN_ARROW,
     BROWSING_STATE, DELETE_CONFIRM_STATE, DELETING_STATE, DELETE_SUCCESS_STATE, DELETE_ERROR_STATE,
     RESTORE_CONFIRM_STATE, RESTORING_STATE, RESTORE_SUCCESS_STATE, RESTORE_ERROR_STATE
 )
@@ -75,32 +78,38 @@ class BrowsePanelWidget(Box):
         # Create panel content
         self._create_content()
 
-    def _is_printable_character(self, keycode):
-        """Check if keycode represents a printable character"""
-        # Navigation and special keys that should NOT be treated as text input
-        navigation_keys = {
-            KEYCODE_UP_ARROW, KEYCODE_DOWN_ARROW, KEYCODE_ENTER, KEYCODE_ESCAPE, 
-            KEYCODE_TAB, KEYCODE_Q,
-            # Additional special keys
-            113, 114,  # Left/Right arrows (from constants)
-            65307,     # Escape (alternative code)
-            65293,     # Return/Enter (alternative code)
-            65289,     # Tab (alternative code)
-            65361, 65362, 65363, 65364,  # Arrow keys (alternative codes)
-            65365, 65366,  # Page Up/Down
-            65367, 65368,  # End/Home
-            65535,     # Delete
-            65288,     # Backspace
-            65470, 65471, 65472, 65473, 65474, 65475, 65476, 65477, 65478, 65479, 65480, 65481,  # Function keys F1-F12
+
+    def _is_ui_navigation_key(self, keyval):
+        """Check if keyval represents a UI navigation key using GTK constants"""
+        ui_navigation = {
+            # Session navigation
+            Gdk.KEY_Up, Gdk.KEY_Down,
+            
+            # Actions
+            Gdk.KEY_Return, Gdk.KEY_KP_Enter,  # Restore session
+            Gdk.KEY_Escape,                    # Clear search
+            
+            # Panel switching
+            Gdk.KEY_Tab, Gdk.KEY_Left, Gdk.KEY_Right,
         }
         
-        # If it's a known navigation key, it's not printable
-        if keycode in navigation_keys:
+        return keyval in ui_navigation
+
+    def should_route_to_search(self, event):
+        """Determine if event should route to search input using GTK event properties"""
+        keyval = event.keyval
+        
+        # UI navigation keys go to navigation handlers
+        if self._is_ui_navigation_key(keyval):
             return False
-            
-        # Printable ASCII range and extended characters
-        # Letters, numbers, symbols, space, punctuation
-        return (32 <= keycode <= 126) or (160 <= keycode <= 255) or keycode in range(48, 58) or keycode in range(65, 91) or keycode in range(97, 123)
+        
+        # Handle modifier combinations (Ctrl+key, Alt+key, etc.)
+        if event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK):
+            return False  # Don't route modifier combinations to search
+        
+        # Everything else goes to search input for filtering/editing
+        # This includes: letters, numbers, symbols, backspace, delete, etc.
+        return True
 
     def _create_content(self):
         """Create the browse panel content based on current state"""
@@ -164,7 +173,7 @@ class BrowsePanelWidget(Box):
         """Handle search input text changes"""
         self.search_query = entry.get_text().strip()
         self._update_filtered_sessions()
-        self.update_display()
+        self._update_session_list_only()
 
     def _update_filtered_sessions(self):
         """Update filtered sessions based on current search query"""
@@ -195,7 +204,7 @@ class BrowsePanelWidget(Box):
             self.search_input.set_text("")
             self.search_query = ""
             self._update_filtered_sessions()
-            self.update_display()
+            self._update_session_list_only()
 
     def _create_sessions_list(self):
         """Create the sessions list container with buttons for visible window"""
@@ -251,9 +260,11 @@ class BrowsePanelWidget(Box):
         )
         widgets.append(more_above)
 
+        # Get currently selected session name for comparison
+        selected_session_name = self.get_selected_session()
+        
         # Create session buttons for visible sessions only
         for i, session_name in enumerate(visible_sessions):
-            global_index = self.visible_start_index + i
             button = Button(
                 label=f"• {session_name}",
                 name="session-button",  # Base CSS class
@@ -265,8 +276,8 @@ class BrowsePanelWidget(Box):
             # Make button non-focusable to prevent focus stealing from search input
             button.set_can_focus(False)
 
-            # Add selected class if this is the selected session
-            if global_index == self.selected_global_index:
+            # Add selected class if this is the selected session (direct name comparison)
+            if session_name == selected_session_name:
                 button.get_style_context().add_class("selected")
 
             self.session_buttons.append(button)
@@ -389,7 +400,7 @@ class BrowsePanelWidget(Box):
         self.selected_global_index = self.all_session_names.index(next_session)
 
         # Refresh display to show new selection and handle scrolling
-        self.update_display()
+        self._update_session_list_only()
         
         # Ensure search input maintains focus after navigation
         self._ensure_search_focus()
@@ -415,7 +426,7 @@ class BrowsePanelWidget(Box):
         self.selected_global_index = self.all_session_names.index(prev_session)
 
         # Refresh display to show new selection and handle scrolling
-        self.update_display()
+        self._update_session_list_only()
         
         # Ensure search input maintains focus after navigation
         self._ensure_search_focus()
@@ -433,6 +444,125 @@ class BrowsePanelWidget(Box):
         """Update the display to show current selection and scroll position"""
         # Recalculate visible window and refresh content
         self._create_content()
+    
+    def _update_session_list_only(self):
+        """Update only the session list while preserving persistent widgets like search input"""
+        if self.state != BROWSING_STATE:
+            # Only apply selective updates in browsing state
+            self.update_display()
+            return
+            
+        # Find the sessions container widget to update its contents
+        sessions_container = None
+        
+        for child in self.children:
+            if hasattr(child, 'get_name') and child.get_name() == 'sessions-container':
+                sessions_container = child
+                break
+        
+        if sessions_container is not None:
+            # Update the sessions header with new count
+            total_sessions = len(self.all_session_names)
+            filtered_count = len(self.filtered_sessions)
+            if self.search_query:
+                header_text = f"Available Sessions ({filtered_count}/{total_sessions}):"
+            else:
+                header_text = f"Available Sessions ({total_sessions}):"
+            
+            # Find and update sessions header
+            for child in self.children:
+                if hasattr(child, 'get_name') and child.get_name() == 'sessions-header':
+                    child.set_markup(f"<span weight='bold'>{header_text}</span>")
+                    break
+            
+            # Create new session buttons and indicators (same logic as _create_sessions_list)
+            new_session_widgets = self._create_session_widgets_only()
+            
+            # Update only the sessions container contents, not the container itself
+            sessions_container.children = new_session_widgets
+        else:
+            # Fallback to full update if we can't find sessions container
+            self.update_display()
+    
+    def _create_session_widgets_only(self):
+        """Create just the session buttons and indicators without the container"""
+        # This is the same logic as _create_sessions_list but returns widgets instead of Box
+        all_sessions = self.session_utils.get_available_sessions()
+
+        # Update global session state
+        self.all_session_names = all_sessions
+        self.session_buttons = []
+
+        # Initialize filtered sessions on first load
+        if not hasattr(self, 'filtered_sessions') or not self.filtered_sessions:
+            self._update_filtered_sessions()
+
+        if not self.filtered_sessions:
+            # No sessions available (either none exist or none match search)
+            self.selected_global_index = -1
+            self.selected_local_index = -1
+            
+            if not all_sessions:
+                message = "No sessions found"
+            else:
+                message = f"No sessions match '{self.search_query}'"
+                
+            no_sessions_label = Label(
+                text=message, name="no-sessions-label"
+            )
+            no_sessions_label.set_markup(
+                f"<span style='italic'>{message}</span>"
+            )
+
+            return [no_sessions_label]
+
+        # Initialize selection state for first run
+        if self.selected_global_index >= len(all_sessions) or self.selected_global_index == -1:
+            if self.filtered_sessions:
+                self.selected_global_index = self.all_session_names.index(self.filtered_sessions[0])
+
+        # Get visible sessions for current window (from filtered results)
+        visible_sessions = self.get_visible_sessions()
+
+        # Create widget list with reserved space for scroll indicators
+        widgets = []
+
+        # Always reserve space for "more sessions above" indicator
+        more_above = self._create_scroll_indicator(
+            self.ARROW_UP, self.has_sessions_above()
+        )
+        widgets.append(more_above)
+
+        # Get currently selected session name for comparison
+        selected_session_name = self.get_selected_session()
+        
+        # Create session buttons for visible sessions only
+        for i, session_name in enumerate(visible_sessions):
+            button = Button(
+                label=f"• {session_name}",
+                name="session-button",  # Base CSS class
+                on_clicked=lambda *_, name=session_name: self._handle_session_clicked(
+                    name
+                ),
+            )
+
+            # Make button non-focusable to prevent focus stealing from search input
+            button.set_can_focus(False)
+
+            # Add selected class if this is the selected session (direct name comparison)
+            if session_name == selected_session_name:
+                button.get_style_context().add_class("selected")
+
+            self.session_buttons.append(button)
+            widgets.append(button)
+
+        # Always reserve space for "more sessions below" indicator
+        more_below = self._create_scroll_indicator(
+            self.ARROW_DOWN, self.has_sessions_below()
+        )
+        widgets.append(more_below)
+
+        return widgets
 
     def get_selected_session(self):
         """Get the name of the currently selected session"""
@@ -457,56 +587,68 @@ class BrowsePanelWidget(Box):
     # Operation methods removed - now handled by operation classes
     # DeleteOperation and RestoreOperation handle all operation logic
     
-    def handle_key_press(self, keycode):
-        """Handle keyboard events using dual focus system"""        
+    def handle_key_press_event(self, widget, event):
+        """Handle keyboard events using full GTK event context"""
         if self.state == DELETE_CONFIRM_STATE:
-            if keycode == KEYCODE_ENTER:
-                # Trigger the actual delete operation
-                self.delete_operation.trigger_operation()
-                return True
-            elif keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
-                # Cancel delete operation (ESC or Q key)
-                print(f"DEBUG: Cancelled delete for session: {self.delete_operation.selected_session}")
-                self.delete_operation.selected_session = None
-                self.set_state(BROWSING_STATE)
-                return True
+            return self._handle_confirmation_state_event(event, self.delete_operation, DELETE_CONFIRM_STATE)
         
         elif self.state == RESTORE_CONFIRM_STATE:
-            if keycode == KEYCODE_ENTER:
-                # Trigger the actual restore operation
-                self.restore_operation.trigger_operation()
-                return True
-            elif keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
-                # Cancel restore operation (ESC or Q key)
-                print(f"DEBUG: Cancelled restore for session: {self.restore_operation.selected_session}")
-                self.restore_operation.selected_session = None
-                self.set_state(BROWSING_STATE)
-                return True
+            return self._handle_confirmation_state_event(event, self.restore_operation, RESTORE_CONFIRM_STATE)
         
         elif self.state == BROWSING_STATE:
-            # Dual focus system: route keys by type, not focus state
-            if self._is_printable_character(keycode):
-                # Printable characters: let GTK route to search input (always focused)
-                # Don't handle here - let it fall through to GTK's text input system
+            # Use new GTK event-based routing
+            if self.should_route_to_search(event):
+                # Let GTK route to search input (don't handle here)
                 return False
-            
-            elif keycode == KEYCODE_ESCAPE:
-                # Clear search (search input maintains focus)
-                self.clear_search()
-                return True
-                
-            elif keycode == KEYCODE_ENTER:
-                # Restore selected session (independent of input focus)
-                return False  # Let main manager handle session activation
-                
-            elif keycode in [KEYCODE_UP_ARROW, KEYCODE_DOWN_ARROW]:
-                # Navigation keys: handle directly to prevent focus loss
-                if keycode == KEYCODE_UP_ARROW:
-                    self.select_previous()
-                elif keycode == KEYCODE_DOWN_ARROW:
-                    self.select_next()
-                return True  # Handled here, don't pass to main manager
+            else:
+                # Handle UI navigation keys
+                return self._handle_navigation_event(event)
         
         # Let main manager handle other keys
         return False
+
+    def _handle_confirmation_state_event(self, event, operation, state):
+        """Handle confirmation state with GTK event"""
+        keyval = event.keyval
+        
+        if keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter]:
+            # Trigger the operation
+            operation.trigger_operation()
+            return True
+        elif keyval == Gdk.KEY_Escape:
+            # Cancel operation
+            print(f"DEBUG: Cancelled {operation.get_operation_config()['action_verb'].lower()} for session: {operation.selected_session}")
+            operation.selected_session = None
+            self.set_state(BROWSING_STATE)
+            return True
+        
+        return False
+
+    def _handle_navigation_event(self, event):
+        """Handle navigation events in browsing state"""
+        keyval = event.keyval
+        
+        if keyval == Gdk.KEY_Escape:
+            # Clear search
+            self.clear_search()
+            return True
+        elif keyval in [Gdk.KEY_Up, Gdk.KEY_Down]:
+            # Handle session navigation directly
+            if keyval == Gdk.KEY_Up:
+                self.select_previous()
+            else:
+                self.select_next()
+            return True
+        elif keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter]:
+            # Let main manager handle session activation
+            return False
+        elif keyval == Gdk.KEY_Tab:
+            # Let main manager handle panel switching
+            return False
+        elif keyval in [Gdk.KEY_Left, Gdk.KEY_Right]:
+            # Let main manager handle panel switching
+            return False
+        
+        return False
+
 

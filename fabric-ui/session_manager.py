@@ -22,15 +22,6 @@ sys.path.append(str(Path(__file__).parent.parent))
 from constants import (
     BROWSING_STATE,
     DELETE_CONFIRM_STATE,
-    KEYCODE_D,
-    KEYCODE_DOWN_ARROW,
-    KEYCODE_ENTER,
-    KEYCODE_ESCAPE,
-    KEYCODE_LEFT_ARROW,
-    KEYCODE_Q,
-    KEYCODE_RIGHT_ARROW,
-    KEYCODE_TAB,
-    KEYCODE_UP_ARROW,
     RESTORE_CONFIRM_STATE,
 )
 
@@ -216,7 +207,7 @@ class SessionManagerWidget(WaylandWindow):
     def on_key_press(self, widget, event):
         """Handle key press events"""
         keycode = event.get_keycode()[1]
-        state = event.get_state()
+        keyval = event.keyval
 
         # Give save panel first chance to handle events when in save mode
         # (especially for Escape key during save operations)
@@ -225,13 +216,13 @@ class SessionManagerWidget(WaylandWindow):
                 return True
 
         # Give browse panel first chance to handle events when in browse mode
-        # (especially for Escape key during delete confirmation)
+        # Use new GTK event-based handling for better character detection
         elif not self.toggle_switch.is_save_mode:
-            if self.browse_panel.handle_key_press(keycode):
+            if self.browse_panel.handle_key_press_event(widget, event):
                 return True
 
         # Check for Escape or Q key (global quit) - only if panels didn't handle it
-        if keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
+        if keyval == Gdk.KEY_Escape or keyval == Gdk.KEY_q:
             if self.app:
                 self.app.quit()  # Properly quit the entire application
             else:
@@ -239,7 +230,7 @@ class SessionManagerWidget(WaylandWindow):
             return True  # Event handled
 
         # Check for Tab key - panel switching only
-        elif keycode == KEYCODE_TAB:
+        elif keyval == Gdk.KEY_Tab:
             # Toggle between panels - toggle switch handles everything automatically
             if self.toggle_switch.is_save_mode:
                 self.toggle_switch.set_browse_mode()  # Automatically calls _on_browse_mode()
@@ -248,12 +239,12 @@ class SessionManagerWidget(WaylandWindow):
 
             return True  # Event handled
 
-        elif keycode == KEYCODE_RIGHT_ARROW:
+        elif keyval == Gdk.KEY_Right:
             if not self.toggle_switch.is_save_mode:  # If in browse mode, go to save
                 self.toggle_switch.set_save_mode()
             return True
 
-        elif keycode == KEYCODE_LEFT_ARROW:
+        elif keyval == Gdk.KEY_Left:
             if self.toggle_switch.is_save_mode:  # If in save mode, go to browse
                 self.toggle_switch.set_browse_mode()
             return True
@@ -261,12 +252,12 @@ class SessionManagerWidget(WaylandWindow):
         # Browse mode actions (navigation now handled by browse panel directly)
         elif not self.toggle_switch.is_save_mode:  # Browse mode
             # Session actions (navigation handled by browse panel)
-            if keycode == KEYCODE_ENTER:
+            if keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter]:
                 # Trigger restore confirmation instead of direct activation
                 self._initiate_session_action("restore")
                 return True
             # Note: Arrow keys handled by browse panel to prevent focus loss
-            # Note: Remove KEYCODE_D handling as requested
+            # Note: Delete functionality moved to browse panel GTK event handling
 
         return False  # Event not handled
 

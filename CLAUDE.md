@@ -6,10 +6,10 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 
 ### Architecture
 
--   **CLI Interface**: `hypr-sessions.py` - Main entry point with commands: `save`, `restore`, `list`, `delete`
--   **Modular Structure**: Specialized handlers for different application types (terminals, Neovide, browsers)
--   **Fabric UI**: Professional graphical interface using Fabric framework for desktop widgets
--   **JSON API**: Clean API for UI integration with structured responses and error handling
+- **CLI Interface**: `hypr-sessions.py` - Main entry point with commands: `save`, `restore`, `list`, `delete`
+- **Modular Structure**: Specialized handlers for different application types (terminals, Neovide, browsers)
+- **Fabric UI**: Professional graphical interface using Fabric framework for desktop widgets
+- **JSON API**: Clean API for UI integration with structured responses and error handling
 
 ### File Structure
 
@@ -49,56 +49,56 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 
 ### Session Management
 
--   **Folder-Based Storage**: `~/.config/hypr-sessions/session_name/` - each session in self-contained directory
--   **Window Data**: Class, title, PID, position, size, launch commands, working directories
--   **Group Restoration**: Recreates Hyprland window groups with sequential launching and proper timing
--   **Input Validation**: Comprehensive validation with filesystem-safe names, existence checking, custom exceptions
--   **Structured Results**: OperationResult system with success/warning/error categorization and partial failure support
+- **Folder-Based Storage**: `~/.config/hypr-sessions/session_name/` - each session in self-contained directory
+- **Window Data**: Class, title, PID, position, size, launch commands, working directories
+- **Group Restoration**: Recreates Hyprland window groups with sequential launching and proper timing
+- **Input Validation**: Comprehensive validation with filesystem-safe names, existence checking, custom exceptions
+- **Structured Results**: OperationResult system with success/warning/error categorization and partial failure support
 
 ### Application Support
 
 #### Terminal Support
 
--   **Supported**: Ghostty terminal with comprehensive working directory capture
--   **Running Programs**: Detects active programs (yazi, npm run dev, vim, etc.) via process tree analysis
--   **Launch Commands**: `ghostty --working-directory=/path -e program; exec $SHELL` for persistence
--   **Shell Wrapper**: Programs wrapped to return to shell when exiting, with signal handling
+- **Supported**: Ghostty terminal with comprehensive working directory capture
+- **Running Programs**: Detects active programs (yazi, npm run dev, vim, etc.) via process tree analysis
+- **Launch Commands**: `ghostty --working-directory=/path -e program; exec $SHELL` for persistence
+- **Shell Wrapper**: Programs wrapped to return to shell when exiting, with signal handling
 
 #### Neovide Support
 
--   **Detection**: Window class "neovide" for GUI-based Neovim
--   **Live Session Capture**: Uses Neovim remote API via socket detection (`nvim --server --remote-send :mksession`)
--   **Session Files**: Creates comprehensive session files in session directory
--   **Restoration**: `neovide -- -S session.vim` with full buffer/cursor/layout restoration
--   **Fallback**: Basic working directory if remote API unavailable
+- **Detection**: Window class "neovide" for GUI-based Neovim
+- **Live Session Capture**: Uses Neovim remote API via socket detection (`nvim --server --remote-send :mksession`)
+- **Session Files**: Creates comprehensive session files in session directory
+- **Restoration**: `neovide -- -S session.vim` with full buffer/cursor/layout restoration
+- **Fallback**: Basic working directory if remote API unavailable
 
 #### Browser Support
 
--   **Method**: Keyboard shortcut extension approach (Alt+U trigger)
--   **Communication**: `hyprctl dispatch sendshortcut ALT,u,address:{window_address}` - no window focus needed
--   **File Transfer**: Extension saves `hypr-session-tabs-{timestamp}.json` to Downloads folder
--   **Tab Data**: Full navigation history, pinned status, active tab detection, URL filtering
--   **Status**: ✅ Working with Zen browser, 15+ tabs in ~2 seconds
+- **Method**: Keyboard shortcut extension approach (Alt+U trigger)
+- **Communication**: `hyprctl dispatch sendshortcut ALT,u,address:{window_address}` - no window focus needed
+- **File Transfer**: Extension saves `hypr-session-tabs-{timestamp}.json` to Downloads folder
+- **Tab Data**: Full navigation history, pinned status, active tab detection, URL filtering
+- **Status**: ✅ Working with Zen browser, 15+ tabs in ~2 seconds
 
 ### Technical Implementation
 
--   **JSON API**: `--json` flag produces clean, parseable output for UI integration
--   **Error Handling**: Custom exception classes, structured validation, graceful degradation
--   **Debug Mode**: `--debug` flag with comprehensive logging across all components
--   **Workspace-Scoped Data**: HyprctlClient filters to current workspace immediately, never exposing other workspace data
--   **Timing System**: Configurable delays for group restoration (`DELAY_BETWEEN_INSTRUCTIONS = 0.4s`)
--   **Thread Safety**: Proper async patterns with UI thread protection in Fabric UI
+- **JSON API**: `--json` flag produces clean, parseable output for UI integration
+- **Error Handling**: Custom exception classes, structured validation, graceful degradation
+- **Debug Mode**: `--debug` flag with comprehensive logging across all components
+- **Workspace-Scoped Data**: HyprctlClient filters to current workspace immediately, never exposing other workspace data
+- **Timing System**: Configurable delays for group restoration (`DELAY_BETWEEN_INSTRUCTIONS = 0.4s`)
+- **Thread Safety**: Proper async patterns with UI thread protection in Fabric UI
 
 ## Fabric UI Implementation
 
 ### Architecture Excellence
 
--   **Wayland Layer Widget**: Native overlay using WaylandWindow with layer shell support
--   **Focus Management**: GTK Layer Shell exclusive keyboard mode prevents focus loss under Hyprland compositor
--   **State-Based UI**: Save panel with input/saving/success/error states and smooth transitions
--   **Asynchronous Operations**: Non-blocking save operations with proper thread safety and timeout handling
--   **Keyboard Navigation**: Comprehensive control (Tab, arrows, Enter, Esc) with mode-aware routing
--   **Modular Design**: Clean separation of concerns with specialized widget components
+- **Wayland Layer Widget**: Native overlay using WaylandWindow with layer shell support
+- **Focus Management**: GTK Layer Shell exclusive keyboard mode prevents focus loss under Hyprland compositor
+- **State-Based UI**: Save panel with input/saving/success/error states and smooth transitions
+- **Asynchronous Operations**: Non-blocking save operations with proper thread safety and timeout handling
+- **Keyboard Navigation**: Comprehensive control (Tab, arrows, Enter, Esc) with mode-aware routing
+- **Modular Design**: Clean separation of concerns with specialized widget components
 
 ### UI Components
 
@@ -114,42 +114,42 @@ SessionManagerWidget (WaylandWindow)
 
 #### Scalable Session Navigation
 
--   **Scrollable Window**: Fixed 5-session display with intelligent positioning
--   **Wraparound Navigation**: Seamless navigation through unlimited session collections
--   **Visual Indicators**: Nerd Font chevrons (↑↓) for scroll state with layout stability
--   **Performance**: On-demand rendering - only creates widgets for visible sessions
--   **Session Count**: Dynamic header showing "Available Sessions (N)" with real-time updates
+- **Scrollable Window**: Fixed 5-session display with intelligent positioning
+- **Wraparound Navigation**: Seamless navigation through unlimited session collections
+- **Visual Indicators**: Nerd Font chevrons (↑↓) for scroll state with layout stability
+- **Performance**: On-demand rendering - only creates widgets for visible sessions
+- **Session Count**: Dynamic header showing "Available Sessions (N)" with real-time updates
 
 #### Professional Save Experience
 
--   **Enter Key Support**: Type session name → press Enter → save operation
--   **State Management**: Clean UI transitions with loading indicators and status feedback
--   **Error Recovery**: Retry functionality with session name preservation
--   **Validation**: Real-time input validation with user-friendly error messages
--   **Backend Integration**: Async communication with 30s timeout and proper error handling
+- **Enter Key Support**: Type session name → press Enter → save operation
+- **State Management**: Clean UI transitions with loading indicators and status feedback
+- **Error Recovery**: Retry functionality with session name preservation
+- **Validation**: Real-time input validation with user-friendly error messages
+- **Backend Integration**: Async communication with 30s timeout and proper error handling
 
 #### Complete Restore Functionality
 
--   **Confirmation Workflow**: Enter key → confirmation modal → Enter to restore → async operation
--   **State Machine**: Four restore states (confirm/restoring/success/error) integrated with existing architecture
--   **Visual Feedback**: Green-themed confirmation UI with professional progress indicators
--   **Error Recovery**: Retry mechanisms with timeout protection and graceful fallback
--   **Code Quality**: DRY principles with shared session action logic and consistent patterns
--   **Backend Integration**: Complete end-to-end functionality with real CLI backend integration
+- **Confirmation Workflow**: Enter key → confirmation modal → Enter to restore → async operation
+- **State Machine**: Four restore states (confirm/restoring/success/error) integrated with existing architecture
+- **Visual Feedback**: Green-themed confirmation UI with professional progress indicators
+- **Error Recovery**: Retry mechanisms with timeout protection and graceful fallback
+- **Code Quality**: DRY principles with shared session action logic and consistent patterns
+- **Backend Integration**: Complete end-to-end functionality with real CLI backend integration
 
 #### Modular Operation Architecture
 
--   **Abstract Base Class**: `BaseOperation` with shared UI logic, threading, and error handling
--   **Concrete Implementations**: `DeleteOperation` and `RestoreOperation` require only ~25 lines each
--   **Code Reduction**: Eliminated 400+ lines of duplication from `browse_panel.py`
--   **Extensible Design**: New operations inherit full UI workflow (confirmation/progress/success/error states)
--   **Thread Safety**: Async backend operations with `GLib.idle_add()` for UI thread safety
--   **Configuration-Driven**: Operation behavior defined via config dictionaries with validation
--   **State Constants**: Type-safe state management eliminates magic strings and typos
--   **Error Handling**: Specific exception types (FileNotFoundError, PermissionError, ConnectionError, TimeoutError)
--   **Operation Timeouts**: Delete 10s (fast), Restore 60s (application launching) for optimal UX
--   **Config Validation**: Early validation prevents runtime errors from invalid configurations
--   **Enhanced Logging**: Context-aware error messages with operation type and detailed debugging
+- **Abstract Base Class**: `BaseOperation` with shared UI logic, threading, and error handling
+- **Concrete Implementations**: `DeleteOperation` and `RestoreOperation` require only ~25 lines each
+- **Code Reduction**: Eliminated 400+ lines of duplication from `browse_panel.py`
+- **Extensible Design**: New operations inherit full UI workflow (confirmation/progress/success/error states)
+- **Thread Safety**: Async backend operations with `GLib.idle_add()` for UI thread safety
+- **Configuration-Driven**: Operation behavior defined via config dictionaries with validation
+- **State Constants**: Type-safe state management eliminates magic strings and typos
+- **Error Handling**: Specific exception types (FileNotFoundError, PermissionError, ConnectionError, TimeoutError)
+- **Operation Timeouts**: Delete 10s (fast), Restore 60s (application launching) for optimal UX
+- **Config Validation**: Early validation prevents runtime errors from invalid configurations
+- **Enhanced Logging**: Context-aware error messages with operation type and detailed debugging
 
 #### Keyboard Navigation System
 
@@ -201,43 +201,43 @@ from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 
 ### Enter Key Enhancement Implementation
 
--   **State-Aware Trigger**: Enter key triggers save only in "input" state, preventing accidental saves
--   **DRY Principle**: Extracted `_trigger_save_operation()` method for unified save logic
--   **Consistent Validation**: Same validation, error handling, and state management for both triggers
--   **User Experience**: Natural keyboard workflow eliminates mouse dependency
+- **State-Aware Trigger**: Enter key triggers save only in "input" state, preventing accidental saves
+- **DRY Principle**: Extracted `_trigger_save_operation()` method for unified save logic
+- **Consistent Validation**: Same validation, error handling, and state management for both triggers
+- **User Experience**: Natural keyboard workflow eliminates mouse dependency
 
 ### Constants Refactoring Achievement
 
--   **Centralized Management**: Created `fabric-ui/constants.py` with comprehensive type hints
--   **Type Safety**: `Final[int]` annotations prevent accidental constant modification
--   **Import Safety**: Enhanced path handling prevents duplicate path additions
--   **IDE Integration**: Better auto-completion, error detection, and code navigation
--   **Maintainability**: Single source of truth for all UI constants
+- **Centralized Management**: Created `fabric-ui/constants.py` with comprehensive type hints
+- **Type Safety**: `Final[int]` annotations prevent accidental constant modification
+- **Import Safety**: Enhanced path handling prevents duplicate path additions
+- **IDE Integration**: Better auto-completion, error detection, and code navigation
+- **Maintainability**: Single source of truth for all UI constants
 
 ### Complete Delete Functionality Implementation
 
--   **Full Delete Workflow**: 'd' key → confirmation → async backend operation → success/error states
--   **State-Based Architecture**: Five states ("browsing", "delete_confirm", "deleting", "delete_success", "delete_error")
--   **Async Backend Integration**: Threading with BackendClient.delete_session(), timeout protection, session list refresh
--   **Professional UX**: Progress indicators, auto-return timers, retry mechanisms, comprehensive error handling
--   **Consistent Styling**: Catppuccin theme integration matching SavePanelWidget patterns
+- **Full Delete Workflow**: 'd' key → confirmation → async backend operation → success/error states
+- **State-Based Architecture**: Five states ("browsing", "delete_confirm", "deleting", "delete_success", "delete_error")
+- **Async Backend Integration**: Threading with BackendClient.delete_session(), timeout protection, session list refresh
+- **Professional UX**: Progress indicators, auto-return timers, retry mechanisms, comprehensive error handling
+- **Consistent Styling**: Catppuccin theme integration matching SavePanelWidget patterns
 
 ### Scroll Wheel Navigation Implementation
 
--   **GTK Event Integration**: Proper scroll-event handling with SCROLL_MASK and SMOOTH_SCROLL_MASK event masks
--   **Natural Navigation**: Scroll up moves down in list (select_next), scroll down moves up in list (select_previous)
--   **Smooth Scrolling Support**: Handles both discrete wheel clicks and smooth trackpad scrolling via delta detection
--   **State-Aware Operation**: Only active in browse mode during "browsing" state, disabled during delete confirmation
--   **Clean Architecture**: Helper methods _get_scroll_direction() and _can_handle_scroll() for maintainability
+- **GTK Event Integration**: Proper scroll-event handling with SCROLL_MASK and SMOOTH_SCROLL_MASK event masks
+- **Natural Navigation**: Scroll up moves down in list (select_next), scroll down moves up in list (select_previous)
+- **Smooth Scrolling Support**: Handles both discrete wheel clicks and smooth trackpad scrolling via delta detection
+- **State-Aware Operation**: Only active in browse mode during "browsing" state, disabled during delete confirmation
+- **Clean Architecture**: Helper methods \_get_scroll_direction() and \_can_handle_scroll() for maintainability
 
 ### GTK Layer Shell Focus Management Implementation (2025-08-20)
 
--   **Problem Resolution**: Fixed keyboard focus loss in Hyprland compositor where layer UI becomes unresponsive to keyboard input
--   **Solution Approach**: Implemented exclusive keyboard mode using GTK Layer Shell protocol (Solution 1 from focus guide)
--   **Technical Implementation**: Added `GtkLayerShell.set_keyboard_mode(window, GtkLayerShell.KeyboardMode.EXCLUSIVE)`
--   **Reliability**: Prevents focus loss at compositor level - most reliable solution for application launcher use case
--   **Graceful Handling**: Error handling ensures application continues with default behavior if layer shell unavailable
--   **Debug Output**: Added logging to confirm successful focus management configuration
+- **Problem Resolution**: Fixed keyboard focus loss in Hyprland compositor where layer UI becomes unresponsive to keyboard input
+- **Solution Approach**: Implemented exclusive keyboard mode using GTK Layer Shell protocol (Solution 1 from focus guide)
+- **Technical Implementation**: Added `GtkLayerShell.set_keyboard_mode(window, GtkLayerShell.KeyboardMode.EXCLUSIVE)`
+- **Reliability**: Prevents focus loss at compositor level - most reliable solution for application launcher use case
+- **Graceful Handling**: Error handling ensures application continues with default behavior if layer shell unavailable
+- **Debug Output**: Added logging to confirm successful focus management configuration
 
 ```python
 def _configure_layer_shell_focus(self):
@@ -245,10 +245,10 @@ def _configure_layer_shell_focus(self):
     try:
         if not GtkLayerShell.is_layer_window(self):
             GtkLayerShell.init_for_window(self)
-        
+
         GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
         print("DEBUG: Configured layer shell with exclusive keyboard mode")
-        
+
     except Exception as e:
         print(f"Warning: Failed to configure layer shell focus management: {e}")
 ```
@@ -261,10 +261,10 @@ def _configure_layer_shell_focus(self):
 
 #### Technical Architecture
 
--   **Extension**: Registers Alt+U command, captures tabs with metadata
--   **Communication**: `hyprctl sendshortcut` sends Alt+U directly to browser window
--   **Data Flow**: Extension → Downloads/hypr-session-tabs-{timestamp}.json → Python processing
--   **Performance**: Captures 15+ tabs in ~2 seconds without workflow disruption
+- **Extension**: Registers Alt+U command, captures tabs with metadata
+- **Communication**: `hyprctl sendshortcut` sends Alt+U directly to browser window
+- **Data Flow**: Extension → Downloads/hypr-session-tabs-{timestamp}.json → Python processing
+- **Performance**: Captures 15+ tabs in ~2 seconds without workflow disruption
 
 #### Implementation Details
 
@@ -338,35 +338,35 @@ chrome.commands.onCommand.addListener((command) => {
 
 ### Storage Benefits
 
--   **Self-Contained**: Each session directory contains all related files
--   **No Conflicts**: Elimination of file name collisions between sessions
--   **Easy Cleanup**: Delete entire session with single directory removal
--   **Extensible**: Ready for additional per-session data (configs, caches, etc.)
+- **Self-Contained**: Each session directory contains all related files
+- **No Conflicts**: Elimination of file name collisions between sessions
+- **Easy Cleanup**: Delete entire session with single directory removal
+- **Extensible**: Ready for additional per-session data (configs, caches, etc.)
 
 ## Development Guidelines
 
 ### Code Quality Standards
 
--   **Type Safety**: Use `Final` annotations for constants, proper type hints throughout
--   **Error Handling**: Structured OperationResult system with graceful degradation
--   **DRY Principle**: Extract common logic, avoid code duplication
--   **Documentation**: Clear docstrings, inline comments for complex logic
--   **Testing**: Debug modes for troubleshooting, comprehensive error reporting
+- **Type Safety**: Use `Final` annotations for constants, proper type hints throughout
+- **Error Handling**: Structured OperationResult system with graceful degradation
+- **DRY Principle**: Extract common logic, avoid code duplication
+- **Documentation**: Clear docstrings, inline comments for complex logic
+- **Testing**: Debug modes for troubleshooting, comprehensive error reporting
 
 ### UI Development Best Practices
 
--   **State Management**: Clear UI state machines with proper transitions
--   **Keyboard Accessibility**: Comprehensive keyboard navigation support
--   **Visual Feedback**: Immediate user feedback for all operations
--   **Performance**: Lazy loading, efficient rendering for large data sets
--   **Thread Safety**: Proper async patterns with UI thread protection
+- **State Management**: Clear UI state machines with proper transitions
+- **Keyboard Accessibility**: Comprehensive keyboard navigation support
+- **Visual Feedback**: Immediate user feedback for all operations
+- **Performance**: Lazy loading, efficient rendering for large data sets
+- **Thread Safety**: Proper async patterns with UI thread protection
 
 ### Session Management Patterns
 
--   **Validation**: Early input validation with actionable error messages
--   **Atomicity**: Operations succeed completely or fail cleanly
--   **Recovery**: Error recovery with user context preservation
--   **Logging**: Comprehensive debug output for troubleshooting
+- **Validation**: Early input validation with actionable error messages
+- **Atomicity**: Operations succeed completely or fail cleanly
+- **Recovery**: Error recovery with user context preservation
+- **Logging**: Comprehensive debug output for troubleshooting
 
 ## Dependencies & Setup
 
@@ -409,22 +409,22 @@ cd fabric-ui && source venv/bin/activate && python session_manager.py
 
 ### Timing Configuration
 
--   **Group Restoration**: `DELAY_BETWEEN_INSTRUCTIONS = 0.4` seconds between group operations
--   **Save Operations**: `OPERATION_TIMEOUT = 35` seconds (longer than backend timeout)
--   **UI Feedback**: `MIN_DISPLAY_TIME = 0.5` seconds minimum for saving state visibility
--   **Auto-Return**: `SUCCESS_AUTO_RETURN_DELAY = 2` seconds from success to input state
+- **Group Restoration**: `DELAY_BETWEEN_INSTRUCTIONS = 0.4` seconds between group operations
+- **Save Operations**: `OPERATION_TIMEOUT = 35` seconds (longer than backend timeout)
+- **UI Feedback**: `MIN_DISPLAY_TIME = 0.5` seconds minimum for saving state visibility
+- **Auto-Return**: `SUCCESS_AUTO_RETURN_DELAY = 2` seconds from success to input state
 
 ### UI Configuration
 
--   **Scrolling**: `VISIBLE_WINDOW_SIZE = 5` sessions in browse panel window
--   **Navigation**: Wraparound behavior for unlimited session collections
--   **Indicators**: Nerd Font chevrons `\uf077` (up) and `\uf078` (down) for scroll state
+- **Scrolling**: `VISIBLE_WINDOW_SIZE = 5` sessions in browse panel window
+- **Navigation**: Wraparound behavior for unlimited session collections
+- **Indicators**: Nerd Font chevrons `\uf077` (up) and `\uf078` (down) for scroll state
 
 ### Validation Rules
 
--   **Session Names**: Max 200 chars, no `<>:"/\|?*`, no leading/trailing whitespace
--   **Reserved Names**: Prevents `.`, `..`, system directories
--   **File Safety**: Filesystem-safe validation with cross-platform compatibility
+- **Session Names**: Max 200 chars, no `<>:"/\|?*`, no leading/trailing whitespace
+- **Reserved Names**: Prevents `.`, `..`, system directories
+- **File Safety**: Filesystem-safe validation with cross-platform compatibility
 
 ## Input Validation System
 
@@ -446,10 +446,10 @@ except InvalidSessionNameError as e:
 
 ### Validation Points
 
--   **CLI Entry**: All session operations validate inputs before execution
--   **Component Entry**: Each session component includes validation for direct usage
--   **Operation-Specific**: Tailored validation for different operation types
--   **Early Failure**: Validates inputs before performing expensive operations
+- **CLI Entry**: All session operations validate inputs before execution
+- **Component Entry**: Each session component includes validation for direct usage
+- **Operation-Specific**: Tailored validation for different operation types
+- **Early Failure**: Validates inputs before performing expensive operations
 
 ## Error Handling Architecture
 
@@ -473,10 +473,10 @@ return result.with_data({"session_file": path})
 
 ### Benefits
 
--   **Partial Success**: Operations can succeed with warnings
--   **Rich Context**: Detailed operation feedback with structured messages
--   **UI Integration**: Clean display formatting for debug vs normal modes
--   **Debugging**: Comprehensive logging without breaking user experience
+- **Partial Success**: Operations can succeed with warnings
+- **Rich Context**: Detailed operation feedback with structured messages
+- **UI Integration**: Clean display formatting for debug vs normal modes
+- **Debugging**: Comprehensive logging without breaking user experience
 
 ## Important Development Notes
 
@@ -491,18 +491,18 @@ After every change to this codebase:
 
 ### Code Style Requirements
 
--   **NO EMOJIS**: Use clear text instead (rendering issues in target environment)
--   **Type Hints**: Comprehensive type annotations for better IDE support
--   **Constants**: Use `Final` for immutable values, centralized in constants.py
--   **Shell Safety**: Use `shlex.quote()` for path escaping in commands
+- **NO EMOJIS**: Use clear text instead (rendering issues in target environment)
+- **Type Hints**: Comprehensive type annotations for better IDE support
+- **Constants**: Use `Final` for immutable values, centralized in constants.py
+- **Shell Safety**: Use `shlex.quote()` for path escaping in commands
 
 ### Session Directory Migration (2025-08-13)
 
 **Completed**: Transition from flat file storage to folder-based organization
 
--   All session operations now use directory-based storage
--   Legacy support methods available but not used in production
--   Comprehensive testing verified across save/restore/list/delete operations
+- All session operations now use directory-based storage
+- Legacy support methods available but not used in production
+- Comprehensive testing verified across save/restore/list/delete operations
 
 ## Mac Tahoe UI Aesthetic
 
@@ -511,6 +511,7 @@ After every change to this codebase:
 **Status**: Complete transformation from Catppuccin to white-based Mac Tahoe aesthetic
 
 #### Core Design Principles
+
 - **Glassmorphism**: GTK3-compatible transparency using `alpha()` function with layered gradients
 - **Rounded Design**: 16-24px container radius, 12-18px button radius for Mac-like softness
 - **White Color Palette**: Primary white (#ffffff) with warm gray accents (#e0e0e0, #f5f5f5)
@@ -519,21 +520,30 @@ After every change to this codebase:
 #### Critical Technical Knowledge
 
 **GTK3 CSS Limitations Discovered**:
+
 - No `!important` declarations supported
 - No backdrop-filter or advanced web CSS properties
 - Button styling requires targeting both element AND nested labels
 
 **CSS Specificity Issue & Solution**:
+
 ```css
 /* PROBLEM: Broad label selector overrides specific button colors */
-label { color: #ffffff; }  /* This overrides button text colors */
+label {
+	color: #ffffff;
+} /* This overrides button text colors */
 
 /* SOLUTION: Nested selectors for proper specificity */
-#save-session-button { color: #262424; }
-#save-session-button label { color: #262424; }  /* Required for GTK buttons */
+#save-session-button {
+	color: #262424;
+}
+#save-session-button label {
+	color: #262424;
+} /* Required for GTK buttons */
 ```
 
 **GTK3-Compatible Glassmorphism Pattern**:
+
 ```css
 background-color: alpha(#ffffff, 0.8);
 background-image: linear-gradient(to bottom, alpha(#ffffff, 0.9), alpha(#e0e0e0, 0.8));
@@ -541,8 +551,9 @@ border: 2px solid alpha(#ffffff, 0.3);
 ```
 
 #### Color System Reference
+
 - **Primary**: #ffffff (buttons, accents, borders)
-- **Secondary**: #e0e0e0 (gradients, hover states)  
+- **Secondary**: #e0e0e0 (gradients, hover states)
 - **Tertiary**: #f5f5f5 (subtle highlights)
 - **Text Dark**: #262424 (warm gray for button text)
 - **Text Light**: #ffffff (general UI text)
@@ -563,14 +574,17 @@ background-color: alpha(@primary_white, 0.8);
 ```
 
 **Critical Limitations**:
+
 - ❌ CSS custom properties (`:root`, `var()`) cause parsing errors in GTK3
 - ❌ FASS variables (`:vars`) from Fabric documentation don't work
 - ✅ GTK3 `@define-color` provides centralized color management with alpha transparency support
 
 #### Enhanced Confirmation UI
+
 **Hybrid Button + Keyboard Interface**: Confirmation states feature visual buttons (Cancel/Confirm) while maintaining existing keyboard shortcuts (Enter/Esc), providing both accessibility and power user efficiency.
 
 #### Implementation Notes
+
 - Font stack: "SF Pro Rounded", "JetBrains Mono", monospace
 - Transitions: 0.3-0.4s ease-out for smooth interactions
 - Spacing: Increased padding/margins by 25-50% for breathing room
@@ -589,12 +603,14 @@ background-color: alpha(@primary_white, 0.8);
 ### Implementation
 
 **Core Components**:
+
 - `_is_printable_character()` - Character detection for key routing
 - `_create_search_input()` - Always-active search widget
 - `_update_filtered_sessions()` - Real-time filtering
 - `_ensure_search_focus()` - Focus persistence
 
 **Focus Management**:
+
 ```python
 button.set_can_focus(False)  # Prevents focus stealing
 # Direct navigation handling maintains search focus
@@ -603,6 +619,7 @@ button.set_can_focus(False)  # Prevents focus stealing
 ### User Experience
 
 **Frictionless Workflow**:
+
 1. Type "dev" → Filters sessions, input stays active
 2. Press ↓ → Navigate while maintaining typing ability
 3. Type "work" → Refilters without interruption
@@ -614,5 +631,150 @@ button.set_can_focus(False)  # Prevents focus stealing
 
 This implementation provides frictionless session discovery for power users managing large session collections.
 
-This documentation provides comprehensive guidance while maintaining clarity and avoiding redundancy. It serves as both development reference and architectural overview for the Hyprland Session Manager project.
+## Character Detection Improvements
 
+### GTK Event-Based Input Handling
+
+**Status**: Implemented elegant GTK event-based character detection system to replace vulnerable keycode approach.
+
+**Core Improvements**:
+
+- **Robust Navigation Key Detection**: Uses type-safe GTK constants (Gdk.KEY_Up, etc.) instead of hardcoded magic numbers
+- **International Keyboard Support**: GTK native event handling works with all keyboard layouts automatically
+- **Modifier Key Handling**: Properly detects Ctrl+key, Alt+key combinations to prevent accidental search routing
+- **Event-Based Architecture**: Full GTK event context provides richer input information than raw keycodes
+
+**Key Methods Implemented**:
+
+```python
+# Clean navigation key detection using GTK constants
+def _is_ui_navigation_key(self, keyval):
+    ui_navigation = {
+        Gdk.KEY_Up, Gdk.KEY_Down,           # Session navigation
+        Gdk.KEY_Return, Gdk.KEY_KP_Enter,   # Restore session
+        Gdk.KEY_Escape,                     # Clear search
+        Gdk.KEY_Tab, Gdk.KEY_Left, Gdk.KEY_Right,  # Panel switching
+    }
+    return keyval in ui_navigation
+
+# Sophisticated event routing with modifier handling
+def should_route_to_search(self, event):
+    if self._is_ui_navigation_key(event.keyval):
+        return False
+    if event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK):
+        return False  # Don't route modifier combinations
+    return True  # Route everything else to search
+```
+
+**Architecture Benefits**:
+
+- **O(1) Performance**: Set-based navigation key lookup
+- **Self-Documenting**: GTK constants eliminate magic numbers
+- **Type Safety**: Consistent GTK event property usage
+- **Future-Proof**: Easy to add new navigation keys
+
+**Code Review Results**: Grade 8.5/10 - Excellent implementation addressing character detection vulnerability while maintaining all functionality.
+
+### Import Cleanup
+
+**Status**: Completed comprehensive cleanup of unused keycode imports and constants.
+
+**Removed from session_manager.py**: 9 unused keycode imports (KEYCODE_TAB, KEYCODE_LEFT_ARROW, etc.)
+**Removed from constants.py**: 6 unused keycode constants, keeping only 3 still used by save_panel.py
+**Added Documentation**: Clear TODO comments indicating legacy status and migration path
+
+## Search System Implementation Challenges
+
+### Focus Loss Issues Resolution
+
+**Problem Solved**: Search input lost focus after every character typed during filtering operations.
+
+**Root Cause**: UI recreation patterns destroying and recreating search input widget on every keystroke.
+
+**Technical Solution**:
+1. **In-Place Container Updates**: Modified `_update_session_list_only()` to update only sessions container contents via `sessions_container.children = new_widgets`
+2. **Persistent Widget Architecture**: Search input widget never destroyed/recreated during filtering
+3. **Container Hierarchy Preservation**: Only deepest container contents modified, preserving parent widget structure
+
+**Key Implementation**:
+```python
+def _update_session_list_only(self):
+    # Find existing sessions container widget
+    sessions_container = self._find_sessions_container()
+    
+    # Update only container contents, not container itself
+    new_session_widgets = self._create_session_widgets_only()
+    sessions_container.children = new_session_widgets  # Fabric's container management
+```
+
+### Navigation Coordinate System Bug Fix
+
+**Problem Solved**: Arrow key navigation behaving randomly with filtered results - wrong visual selection and session skipping.
+
+**Root Cause**: Index coordinate system mismatch between global session list and filtered session list.
+
+**Technical Details**:
+- `selected_global_index`: Index into `all_session_names` (full session list)
+- `visible_start_index + i`: Index into `filtered_sessions` (filtered list)  
+- Comparison: `(visible_start_index + i) == selected_global_index` failed because they reference different arrays
+
+**Solution**: Direct name-based comparison eliminates coordinate conversion complexity.
+
+**Implementation**:
+```python
+# OLD (broken): Index comparison across different coordinate systems
+global_index = self.visible_start_index + i  # filtered coordinate
+if global_index == self.selected_global_index:  # global coordinate
+    button.get_style_context().add_class("selected")
+
+# NEW (fixed): Direct name comparison
+selected_session_name = self.get_selected_session()
+if session_name == selected_session_name:  # same coordinate system
+    button.get_style_context().add_class("selected")
+```
+
+### Code Review Findings
+
+**Comprehensive Review**: Code-reviewer agent identified critical architectural issues introduced by search functionality.
+
+**Grade: 7.5/10** - Solid engineering with innovative dual focus approach, but containing performance antipatterns and complexity issues.
+
+**Critical Issues Identified**:
+
+1. **Widget Recreation Performance Problem**: 100+ widget creation/destruction cycles per keystroke causing UI stress
+2. **Multi-Index Coordinate System Fragility**: Four separate indices requiring synchronization creating maintainability risks
+3. **Code Duplication**: Nearly identical widget creation logic across multiple methods violating DRY principles  
+4. **Method Complexity Violation**: Single methods handling multiple responsibilities exceeding maintainability thresholds
+5. **Missing Search Debouncing**: No delay mechanism causing excessive UI updates during rapid typing
+
+**Architecture Strengths Noted**:
+- Revolutionary dual focus system separating search input from navigation focus
+- Robust GTK event-based character detection with international keyboard support
+- Type-safe constants management with `Final` annotations
+- Comprehensive error handling with proper timeout mechanisms
+
+### Performance Impact Assessment
+
+**Search System Scalability Issues**:
+- **Current Implementation**: Recreates entire widget hierarchy on every character typed
+- **Performance Impact**: O(n) widget creation where n = number of visible sessions
+- **Memory Pressure**: Continuous GTK object allocation/deallocation cycles
+- **User Experience**: Potential UI freezing during rapid typing with large session counts
+
+**Technical Debt Created**:
+- Complex index management requiring four synchronized variables
+- Duplicate widget creation logic in multiple methods (40+ lines duplicated)
+- High-complexity methods exceeding recommended thresholds (8+ branches)
+- Missing performance optimizations (debouncing, widget pooling)
+
+## Development Task Management
+
+For detailed implementation tasks and improvement roadmap, see [TODO.md](./TODO.md).
+
+The TODO file contains:
+- Prioritized improvement tasks with full context
+- Specific code locations and implementation steps  
+- Architectural consistency items and feature enhancements
+- Performance optimizations and polish items
+
+This documentation provides comprehensive guidance while maintaining clarity and avoiding redundancy. It serves as both development reference and architectural overview for the Hyprland Session Manager project.
