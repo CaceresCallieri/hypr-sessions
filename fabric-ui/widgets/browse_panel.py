@@ -207,10 +207,9 @@ class BrowsePanelWidget(Box):
             self._update_session_list_only()
 
     def _create_sessions_list(self):
-        """Create the sessions list container with buttons for visible window"""
-        all_sessions = self.session_utils.get_available_sessions()
-
+        """Create the sessions list container using shared widget creation logic"""
         # Update global session state
+        all_sessions = self.session_utils.get_available_sessions()
         self.all_session_names = all_sessions
         self.session_buttons = []
 
@@ -218,12 +217,41 @@ class BrowsePanelWidget(Box):
         if not hasattr(self, 'filtered_sessions') or not self.filtered_sessions:
             self._update_filtered_sessions()
 
+        # Use shared widget creation logic
+        session_widgets = self._create_sessions_widget_list()
+
+        return Box(
+            orientation="vertical",
+            spacing=5,
+            name="sessions-container",
+            children=session_widgets,
+        )
+
+    def _create_session_button(self, session_name, is_selected=False):
+        """Pure factory method for creating session buttons with consistent logic"""
+        button = Button(
+            label=f"• {session_name}",
+            name="session-button",  # Base CSS class
+            on_clicked=lambda *_: self._handle_session_clicked(session_name),
+        )
+        
+        # Make button non-focusable to prevent focus stealing from search input
+        button.set_can_focus(False)
+        
+        # Add selected class if this is the selected session
+        if is_selected:
+            button.get_style_context().add_class("selected")
+        
+        return button
+
+    def _create_sessions_widget_list(self):
+        """Create complete widget list: scroll indicators + session buttons"""
+        # Handle empty sessions case  
         if not self.filtered_sessions:
-            # No sessions available (either none exist or none match search)
             self.selected_global_index = -1
             self.selected_local_index = -1
             
-            if not all_sessions:
+            if not self.all_session_names:
                 message = "No sessions found"
             else:
                 message = f"No sessions match '{self.search_query}'"
@@ -234,25 +262,19 @@ class BrowsePanelWidget(Box):
             no_sessions_label.set_markup(
                 f"<span style='italic'>{message}</span>"
             )
-
-            return Box(
-                orientation="vertical",
-                spacing=5,
-                name="sessions-container",
-                children=[no_sessions_label],
-            )
+            return [no_sessions_label]
 
         # Initialize selection state for first run
-        if self.selected_global_index >= len(all_sessions) or self.selected_global_index == -1:
+        if self.selected_global_index >= len(self.all_session_names) or self.selected_global_index == -1:
             if self.filtered_sessions:
                 self.selected_global_index = self.all_session_names.index(self.filtered_sessions[0])
 
-        # Get visible sessions for current window (from filtered results)
+        # Get visible sessions and selected session for current window
         visible_sessions = self.get_visible_sessions()
+        selected_session_name = self.get_selected_session()
 
-        # Create widget list with reserved space for scroll indicators
+        # Create complete widget list
         widgets = []
-        # FIX: Minimal shifting and window increase/decrease in size when the scroll indicators appear/disappear
 
         # Always reserve space for "more sessions above" indicator
         more_above = self._create_scroll_indicator(
@@ -260,26 +282,10 @@ class BrowsePanelWidget(Box):
         )
         widgets.append(more_above)
 
-        # Get currently selected session name for comparison
-        selected_session_name = self.get_selected_session()
-        
-        # Create session buttons for visible sessions only
-        for i, session_name in enumerate(visible_sessions):
-            button = Button(
-                label=f"• {session_name}",
-                name="session-button",  # Base CSS class
-                on_clicked=lambda *_, name=session_name: self._handle_session_clicked(
-                    name
-                ),
-            )
-
-            # Make button non-focusable to prevent focus stealing from search input
-            button.set_can_focus(False)
-
-            # Add selected class if this is the selected session (direct name comparison)
-            if session_name == selected_session_name:
-                button.get_style_context().add_class("selected")
-
+        # Create session buttons for visible sessions using factory method
+        for session_name in visible_sessions:
+            is_selected = (session_name == selected_session_name)
+            button = self._create_session_button(session_name, is_selected)
             self.session_buttons.append(button)
             widgets.append(button)
 
@@ -289,12 +295,7 @@ class BrowsePanelWidget(Box):
         )
         widgets.append(more_below)
 
-        return Box(
-            orientation="vertical",
-            spacing=5,
-            name="sessions-container",
-            children=widgets,
-        )
+        return widgets
 
     def _handle_session_clicked(self, session_name):
         """Handle session button click"""
@@ -475,8 +476,8 @@ class BrowsePanelWidget(Box):
                     child.set_markup(f"<span weight='bold'>{header_text}</span>")
                     break
             
-            # Create new session buttons and indicators (same logic as _create_sessions_list)
-            new_session_widgets = self._create_session_widgets_only()
+            # Create new session widgets using shared logic
+            new_session_widgets = self._create_sessions_widget_list()
             
             # Update only the sessions container contents, not the container itself
             sessions_container.children = new_session_widgets
@@ -484,85 +485,6 @@ class BrowsePanelWidget(Box):
             # Fallback to full update if we can't find sessions container
             self.update_display()
     
-    def _create_session_widgets_only(self):
-        """Create just the session buttons and indicators without the container"""
-        # This is the same logic as _create_sessions_list but returns widgets instead of Box
-        all_sessions = self.session_utils.get_available_sessions()
-
-        # Update global session state
-        self.all_session_names = all_sessions
-        self.session_buttons = []
-
-        # Initialize filtered sessions on first load
-        if not hasattr(self, 'filtered_sessions') or not self.filtered_sessions:
-            self._update_filtered_sessions()
-
-        if not self.filtered_sessions:
-            # No sessions available (either none exist or none match search)
-            self.selected_global_index = -1
-            self.selected_local_index = -1
-            
-            if not all_sessions:
-                message = "No sessions found"
-            else:
-                message = f"No sessions match '{self.search_query}'"
-                
-            no_sessions_label = Label(
-                text=message, name="no-sessions-label"
-            )
-            no_sessions_label.set_markup(
-                f"<span style='italic'>{message}</span>"
-            )
-
-            return [no_sessions_label]
-
-        # Initialize selection state for first run
-        if self.selected_global_index >= len(all_sessions) or self.selected_global_index == -1:
-            if self.filtered_sessions:
-                self.selected_global_index = self.all_session_names.index(self.filtered_sessions[0])
-
-        # Get visible sessions for current window (from filtered results)
-        visible_sessions = self.get_visible_sessions()
-
-        # Create widget list with reserved space for scroll indicators
-        widgets = []
-
-        # Always reserve space for "more sessions above" indicator
-        more_above = self._create_scroll_indicator(
-            self.ARROW_UP, self.has_sessions_above()
-        )
-        widgets.append(more_above)
-
-        # Get currently selected session name for comparison
-        selected_session_name = self.get_selected_session()
-        
-        # Create session buttons for visible sessions only
-        for i, session_name in enumerate(visible_sessions):
-            button = Button(
-                label=f"• {session_name}",
-                name="session-button",  # Base CSS class
-                on_clicked=lambda *_, name=session_name: self._handle_session_clicked(
-                    name
-                ),
-            )
-
-            # Make button non-focusable to prevent focus stealing from search input
-            button.set_can_focus(False)
-
-            # Add selected class if this is the selected session (direct name comparison)
-            if session_name == selected_session_name:
-                button.get_style_context().add_class("selected")
-
-            self.session_buttons.append(button)
-            widgets.append(button)
-
-        # Always reserve space for "more sessions below" indicator
-        more_below = self._create_scroll_indicator(
-            self.ARROW_DOWN, self.has_sessions_below()
-        )
-        widgets.append(more_below)
-
-        return widgets
 
     def get_selected_session(self):
         """Get the name of the currently selected session"""
