@@ -303,55 +303,55 @@ class BrowsePanelWidget(Box):
         if self.on_session_clicked:
             self.on_session_clicked(session_name)
 
+    def _get_selected_filtered_index(self):
+        """Get index of selected session in filtered results, or 0 if none"""
+        selected_session = self.get_selected_session()
+        if selected_session and selected_session in self.filtered_sessions:
+            return self.filtered_sessions.index(selected_session)
+        return 0
+
+    def _calculate_optimal_window_start(self, selected_index):
+        """Calculate ideal window start position for given selection"""
+        window_end = self.visible_start_index + self.VISIBLE_WINDOW_SIZE
+        
+        if selected_index < self.visible_start_index:
+            # Selection is above visible window
+            return selected_index
+        elif selected_index >= window_end:
+            # Selection is below visible window
+            return selected_index - self.VISIBLE_WINDOW_SIZE + 1
+        else:
+            # Selection is within current window - no change needed
+            return self.visible_start_index
+
+    def _clamp_to_valid_bounds(self, window_start, total_sessions):
+        """Ensure window position stays within valid bounds"""
+        clamped = min(window_start, total_sessions - self.VISIBLE_WINDOW_SIZE)
+        return max(0, clamped)
+
+    def _get_visible_indices_range(self, total_sessions):
+        """Generate list of visible session indices"""
+        window_end = min(self.visible_start_index + self.VISIBLE_WINDOW_SIZE, total_sessions)
+        return list(range(self.visible_start_index, window_end))
+
     def calculate_visible_window(self):
         """Calculate which sessions should be visible based on current selection and filtering"""
         total_filtered = len(self.filtered_sessions)
-
+        
+        # Early return for simple case - all sessions fit in window
         if total_filtered <= self.VISIBLE_WINDOW_SIZE:
-            # All filtered sessions fit in window
             self.visible_start_index = 0
             return list(range(total_filtered))
-
-        # Convert global selection to filtered index
-        selected_session = self.get_selected_session()
-        if selected_session and selected_session in self.filtered_sessions:
-            selected_filtered_index = self.filtered_sessions.index(selected_session)
-        else:
-            selected_filtered_index = 0
-
-        # Calculate window position to keep selection visible
-        window_end = self.visible_start_index + self.VISIBLE_WINDOW_SIZE
-
-        # If selection is outside current window, adjust window
-        if selected_filtered_index < self.visible_start_index:
-            # Selection is above visible window
-            self.visible_start_index = selected_filtered_index
-        elif selected_filtered_index >= window_end:
-            # Selection is below visible window
-            self.visible_start_index = (
-                selected_filtered_index - self.VISIBLE_WINDOW_SIZE + 1
-            )
-
-        # Ensure window doesn't go past end of filtered list
-        self.visible_start_index = min(
-            self.visible_start_index, total_filtered - self.VISIBLE_WINDOW_SIZE
-        )
-        self.visible_start_index = max(0, self.visible_start_index)
-
-        # Calculate local selection index
-        self.selected_local_index = (
-            selected_filtered_index - self.visible_start_index
-        )
-
-        # Return indices of visible filtered sessions
-        return list(
-            range(
-                self.visible_start_index,
-                min(
-                    self.visible_start_index + self.VISIBLE_WINDOW_SIZE, total_filtered
-                ),
-            )
-        )
+        
+        # Orchestrate the calculation using focused helpers
+        selected_index = self._get_selected_filtered_index()
+        optimal_start = self._calculate_optimal_window_start(selected_index)
+        self.visible_start_index = self._clamp_to_valid_bounds(optimal_start, total_filtered)
+        
+        # Update derived state
+        self.selected_local_index = selected_index - self.visible_start_index
+        
+        return self._get_visible_indices_range(total_filtered)
 
     def get_visible_sessions(self):
         """Get the list of sessions that should be currently visible"""
