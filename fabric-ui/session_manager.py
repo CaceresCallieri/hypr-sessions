@@ -23,17 +23,30 @@ from constants import (
     BROWSING_STATE,
     DELETE_CONFIRM_STATE,
     RESTORE_CONFIRM_STATE,
+    DEBUG_MODE_ENABLED,
+    DEBUG_VERBOSE_MODE,
+    DEBUG_OUTPUT_TO_TERMINAL,
+    DEBUG_OUTPUT_TO_FILE,
+    DEBUG_LOG_FILE,
 )
 
 # Import our custom widgets and utilities
 from widgets import BrowsePanelWidget, SavePanelWidget, ToggleSwitchWidget
 
 from utils import SessionUtils
+from utils.debug_logger import initialize_debug_logger, get_debug_logger
 
 
 class SessionManagerWidget(WaylandWindow):
     def __init__(self):
         self.app = None  # Will be set after Application creation
+        
+        # Initialize debug logging system
+        self.debug_logger = initialize_debug_logger(
+            DEBUG_LOG_FILE, DEBUG_MODE_ENABLED, DEBUG_VERBOSE_MODE,
+            DEBUG_OUTPUT_TO_TERMINAL, DEBUG_OUTPUT_TO_FILE
+        )
+        self.debug_logger.debug_session_lifecycle("ui_startup", "session_manager", "initializing")
         super().__init__(
             title="session-manager",
             name="session-manager",
@@ -136,11 +149,16 @@ class SessionManagerWidget(WaylandWindow):
             # This ensures the layer surface always maintains keyboard focus when visible
             GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
 
-            print("DEBUG: Configured layer shell with exclusive keyboard mode")
+            self.debug_logger.debug_focus_operation(
+                "layer_shell_setup", "window", True, 
+                {"keyboard_mode": "exclusive"}
+            )
 
         except Exception as e:
-            print(f"Warning: Failed to configure layer shell focus management: {e}")
-            print("Application will continue with default focus behavior")
+            self.debug_logger.debug_focus_operation(
+                "layer_shell_setup", "window", False, 
+                {"error": str(e), "fallback": "default_behavior"}
+            )
 
     def _delayed_focus_setup(self):
         """Set up initial focus after window is fully realized"""
@@ -148,9 +166,15 @@ class SessionManagerWidget(WaylandWindow):
             # Start in browse mode and ensure search input gets focus
             if not self.toggle_switch.is_save_mode and self.browse_panel.search_input:
                 self.browse_panel.search_input.grab_focus()
-                print("DEBUG: Search input focused on startup")
+                self.debug_logger.debug_focus_operation(
+                    "startup_focus", "search_input", True,
+                    {"mode": "browse", "timing": "delayed_setup"}
+                )
         except Exception as e:
-            print(f"Warning: Failed to set initial focus: {e}")
+            self.debug_logger.debug_focus_operation(
+                "startup_focus", "search_input", False,
+                {"error": str(e), "mode": "browse"}
+            )
         
         return False  # Don't repeat this timeout
 
@@ -159,15 +183,23 @@ class SessionManagerWidget(WaylandWindow):
         try:
             if self.browse_panel.search_input and self.browse_panel.search_input.get_realized():
                 self.browse_panel.search_input.grab_focus()
-                print("DEBUG: Search input focused")
+                self.debug_logger.debug_focus_operation(
+                    "manual_focus", "search_input", True,
+                    {"realized": True, "trigger": "browse_mode_switch"}
+                )
         except Exception as e:
-            print(f"Warning: Failed to focus search input: {e}")
+            self.debug_logger.debug_focus_operation(
+                "manual_focus", "search_input", False,
+                {"error": str(e), "trigger": "browse_mode_switch"}
+            )
         
         return False  # Don't repeat this timeout
 
     def _on_browse_mode(self):
         """Handle switch to browse mode"""
-        print("Switched to Browse Sessions mode")
+        self.debug_logger.debug_state_transition(
+            "session_manager", "save_mode", "browse_mode", "toggle_switch"
+        )
 
         # Switch to browse panel
         self.content_area.children = [self.browse_panel]
@@ -179,7 +211,9 @@ class SessionManagerWidget(WaylandWindow):
 
     def _on_save_mode(self):
         """Handle switch to save mode"""
-        print("Switched to Save Session mode")
+        self.debug_logger.debug_state_transition(
+            "session_manager", "browse_mode", "save_mode", "toggle_switch"
+        )
 
         # Switch to save panel
         self.content_area.children = [self.save_panel]
@@ -190,24 +224,36 @@ class SessionManagerWidget(WaylandWindow):
 
     def _on_session_clicked(self, session_name):
         """Handle session button click"""
-        print(f"Session clicked: {session_name}")
+        self.debug_logger.debug_navigation_operation(
+            "session_click", None, session_name, "mouse_click"
+        )
         # TODO: Add restore functionality later
 
     def _on_save_success(self, session_name, result):
         """Handle successful save operation"""
-        print(f"Session '{session_name}' saved successfully!")
+        self.debug_logger.debug_session_lifecycle(
+            "save", session_name, "success", {"result": str(result)}
+        )
 
         # Refresh browse panel to show new session
         self.browse_panel.refresh()
 
     def _on_save_error(self, session_name, error_message):
         """Handle save operation error"""
-        print(f"Failed to save session '{session_name}': {error_message}")
+        self.debug_logger.debug_session_lifecycle(
+            "save", session_name, "error", {"error": error_message}
+        )
 
     def on_key_press(self, widget, event):
         """Handle key press events"""
         keycode = event.get_keycode()[1]
         keyval = event.keyval
+        
+        # Log high-level key processing
+        self.debug_logger.debug_event_routing(
+            "key_press", keyval, "session_manager", "top_level",
+            {"keycode": keycode, "save_mode": self.toggle_switch.is_save_mode}
+        )
 
         # Give save panel first chance to handle events when in save mode
         # (especially for Escape key during save operations)

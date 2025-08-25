@@ -33,6 +33,7 @@ from constants import (
 )
 
 from utils import BackendClient
+from utils.debug_logger import get_debug_logger
 
 # Import operation classes
 from .operations import DeleteOperation, RestoreOperation
@@ -47,11 +48,19 @@ class BrowsePanelWidget(Box):
         self.session_utils = session_utils
         self.on_session_clicked = on_session_clicked
 
+        # Initialize debug logger
+        self.debug_logger = get_debug_logger()
+        if self.debug_logger:
+            self.debug_logger.debug_session_lifecycle("ui_startup", "browse_panel", "initializing")
+
         # Backend client for operations
         try:
             self.backend_client = BackendClient()
+            if self.debug_logger:
+                self.debug_logger.debug_backend_call("init", None, 0, True, {"status": "available"})
         except FileNotFoundError as e:
-            print(f"Warning: Backend client unavailable: {e}")
+            if self.debug_logger:
+                self.debug_logger.debug_backend_call("init", None, 0, False, {"error": str(e)})
             self.backend_client = None
 
         # Initialize operation handlers
@@ -124,15 +133,32 @@ class BrowsePanelWidget(Box):
         keyval = event.keyval
 
         # UI navigation keys go to navigation handlers
-        if self._is_ui_navigation_key(keyval):
+        is_navigation = self._is_ui_navigation_key(keyval)
+        if is_navigation:
+            if self.debug_logger:
+                self.debug_logger.debug_key_detection(
+                    keyval, "navigation", False, False,
+                    {"routing_decision": "navigation_handler"}
+                )
             return False
 
         # Handle modifier combinations (Ctrl+key, Alt+key, etc.)
-        if event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK):
+        has_modifiers = bool(event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK))
+        if has_modifiers:
+            if self.debug_logger:
+                self.debug_logger.debug_key_detection(
+                    keyval, "modifier_combo", False, has_modifiers,
+                    {"routing_decision": "blocked", "modifiers": event.state}
+                )
             return False  # Don't route modifier combinations to search
 
         # Everything else goes to search input for filtering/editing
         # This includes: letters, numbers, symbols, backspace, delete, etc.
+        if self.debug_logger:
+            self.debug_logger.debug_key_detection(
+                keyval, "printable", True, has_modifiers,
+                {"routing_decision": "search_input"}
+            )
         return True
 
     def _create_content(self):
@@ -195,15 +221,29 @@ class BrowsePanelWidget(Box):
 
     def _on_search_changed(self, entry):
         """Handle search input text changes"""
+        import time
+        start_time = time.time()
+        
         self.search_query = entry.get_text().strip()
         self._update_filtered_sessions()
         self._update_session_list_only()
+        
+        # Log search operation performance
+        timing_ms = (time.time() - start_time) * 1000
+        if self.debug_logger:
+            self.debug_logger.debug_search_operation(
+                "filter_update", self.search_query, len(self.filtered_sessions), timing_ms
+            )
 
     def _update_filtered_sessions(self):
         """Update filtered sessions based on current search query"""
+        import time
+        start_time = time.time()
+        
         if not self.search_query:
             # No search query - show all sessions
             self.filtered_sessions = self.all_session_names.copy()
+            filter_type = "show_all"
         else:
             # Filter sessions with case-insensitive substring matching
             query_lower = self.search_query.lower()
@@ -212,6 +252,15 @@ class BrowsePanelWidget(Box):
                 for session in self.all_session_names
                 if query_lower in session.lower()
             ]
+            filter_type = "substring_match"
+        
+        # Log filtering performance
+        timing_ms = (time.time() - start_time) * 1000
+        if self.debug_logger:
+            self.debug_logger.debug_search_operation(
+                "filtering", self.search_query, len(self.filtered_sessions), timing_ms,
+                {"filter_type": filter_type, "total_sessions": len(self.all_session_names)}
+            )
 
         # Reset selection if current selection is not in filtered results
         if self.filtered_sessions:
@@ -263,6 +312,13 @@ class BrowsePanelWidget(Box):
             self._update_button_properties(button, session_name, is_selected)
             # Track reuse for performance monitoring
             self._widget_reuse_count += 1
+            
+            # Debug widget pool reuse
+            if self.debug_logger:
+                self.debug_logger.debug_widget_pool_operation(
+                    "reuse", session_name, reused=True, 
+                    pool_size=len(self.session_button_pool)
+                )
             return button
         
         # Phase 2: Only create new widget if not in pool
@@ -284,6 +340,13 @@ class BrowsePanelWidget(Box):
         
         # Track creation for performance monitoring (Phase 2)
         self._widget_creation_count += 1
+        
+        # Debug widget pool creation
+        if self.debug_logger:
+            self.debug_logger.debug_widget_pool_operation(
+                "create", session_name, created=True, 
+                pool_size=len(self.session_button_pool)
+            )
         
         return button
 
@@ -447,7 +510,16 @@ class BrowsePanelWidget(Box):
         # Navigate using name-based selection - no coordinate conversion
         current_idx = self._get_current_filtered_position()
         next_idx = (current_idx + 1) % len(self.filtered_sessions)
+        
+        old_session = self.selected_session_name
         self.selected_session_name = self.filtered_sessions[next_idx]
+        
+        # Debug navigation
+        if self.debug_logger:
+            self.debug_logger.debug_navigation_operation(
+                "select_next", old_session, self.selected_session_name, "arrow_key",
+                {"current_idx": current_idx, "next_idx": next_idx, "wraparound": next_idx == 0}
+            )
 
         # Refresh display to show new selection and handle scrolling
         self._update_session_list_only()
@@ -463,7 +535,16 @@ class BrowsePanelWidget(Box):
         # Navigate using name-based selection - no coordinate conversion
         current_idx = self._get_current_filtered_position()
         prev_idx = (current_idx - 1) % len(self.filtered_sessions)
+        
+        old_session = self.selected_session_name
         self.selected_session_name = self.filtered_sessions[prev_idx]
+        
+        # Debug navigation
+        if self.debug_logger:
+            self.debug_logger.debug_navigation_operation(
+                "select_previous", old_session, self.selected_session_name, "arrow_key",
+                {"current_idx": current_idx, "prev_idx": prev_idx, "wraparound": prev_idx == len(self.filtered_sessions) - 1}
+            )
 
         # Refresh display to show new selection and handle scrolling
         self._update_session_list_only()
@@ -476,9 +557,16 @@ class BrowsePanelWidget(Box):
         try:
             if self.search_input and not self.search_input.has_focus():
                 self.search_input.grab_focus()
-                print("DEBUG: Restored search input focus after navigation")
+                if self.debug_logger:
+                    self.debug_logger.debug_focus_recovery(
+                        "navigation", "search_input", True, {"trigger": "ensure_search_focus"}
+                    )
         except Exception as e:
-            print(f"Warning: Failed to restore search input focus: {e}")
+            if self.debug_logger:
+                self.debug_logger.debug_focus_recovery(
+                    "navigation", "search_input", False, 
+                    {"trigger": "ensure_search_focus", "error": str(e)}
+                )
 
     def update_display(self):
         """Update the display to show current selection and scroll position"""
@@ -639,6 +727,12 @@ class BrowsePanelWidget(Box):
             else:
                 style_context.remove_class("selected")
             changes_made += 1
+            
+            # Debug property changes
+            if self.debug_logger:
+                self.debug_logger.debug_widget_property_change(
+                    session_name, "selected", current_selected, is_selected, True
+                )
         
         # Track efficiency metrics (Phase 3)
         if hasattr(self, '_property_update_count'):
@@ -704,8 +798,15 @@ class BrowsePanelWidget(Box):
     def set_state(self, new_state):
         """Change the browse panel state and refresh content"""
         if new_state != self.state:
-            print(f"BrowsePanel: {self.state} → {new_state}")  # Debug logging
+            old_state = self.state
             self.state = new_state
+            
+            # Debug state transitions
+            if self.debug_logger:
+                self.debug_logger.debug_state_transition(
+                    "browse_panel", old_state, new_state, "set_state"
+                )
+                
             self._create_content()
             self.show_all()
 
@@ -714,6 +815,14 @@ class BrowsePanelWidget(Box):
 
     def handle_key_press_event(self, widget, event):
         """Handle keyboard events using full GTK event context"""
+        keyval = event.keyval
+        
+        # Debug event routing decisions
+        if self.debug_logger:
+            self.debug_logger.debug_event_routing(
+                "key_press", keyval, "browse_panel", "handle_key_press_event",
+                {"state": self.state, "widget": widget.__class__.__name__}
+            )
         if self.state == DELETE_CONFIRM_STATE:
             return self._handle_confirmation_state_event(
                 event, self.delete_operation, DELETE_CONFIRM_STATE

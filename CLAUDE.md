@@ -368,6 +368,47 @@ chrome.commands.onCommand.addListener((command) => {
 - **Recovery**: Error recovery with user context preservation
 - **Logging**: Comprehensive debug output for troubleshooting
 
+## Debug Logging System
+
+### Two-Tier Debug Architecture
+
+**Production-Ready Logging System**: Comprehensive debugging with performance-aware design and configurable verbosity levels.
+
+**Normal Debug Mode** (streamlined for daily use):
+- Focus management operations and recovery
+- State transitions and UI workflow
+- Navigation events and session selection  
+- Backend API calls and error handling
+- Search operations with result counts
+
+**Verbose Debug Mode** (detailed internals):
+- Widget pool operations and performance metrics
+- Property change detection and optimization
+- Key event routing and character detection
+- Performance timing and bottleneck analysis
+
+### Configuration
+
+```python
+# In constants.py
+DEBUG_MODE_ENABLED: Final[bool] = True   # Enable streamlined debug output
+DEBUG_VERBOSE_MODE: Final[bool] = False  # Enable detailed widget/performance logging
+DEBUG_OUTPUT_TO_TERMINAL: Final[bool] = True  # Terminal output (default)
+DEBUG_OUTPUT_TO_FILE: Final[bool] = False     # Optional file logging
+```
+
+### Technical Features
+
+- **Buffered File I/O**: Prevents UI lag during heavy logging with 1-second flush intervals
+- **Zero-Cost When Disabled**: Early returns eliminate overhead when debugging is off
+- **Structured Output**: Timestamp, elapsed time, component tags, and contextual details
+- **Component-Based**: Logical separation (FOCUS, STATE, NAVIGATION, BACKEND, etc.)
+- **Production Safe**: Graceful error handling with console fallback
+
+### Usage
+
+Enable debug output to see real-time UI interactions, focus management, and state transitions. Switch to verbose mode for performance optimization and deep debugging of widget pooling systems.
+
 ## Dependencies & Setup
 
 ### System Requirements
