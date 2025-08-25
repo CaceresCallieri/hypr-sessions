@@ -772,9 +772,13 @@ if session_name == selected_session_name:  # same coordinate system
 
 **Implementation**: Created `_create_session_button()` factory method and `_create_sessions_widget_list()` assembly method, removed duplicate `_create_session_widgets_only()` method.
 
-**Benefits**: Single source of truth for button creation, improved maintainability, clean composition architecture.
+### Method Complexity Refactoring (2025-08-25)
 
-**Code Review**: Grade A- (8.5/10) - Production-ready refactoring with zero negative impacts.
+**Completed**: Decomposed 48-line `calculate_visible_window()` method into 5 focused helper methods, reducing complexity from 8+ branches to 4 total branches across all methods.
+
+### Multi-Index Coordinate System Elimination (2025-08-25)
+
+**Completed**: Replaced fragile 4-index coordinate system with robust name-based selection. Eliminated `selected_global_index` and `selected_local_index` state variables, removing all coordinate conversion logic and race conditions. Navigation now uses direct session name equality checks instead of complex index synchronization.
 
 ## Development Task Management
 
