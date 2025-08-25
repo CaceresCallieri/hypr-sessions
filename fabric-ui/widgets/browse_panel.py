@@ -63,6 +63,16 @@ class BrowsePanelWidget(Box):
         self.filtered_sessions = []  # Filtered session names based on search
         self.session_buttons = []  # List of currently visible session button widgets
         self.selected_session_name = None  # Single source of truth for selection
+        
+        # Widget pool for performance optimization
+        self.session_button_pool = {}  # session_name -> Button widget mapping
+        self.active_session_buttons = []  # Currently visible button widgets
+        
+        # Performance tracking (Phase 2 + 3)
+        self._widget_creation_count = 0  # Count of new widgets created per update
+        self._widget_reuse_count = 0     # Count of widgets reused per update
+        self._property_update_count = 0  # Count of actual property changes (Phase 3)
+        self._property_skip_count = 0    # Count of skipped updates (Phase 3)
 
         # Search functionality
         self.search_input = None  # GTK Entry widget for search
@@ -79,6 +89,11 @@ class BrowsePanelWidget(Box):
         # Scroll indicator symbols (Nerd Font triangles)
         self.ARROW_UP = "\uf077"  # nf-fa-chevron_down
         self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_up
+
+        # Widget pool configuration constants
+        self.WIDGET_POOL_MAINTENANCE_THRESHOLD = 20
+        self.WIDGET_POOL_MAX_SIZE = 50
+        self.DEBUG_ENABLED = False  # Set to True for widget pool debugging
 
         # Panel state management
         self.state = BROWSING_STATE  # Browse panel state management using constants
@@ -206,7 +221,6 @@ class BrowsePanelWidget(Box):
         else:
             # No filtered results - clear selection
             self.selected_session_name = None
-            self.selected_global_index = -1
 
     def clear_search(self):
         """Clear the search input (maintains permanent focus)"""
@@ -241,7 +255,17 @@ class BrowsePanelWidget(Box):
         )
 
     def _create_session_button(self, session_name, is_selected=False):
-        """Pure factory method for creating session buttons with consistent logic"""
+        """Factory method with widget reuse - creates or reuses session buttons (Phase 2)"""
+        # Phase 2+3: Check pool first for existing widget
+        if session_name in self.session_button_pool:
+            button = self.session_button_pool[session_name]
+            # Phase 3: Use comprehensive property update with change detection
+            self._update_button_properties(button, session_name, is_selected)
+            # Track reuse for performance monitoring
+            self._widget_reuse_count += 1
+            return button
+        
+        # Phase 2: Only create new widget if not in pool
         button = Button(
             label=f"• {session_name}",
             name="session-button",  # Base CSS class
@@ -255,10 +279,22 @@ class BrowsePanelWidget(Box):
         if is_selected:
             button.get_style_context().add_class("selected")
 
+        # Store in widget pool for future reuse
+        self.session_button_pool[session_name] = button
+        
+        # Track creation for performance monitoring (Phase 2)
+        self._widget_creation_count += 1
+        
         return button
 
     def _create_sessions_widget_list(self):
         """Create complete widget list: scroll indicators + session buttons"""
+        # Reset performance counters for this update (Phase 2+3)
+        self._widget_creation_count = 0
+        self._widget_reuse_count = 0
+        self._property_update_count = 0
+        self._property_skip_count = 0
+        
         # Handle empty sessions case
         if not self.filtered_sessions:
             if not self.all_session_names:
@@ -287,12 +323,27 @@ class BrowsePanelWidget(Box):
         )
         widgets.append(more_above)
 
+        # Clear previous session buttons list (Phase 1: Preparation for pooling)
+        self.session_buttons = []
+        
         # Create session buttons for visible sessions using factory method
         for session_name in visible_sessions:
             is_selected = session_name == selected_session_name
             button = self._create_session_button(session_name, is_selected)
             self.session_buttons.append(button)
             widgets.append(button)
+        
+        # Track currently active buttons for pool management (Phase 1: Infrastructure)
+        self.active_session_buttons = self.session_buttons.copy()
+        
+        # Phase 3: Periodic pool maintenance
+        if len(self.session_button_pool) > self.WIDGET_POOL_MAINTENANCE_THRESHOLD:  # Only optimize when pool gets large
+            self._validate_widget_pool_integrity()
+            self._optimize_widget_pool_size()
+        
+        # Debug pool state (Phase 1-3: Remove this in production)
+        if hasattr(self, '_debug_pool_enabled') and self._debug_pool_enabled:
+            self._debug_widget_pool_state()
 
         # Always reserve space for "more sessions below" indicator
         more_below = self._create_scroll_indicator(
@@ -420,9 +471,6 @@ class BrowsePanelWidget(Box):
         # Ensure search input maintains focus after navigation
         self._ensure_search_focus()
 
-        # Ensure search input maintains focus after navigation
-        self._ensure_search_focus()
-
     def _ensure_search_focus(self):
         """Ensure search input maintains focus for continuous typing"""
         try:
@@ -492,6 +540,160 @@ class BrowsePanelWidget(Box):
     def is_session_selected(self, session_name):
         """Check if given session is currently selected"""
         return session_name == self.selected_session_name
+    
+    def _debug_widget_pool_state(self):
+        """Debug helper to inspect widget pool state (Phase 2: With reuse tracking)"""
+        if not self.DEBUG_ENABLED:
+            return
+        pool_size = len(self.session_button_pool)
+        active_count = len(self.active_session_buttons)
+        total_sessions = len(self.all_session_names)
+        
+        print(f"DEBUG Widget Pool: {pool_size} pooled, {active_count} active, {total_sessions} total sessions")
+        
+        # Track comprehensive performance (Phase 2+3)
+        if hasattr(self, '_widget_creation_count'):
+            total_requests = self._widget_creation_count + self._widget_reuse_count
+            if total_requests > 0:
+                reuse_rate = (self._widget_reuse_count / total_requests) * 100
+                print(f"DEBUG Widget Performance: {self._widget_creation_count} created, {self._widget_reuse_count} reused ({reuse_rate:.1f}% reuse rate)")
+                
+                # Phase 3: Property update efficiency
+                if hasattr(self, '_property_update_count'):
+                    total_property_checks = self._property_update_count + self._property_skip_count
+                    if total_property_checks > 0:
+                        skip_rate = (self._property_skip_count / total_property_checks) * 100
+                        print(f"DEBUG Property Updates: {self._property_update_count} changes, {self._property_skip_count} skipped ({skip_rate:.1f}% efficiency)")
+            else:
+                print(f"DEBUG Widget Performance: No widget requests this update")
+        
+        # Verify pool integrity
+        for session_name, button in self.session_button_pool.items():
+            if not button or not hasattr(button, 'get_label'):
+                print(f"WARNING: Invalid button in pool for session '{session_name}'")
+        
+        return {
+            'pool_size': pool_size,
+            'active_count': active_count, 
+            'total_sessions': total_sessions
+        }
+    
+    def enable_widget_pool_debug(self):
+        """Enable widget pool debugging for testing (Phase 1)"""
+        self.DEBUG_ENABLED = True
+        print("DEBUG: Widget pool debugging enabled")
+    
+    def disable_widget_pool_debug(self):
+        """Disable widget pool debugging (Phase 1)"""
+        self.DEBUG_ENABLED = False
+        print("DEBUG: Widget pool debugging disabled")
+    
+    def _update_button_selection(self, button, is_selected):
+        """Update button selection state efficiently (Phase 3: Enhanced)"""
+        style_context = button.get_style_context()
+        current_selected = style_context.has_class("selected")
+        
+        # Phase 3: Only update if state actually changed
+        if is_selected != current_selected:
+            if is_selected:
+                style_context.add_class("selected")
+            else:
+                style_context.remove_class("selected")
+            # Track actual state changes for debugging
+            if hasattr(self, '_property_update_count'):
+                self._property_update_count += 1
+    
+    def _update_button_label(self, button, session_name):
+        """Update button label efficiently (Phase 3: Enhanced)"""
+        current_label = button.get_label()
+        new_label = f"• {session_name}"
+        
+        # Phase 3: Only update if label actually changed
+        if current_label != new_label:
+            button.set_label(new_label)
+            # Track actual label changes for debugging
+            if hasattr(self, '_property_update_count'):
+                self._property_update_count += 1
+        else:
+            # Track skipped updates for efficiency monitoring (Phase 3)
+            if hasattr(self, '_property_skip_count'):
+                self._property_skip_count += 1
+    
+    def _update_button_properties(self, button, session_name, is_selected):
+        """Comprehensive property update with change detection (Phase 3)"""
+        changes_made = 0
+        
+        # Update label efficiently
+        current_label = button.get_label()
+        new_label = f"• {session_name}"
+        if current_label != new_label:
+            button.set_label(new_label)
+            changes_made += 1
+        
+        # Update selection state efficiently
+        style_context = button.get_style_context()
+        current_selected = style_context.has_class("selected")
+        if is_selected != current_selected:
+            if is_selected:
+                style_context.add_class("selected")
+            else:
+                style_context.remove_class("selected")
+            changes_made += 1
+        
+        # Track efficiency metrics (Phase 3)
+        if hasattr(self, '_property_update_count'):
+            self._property_update_count += changes_made
+        if hasattr(self, '_property_skip_count') and changes_made == 0:
+            self._property_skip_count += 1
+        
+        return changes_made > 0
+    
+    def _validate_widget_pool_integrity(self):
+        """Validate and clean widget pool for optimal performance (Phase 3)"""
+        invalid_widgets = []
+        
+        for session_name, button in self.session_button_pool.items():
+            # Check if widget is still valid
+            try:
+                # Attempt to access widget properties to verify it's not destroyed
+                _ = button.get_label()
+                _ = button.get_style_context()
+            except (AttributeError, RuntimeError):
+                # Widget has been destroyed or is invalid
+                invalid_widgets.append(session_name)
+                print(f"DEBUG: Found invalid widget for session '{session_name}', will remove")
+        
+        # Remove invalid widgets from pool
+        for session_name in invalid_widgets:
+            del self.session_button_pool[session_name]
+        
+        return len(invalid_widgets)
+    
+    def _optimize_widget_pool_size(self, max_pool_size=None):
+        """Keep widget pool size reasonable for memory efficiency (Phase 3)"""
+        if max_pool_size is None:
+            max_pool_size = self.WIDGET_POOL_MAX_SIZE
+        if len(self.session_button_pool) <= max_pool_size:
+            return 0  # No optimization needed
+        
+        # Remove widgets for sessions that no longer exist
+        current_sessions = set(self.all_session_names)
+        pool_sessions = set(self.session_button_pool.keys())
+        obsolete_sessions = pool_sessions - current_sessions
+        
+        removed_count = 0
+        for session_name in obsolete_sessions:
+            widget = self.session_button_pool.pop(session_name)
+            try:
+                widget.destroy()  # Proper GTK cleanup
+            except (AttributeError, RuntimeError):
+                pass  # Widget already destroyed
+            removed_count += 1
+        
+        if removed_count > 0:
+            print(f"DEBUG: Optimized widget pool, removed {removed_count} obsolete widgets")
+        
+        return removed_count
 
     def activate_selected_session(self):
         """Activate (restore) the currently selected session"""
