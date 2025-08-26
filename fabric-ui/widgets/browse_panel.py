@@ -953,6 +953,10 @@ class BrowsePanelWidget(Box):
                 
             self._create_content()
             self.show_all()
+            
+            # Restore search focus when returning to browsing state from confirmations
+            if new_state == BROWSING_STATE and old_state in [RESTORE_CONFIRM_STATE, DELETE_CONFIRM_STATE]:
+                self._ensure_search_focus()
 
     # Operation methods removed - now handled by operation classes
     # DeleteOperation and RestoreOperation handle all operation logic
