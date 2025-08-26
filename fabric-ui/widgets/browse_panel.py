@@ -317,10 +317,15 @@ class BrowsePanelWidget(Box):
 
     def _create_session_button(self, session_name, is_selected=False):
         """Factory method with widget reuse - creates or reuses session buttons (Phase 2)"""
+        # Clean up problematic widgets first
+        self._cleanup_marked_widgets()
+        
         # Phase 2+3: Check pool first for existing widget
         if session_name in self.session_button_pool:
             button = self.session_button_pool[session_name]
             
+            # GTK3 Post-Reparenting: Ensure widget is properly realized after container changes
+            self._ensure_widget_ready_for_reuse(button, session_name)
             
             # Phase 3: Use comprehensive property update with change detection
             self._update_button_properties(button, session_name, is_selected)
@@ -419,34 +424,98 @@ class BrowsePanelWidget(Box):
                     {"session": session_name, "total_removed": len(invalid_sessions)}
                 )
 
-    def _clear_widget_pool_for_state_transition(self, from_state):
-        """Clear widget pool to fix GTK rendering issues during state transitions"""
-        pool_size_before = len(self.session_button_pool)
+    def _prepare_widget_pool_for_reparenting(self):
+        """Prepare pooled widgets for container transitions by clearing stale state"""
+        pool_size = len(self.session_button_pool)
         
-        print(f"DEBUG STATE FIX: Clearing widget pool due to state transition from '{from_state}' - {pool_size_before} widgets")
+        print(f"DEBUG GTK FIX: Preparing {pool_size} pooled widgets for container transition")
         
-        # Properly destroy all pooled widgets to prevent GTK resource leaks
+        # Simplified approach: Clear any stale visual state from pooled widgets
+        # This avoids complex GTK3 realization management while preserving performance benefits
+        problematic_widgets = []
+        
         for session_name, button in self.session_button_pool.items():
             try:
-                if hasattr(button, 'destroy'):
-                    button.destroy()
-                    print(f"DEBUG STATE FIX: Destroyed widget for '{session_name}'")
-                else:
-                    print(f"DEBUG STATE FIX: Widget for '{session_name}' has no destroy method")
+                # Check if widget is in a valid state for reuse
+                current_parent = button.get_parent()
+                print(f"DEBUG GTK FIX: Widget '{session_name}' parent: {current_parent}")
+                
+                # Clear any visual state that might be corrupted
+                # This forces a fresh rendering when the widget gets a new parent
+                if hasattr(button, 'queue_draw'):
+                    button.queue_draw()
+                
+                # Ensure basic properties are set
+                if hasattr(button, 'set_sensitive'):
+                    button.set_sensitive(True)
+                    
+                print(f"DEBUG GTK FIX: Prepared widget '{session_name}' for reuse")
+                    
             except Exception as e:
-                print(f"DEBUG STATE FIX: Error destroying widget for '{session_name}': {e}")
+                print(f"DEBUG GTK FIX: Error preparing widget '{session_name}': {e}")
+                problematic_widgets.append(session_name)
         
-        # Clear the pool completely - forces fresh widget creation
-        self.session_button_pool.clear()
-        self.active_session_buttons.clear()
+        # Remove any problematic widgets from the pool
+        for session_name in problematic_widgets:
+            self._mark_widget_for_removal(session_name)
         
-        print(f"DEBUG STATE FIX: Widget pool cleared - now {len(self.session_button_pool)} widgets")
+        print(f"DEBUG GTK FIX: Widget pool preparation complete - {len(problematic_widgets)} widgets marked for removal")
         
         if self.debug_logger:
             self.debug_logger.debug_widget_pool_maintenance(
-                "clear_for_state_transition", pool_size_before, 0,
-                {"from_state": from_state, "reason": "fix_gtk_rendering"}
+                "prepare_for_transition", pool_size, pool_size - len(problematic_widgets),
+                {"reason": "clear_stale_state", "method": "simplified_approach", "removed": len(problematic_widgets)}
             )
+
+    def _mark_widget_for_removal(self, session_name):
+        """Mark a problematic widget for removal from the pool"""
+        if not hasattr(self, '_widgets_to_remove'):
+            self._widgets_to_remove = []
+        self._widgets_to_remove.append(session_name)
+        print(f"DEBUG GTK FIX: Marked widget '{session_name}' for removal from pool")
+
+    def _cleanup_marked_widgets(self):
+        """Remove problematic widgets from the pool"""
+        if hasattr(self, '_widgets_to_remove') and self._widgets_to_remove:
+            for session_name in self._widgets_to_remove:
+                if session_name in self.session_button_pool:
+                    widget = self.session_button_pool[session_name]
+                    try:
+                        if hasattr(widget, 'destroy'):
+                            widget.destroy()
+                        del self.session_button_pool[session_name]
+                        print(f"DEBUG GTK FIX: Removed problematic widget '{session_name}' from pool")
+                    except Exception as e:
+                        print(f"DEBUG GTK FIX: Error removing widget '{session_name}': {e}")
+            self._widgets_to_remove.clear()
+
+    def _ensure_widget_ready_for_reuse(self, button, session_name):
+        """Ensure widget is properly ready for reuse after container transitions"""
+        try:
+            # Simplified GTK3 Approach: Focus on essential properties only
+            # Skip complex realization - let GTK handle it when widget gets a parent
+            
+            # Ensure widget is visible (basic requirement)
+            if not button.get_visible():
+                print(f"DEBUG GTK FIX: Widget '{session_name}' not visible, making visible")
+                button.set_visible(True)
+            
+            # Force a property refresh to clear any stale visual state
+            current_label = button.get_label()
+            if current_label:
+                button.set_label("")  # Clear
+                button.set_label(current_label)  # Restore - forces GTK refresh
+                print(f"DEBUG GTK FIX: Refreshed label for widget '{session_name}'")
+            
+            # Queue a redraw to ensure fresh rendering
+            button.queue_draw()
+                
+            print(f"DEBUG GTK FIX: Widget '{session_name}' ready for reuse")
+                
+        except Exception as e:
+            print(f"DEBUG GTK FIX: Error preparing widget '{session_name}' for reuse: {e}")
+            # Mark for removal if widget is corrupted  
+            self._mark_widget_for_removal(session_name)
 
     def _create_sessions_widget_list(self):
         """Create complete widget list: scroll indicators + session buttons"""
@@ -906,10 +975,10 @@ class BrowsePanelWidget(Box):
                     "browse_panel", old_state, new_state, "set_state"
                 )
             
-            # Fix: Clear widget pool when returning to browsing state
-            # GTK widget rendering gets corrupted when reusing widgets across state transitions
+            # Fix: Preserve widget references during state transitions to prevent GTK rendering corruption
+            # Root cause: GTK loses rendering state when widgets move between container hierarchies
             if new_state == BROWSING_STATE and old_state in [RESTORE_CONFIRM_STATE, DELETE_CONFIRM_STATE]:
-                self._clear_widget_pool_for_state_transition(old_state)
+                self._prepare_widget_pool_for_reparenting()
                 
             self._create_content()
             self.show_all()
