@@ -34,7 +34,7 @@ DEBUG_VERBOSE_MODE: Final[bool] = (
     False  # Set to True for detailed widget/performance logging
 )
 DEBUG_OUTPUT_TO_TERMINAL: Final[bool] = True  # Output debug logs to terminal (default)
-DEBUG_OUTPUT_TO_FILE: Final[bool] = False  # Also save debug logs to file (optional)
+DEBUG_OUTPUT_TO_FILE: Final[bool] = True  # Also save debug logs to file (optional)
 DEBUG_LOG_FILE: Final[str] = "/tmp/hypr-sessions-ui-debug.log"
 
 # Future expansion possibilities:

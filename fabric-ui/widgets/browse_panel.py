@@ -163,6 +163,18 @@ class BrowsePanelWidget(Box):
 
     def _create_content(self):
         """Create the browse panel content based on current state"""
+        print(f"DEBUG CREATE CONTENT: Creating UI for state '{self.state}' - Widget pool size: {len(self.session_button_pool)}")
+        
+        # DEBUG: Check widget pool health before recreation
+        if hasattr(self, 'session_button_pool'):
+            print(f"DEBUG WIDGET POOL: Current pool sessions: {list(self.session_button_pool.keys())}")
+            for session_name, button in self.session_button_pool.items():
+                try:
+                    current_label = button.get_label()
+                    print(f"DEBUG POOL STATE: '{session_name}' -> '{current_label}'")
+                except Exception as e:
+                    print(f"DEBUG POOL ERROR: '{session_name}' -> Exception: {e}")
+        
         if self.state == BROWSING_STATE:
             self.children = self._create_browsing_ui()
         elif self.state == DELETE_CONFIRM_STATE:
@@ -308,6 +320,8 @@ class BrowsePanelWidget(Box):
         # Phase 2+3: Check pool first for existing widget
         if session_name in self.session_button_pool:
             button = self.session_button_pool[session_name]
+            
+            
             # Phase 3: Use comprehensive property update with change detection
             self._update_button_properties(button, session_name, is_selected)
             # Track reuse for performance monitoring
@@ -349,6 +363,90 @@ class BrowsePanelWidget(Box):
             )
         
         return button
+
+    def _force_refresh_widget_pool(self):
+        """Force refresh all pooled widgets to fix state transition issues"""
+        if self.debug_logger:
+            self.debug_logger.debug_widget_pool_maintenance(
+                "force_refresh", len(self.session_button_pool), len(self.session_button_pool),
+                {"trigger": "state_transition", "reason": "fix_button_labels"}
+            )
+        
+        # Force update all buttons in pool to ensure properties are current
+        invalid_sessions = []
+        for session_name, button in self.session_button_pool.items():
+            try:
+                # DEBUG: Check button state before refresh
+                current_label = button.get_label()
+                expected_label = f"• {session_name}"
+                
+                print(f"DEBUG WIDGET STATE: Session '{session_name}' - Current: '{current_label}' Expected: '{expected_label}'")
+                
+                # Check if button widget is valid
+                if not hasattr(button, 'get_label') or not hasattr(button, 'set_label'):
+                    print(f"DEBUG WIDGET ERROR: Button for '{session_name}' missing label methods")
+                    invalid_sessions.append(session_name)
+                    continue
+                
+                # Try to update label
+                if current_label != expected_label:
+                    print(f"DEBUG WIDGET FIX: Updating label for '{session_name}' from '{current_label}' to '{expected_label}'")
+                    button.set_label(expected_label)
+                    
+                    # Verify the fix worked
+                    new_label = button.get_label()
+                    if new_label != expected_label:
+                        print(f"DEBUG WIDGET FAILURE: Label update failed for '{session_name}' - still shows '{new_label}'")
+                    else:
+                        print(f"DEBUG WIDGET SUCCESS: Label updated successfully for '{session_name}'")
+                
+                # Reset selection state - will be properly set during widget creation
+                style_context = button.get_style_context()
+                if style_context.has_class("selected"):
+                    style_context.remove_class("selected")
+                    
+            except (AttributeError, RuntimeError) as e:
+                print(f"DEBUG WIDGET EXCEPTION: Button for '{session_name}' threw exception: {e}")
+                invalid_sessions.append(session_name)
+                
+        # Remove invalid widgets
+        for session_name in invalid_sessions:
+            print(f"DEBUG WIDGET CLEANUP: Removing invalid button for '{session_name}'")
+            del self.session_button_pool[session_name]
+            if self.debug_logger:
+                self.debug_logger.debug_widget_pool_maintenance(
+                    "remove_invalid", len(self.session_button_pool) + len(invalid_sessions), len(self.session_button_pool),
+                    {"session": session_name, "total_removed": len(invalid_sessions)}
+                )
+
+    def _clear_widget_pool_for_state_transition(self, from_state):
+        """Clear widget pool to fix GTK rendering issues during state transitions"""
+        pool_size_before = len(self.session_button_pool)
+        
+        print(f"DEBUG STATE FIX: Clearing widget pool due to state transition from '{from_state}' - {pool_size_before} widgets")
+        
+        # Properly destroy all pooled widgets to prevent GTK resource leaks
+        for session_name, button in self.session_button_pool.items():
+            try:
+                if hasattr(button, 'destroy'):
+                    button.destroy()
+                    print(f"DEBUG STATE FIX: Destroyed widget for '{session_name}'")
+                else:
+                    print(f"DEBUG STATE FIX: Widget for '{session_name}' has no destroy method")
+            except Exception as e:
+                print(f"DEBUG STATE FIX: Error destroying widget for '{session_name}': {e}")
+        
+        # Clear the pool completely - forces fresh widget creation
+        self.session_button_pool.clear()
+        self.active_session_buttons.clear()
+        
+        print(f"DEBUG STATE FIX: Widget pool cleared - now {len(self.session_button_pool)} widgets")
+        
+        if self.debug_logger:
+            self.debug_logger.debug_widget_pool_maintenance(
+                "clear_for_state_transition", pool_size_before, 0,
+                {"from_state": from_state, "reason": "fix_gtk_rendering"}
+            )
 
     def _create_sessions_widget_list(self):
         """Create complete widget list: scroll indicators + session buttons"""
@@ -714,6 +812,7 @@ class BrowsePanelWidget(Box):
         # Update label efficiently
         current_label = button.get_label()
         new_label = f"• {session_name}"
+        
         if current_label != new_label:
             button.set_label(new_label)
             changes_made += 1
@@ -806,6 +905,11 @@ class BrowsePanelWidget(Box):
                 self.debug_logger.debug_state_transition(
                     "browse_panel", old_state, new_state, "set_state"
                 )
+            
+            # Fix: Clear widget pool when returning to browsing state
+            # GTK widget rendering gets corrupted when reusing widgets across state transitions
+            if new_state == BROWSING_STATE and old_state in [RESTORE_CONFIRM_STATE, DELETE_CONFIRM_STATE]:
+                self._clear_widget_pool_for_state_transition(old_state)
                 
             self._create_content()
             self.show_all()
