@@ -864,41 +864,44 @@ def _ensure_widget_ready_for_reuse(self, button, session_name):
 
 ## Keyboard Shortcuts Enhancement
 
-### Ctrl+D Delete Operation Implementation
+### ESC Key Behavior & Search Clearing Implementation
 
-**Problem**: Dual focus search architecture prevented 'd' key delete operations since search input maintains permanent focus, capturing all printable characters.
+**Problem**: ESC key was intercepted by browse panel to clear search, preventing global app quit functionality.
 
-**Solution**: Implemented Ctrl+D keyboard shortcut using GTK modifier key detection to bypass search input routing.
+**Solution**: Removed ESC handling from browse panel to allow app quit, added Ctrl+L as alternative search clearing shortcut.
 
-#### Core Implementation
+#### Implementation Changes
 
-**Modifier Key Detection** (`browse_panel.py:1018-1036`):
+**ESC Key Event Bubbling** (`browse_panel.py:1047-1057`):
+- Removed ESC key interception from `_handle_navigation_event()`
+- ESC now bubbles up to session manager for global quit functionality
+- Updated navigation constants and keyboard hints accordingly
+
+**Ctrl+L Search Clearing**:
 ```python
-def _handle_navigation_event(self, event):
-    keyval = event.keyval
-    has_ctrl = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
-
-    # Handle Ctrl+D for delete operation
-    if has_ctrl and keyval == Gdk.KEY_d:
-        selected_session = self.get_selected_session()
-        if selected_session:
-            self.delete_operation.selected_session = selected_session
-            self.set_state(DELETE_CONFIRM_STATE)
-            return True
+# Handle Ctrl+L for clearing search input
+if has_ctrl and keyval == Gdk.KEY_l:
+    self.clear_search()
+    return True
 ```
 
-**Search Bypass Logic**: Existing `should_route_to_search()` method correctly excludes modifier combinations from search routing, allowing Ctrl+D to reach navigation handlers.
-
-**UI Enhancement**: Added keyboard shortcuts hint showing "↑↓ Navigate • Enter Restore • Ctrl+D Delete • Esc Clear" for improved discoverability.
+**Ctrl+D Delete Operation**:
+```python
+# Handle Ctrl+D for delete operation
+if has_ctrl and keyval == Gdk.KEY_d:
+    selected_session = self.get_selected_session()
+    if selected_session:
+        self.delete_operation.selected_session = selected_session
+        self.set_state(DELETE_CONFIRM_STATE)
+        return True
+```
 
 #### Benefits
 
-- **Platform Standard**: Uses conventional Ctrl+D shortcut familiar across applications
-- **Intentional Action**: Prevents accidental deletion with deliberate key combination  
-- **Search Integration**: Works seamlessly with active search filtering
-- **Robust Error Handling**: Validates session selection and provides debug logging
-
-**Code Review Results**: Grade 8.5/10 - Production-ready implementation demonstrating excellent engineering practices with comprehensive error handling and GTK best practices.
+- **Consistent Exit Pattern**: ESC provides universal quit mechanism matching desktop app standards
+- **Search Clearing Preserved**: Ctrl+L maintains search clearing functionality without conflicts
+- **Platform Conventions**: Uses standard shortcuts (Ctrl+L common in browsers, Ctrl+D for delete)
+- **Clean Event Flow**: Proper event bubbling architecture with modifier key detection
 
 ## Development Task Management
 

@@ -119,7 +119,7 @@ class BrowsePanelWidget(Box):
             # Actions
             Gdk.KEY_Return,
             Gdk.KEY_KP_Enter,  # Restore session
-            Gdk.KEY_Escape,  # Clear search
+            # Gdk.KEY_Escape,  # Clear search (removed - ESC now quits app)
             # Panel switching
             Gdk.KEY_Tab,
             Gdk.KEY_Left,
@@ -214,11 +214,11 @@ class BrowsePanelWidget(Box):
 
         # Create keyboard shortcuts hint
         shortcuts_hint = Label(
-            text="↑↓ Navigate • Enter Restore • Ctrl+D Delete • Esc Clear",
+            text="↑↓ Navigate • Enter Restore • Ctrl+D Delete",
             name="keyboard-shortcuts-hint"
         )
         shortcuts_hint.set_markup(
-            "<span size='small' style='italic'>↑↓ Navigate • Enter Restore • Ctrl+D Delete • Esc Clear</span>"
+            "<span size='small' style='italic'>↑↓ Navigate • Enter Restore • Ctrl+D Delete</span>"
         )
 
         return [sessions_header, search_input, sessions_container, shortcuts_hint]
@@ -1044,8 +1044,15 @@ class BrowsePanelWidget(Box):
                 print("DEBUG: No session selected for Ctrl+D delete operation")
                 return True
 
-        if keyval == Gdk.KEY_Escape:
-            # Clear search
+        # Handle Ctrl+L for clearing search input
+        if has_ctrl and keyval == Gdk.KEY_l:
+            # Debug log the clear search trigger
+            if self.debug_logger:
+                self.debug_logger.debug_navigation_operation(
+                    "clear_search_trigger", None, None, "ctrl_l_shortcut",
+                    {"search_query": self.search_query, "state": self.state}
+                )
+            
             self.clear_search()
             return True
         elif keyval in [Gdk.KEY_Up, Gdk.KEY_Down]:
