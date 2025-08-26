@@ -212,7 +212,16 @@ class BrowsePanelWidget(Box):
         # Create search input widget
         search_input = self._create_search_input()
 
-        return [sessions_header, search_input, sessions_container]
+        # Create keyboard shortcuts hint
+        shortcuts_hint = Label(
+            text="↑↓ Navigate • Enter Restore • Ctrl+D Delete • Esc Clear",
+            name="keyboard-shortcuts-hint"
+        )
+        shortcuts_hint.set_markup(
+            "<span size='small' style='italic'>↑↓ Navigate • Enter Restore • Ctrl+D Delete • Esc Clear</span>"
+        )
+
+        return [sessions_header, search_input, sessions_container, shortcuts_hint]
 
     def _create_search_input(self):
         """Create the search input widget with permanent focus"""
@@ -1015,6 +1024,25 @@ class BrowsePanelWidget(Box):
     def _handle_navigation_event(self, event):
         """Handle navigation events in browsing state"""
         keyval = event.keyval
+        has_ctrl = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
+
+        # Handle Ctrl+D for delete operation
+        if has_ctrl and keyval == Gdk.KEY_d:
+            selected_session = self.get_selected_session()
+            if selected_session:
+                # Debug log the delete trigger
+                if self.debug_logger:
+                    self.debug_logger.debug_navigation_operation(
+                        "delete_trigger", selected_session, None, "ctrl_d_shortcut",
+                        {"state": self.state}
+                    )
+                
+                self.delete_operation.selected_session = selected_session
+                self.set_state(DELETE_CONFIRM_STATE)
+                return True
+            else:
+                print("DEBUG: No session selected for Ctrl+D delete operation")
+                return True
 
         if keyval == Gdk.KEY_Escape:
             # Clear search
