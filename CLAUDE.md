@@ -197,18 +197,69 @@ KEYCODE_DOWN_ARROW: Final[int] = 116
 from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 ```
 
-## Recent Development (2025-08-26)
+## Recent Development (2025-08-27)
 
-### Persistent Search Architecture Implementation
+### Session Visibility Windowing System Fix
 
-- **Problem Solved**: Fixed search text preservation during state transitions (restore/delete confirmations)
-- **Architecture**: Separated persistent search input from dynamic content area to prevent widget destruction
-- **Technical Approach**: `_create_persistent_structure()` creates stable widget hierarchy with search input always preserved
-- **Quick Fix Applied**: Fixed broken session list by correcting container search logic in `_update_session_list_only()`
+**Problem Solved**: Fixed critical UI issue where all 18 sessions were displaying simultaneously instead of windowed view (5 of N sessions with scroll indicators).
 
-**Code Review Assessment (Grade: C+)**: Working solution but introduces architectural complexity. Dual update paths (`_update_dynamic_content()` vs `_update_session_list_only()`) create maintainability concerns. Marked for future refactoring to simpler approach.
+**Root Cause**: During fuzzy search implementation, `_create_session_widgets()` was accidentally changed to iterate over `self.filtered_sessions` (all sessions) instead of `self.get_visible_sessions()` (windowed subset).
 
-**Current Status**: Both search text preservation and session list functionality working correctly. Temporary solution pending architectural simplification.
+**Solution Applied**:
+- Fixed widget creation method to use `visible_sessions = self.get_visible_sessions()`
+- Added missing UI configuration constants: `VISIBLE_WINDOW_SIZE = 5`, `ARROW_UP = "\uf077"`, `ARROW_DOWN = "\uf078"`
+- Restored scroll indicators for sessions above/below current window
+- Debug logging verified correct behavior: exactly 5 sessions displayed with dynamic window scrolling
+
+**Code Location**: `/home/jc/Dev/hypr-sessions/fabric-ui/widgets/browse_panel.py:319-350`
+
+### Comprehensive Code Review Analysis (2025-08-27)
+
+**Overall Project Grade: B+** - Strong architecture with immediate cleanup requirements
+
+#### Critical Issues Identified:
+
+**Performance Antipatterns (Grade: D)**:
+- Widget recreation on every keystroke still occurring (lines 319-350, 483-590)
+- Missing search debouncing causing excessive UI updates during rapid typing
+- Complex widget pooling system (550+ lines) without clear performance justification
+
+**Production Code Quality (Grade: F)**:
+- Extensive debug print statements throughout production code (lines 483-590, 869-906)
+- Debug artifacts indicating persistent debugging difficulties
+- Mixed production and development code patterns
+
+**Method Complexity Issues (Grade: C-)**:
+- `handle_key_press_event()` exceeds maintainability thresholds (8+ branches)
+- `_create_sessions_widget_list()` handles multiple responsibilities (64 lines)
+- Complex nested conditionals requiring decomposition
+
+#### Architectural Strengths Identified:
+
+**Dual Focus Search System (Grade: A)**:
+- Revolutionary approach separating text input focus from visual navigation
+- GTK event-based character detection with international keyboard support
+- Elegant solution to common UI focus management challenges
+
+**System Integration (Grade: A-)**:
+- Excellent separation of concerns between UI, backend, and business logic
+- Robust JSON API with structured error handling and proper timeouts
+- Clean Wayland layer shell integration with professional focus management
+
+**UI/UX Design (Grade: A-)**:
+- Mac Tahoe aesthetic with GTK3-compatible glassmorphism
+- Comprehensive keyboard navigation and accessibility support
+- Professional state transitions and visual feedback systems
+
+### Immediate Action Items (Code Review Recommendations)
+
+**CRITICAL Priority (Required Before Further Development)**:
+1. **Remove all debug print statements** from production code (Grade F issue)
+2. **Implement search debouncing** (300ms delay) to prevent UI stress during rapid typing
+3. **Simplify widget pooling system** - current complexity may be over-engineered
+4. **Break down complex methods** exceeding maintainability thresholds
+
+**Current Status**: Session visibility windowing system working correctly. UI displays exactly 5 sessions with proper scroll indicators and navigation. However, performance and code quality issues require immediate attention before additional feature development.
 
 ## Browser Integration Evolution
 
