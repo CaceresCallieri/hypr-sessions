@@ -591,72 +591,96 @@ class BrowsePanelWidget(Box):
 
     def _create_sessions_widget_list(self):
         """Create complete widget list: scroll indicators + session buttons"""
-        # Reset performance counters for this update (Phase 2+3)
+        self._reset_widget_performance_counters()
+        
+        # Handle empty sessions case
+        empty_widget = self._create_empty_sessions_widget()
+        if empty_widget:
+            return [empty_widget]
+        
+        self._ensure_valid_session_selection()
+        widgets = self._build_session_widgets()
+        self._perform_periodic_pool_maintenance()
+        
+        return widgets
+
+    def _reset_widget_performance_counters(self):
+        """Reset performance counters for widget creation tracking"""
         self._widget_creation_count = 0
         self._widget_reuse_count = 0
         self._property_update_count = 0
         self._property_skip_count = 0
+
+    def _create_empty_sessions_widget(self):
+        """Create widget for empty sessions state, returns None if sessions exist"""
+        if self.filtered_sessions:
+            return None
+            
+        message = ("No sessions found" if not self.all_session_names 
+                  else f"No sessions match '{self.search_query}'")
         
-        # Handle empty sessions case
+        no_sessions_label = Label(text=message, name="no-sessions-label")
+        no_sessions_label.set_markup(f"<span style='italic'>{message}</span>")
+        return no_sessions_label
+
+    def _ensure_valid_session_selection(self):
+        """Ensure selected session is valid for current filtered results
+        
+        Raises:
+            RuntimeError: If no filtered sessions are available for selection
+        """
         if not self.filtered_sessions:
-            if not self.all_session_names:
-                message = "No sessions found"
-            else:
-                message = f"No sessions match '{self.search_query}'"
-
-            no_sessions_label = Label(text=message, name="no-sessions-label")
-            no_sessions_label.set_markup(f"<span style='italic'>{message}</span>")
-            return [no_sessions_label]
-
-        # Ensure we have a valid selection
+            raise RuntimeError("Cannot ensure valid selection: no filtered sessions available")
+            
         if not self.selected_session_name or self.selected_session_name not in self.filtered_sessions:
             self.selected_session_name = self.filtered_sessions[0]
 
-        # Get visible sessions and selected session for current window
+    def _build_session_widgets(self):
+        """Build the core widget list with scroll indicators and session buttons"""
         visible_sessions = self.get_visible_sessions()
         selected_session_name = self.get_selected_session()
-
-        # Create complete widget list
         widgets = []
 
-        # Always reserve space for "more sessions above" indicator
-        more_above = self._create_scroll_indicator(
-            self.ARROW_UP, self.has_sessions_above()
-        )
-        widgets.append(more_above)
+        # Top scroll indicator
+        widgets.append(self._create_scroll_indicator(self.ARROW_UP, self.has_sessions_above()))
 
-        # Clear previous session buttons list (Phase 1: Preparation for pooling)
+        # Session buttons
         self.session_buttons = []
-        
-        # Create session buttons for visible sessions using factory method
         for session_name in visible_sessions:
             is_selected = session_name == selected_session_name
             button = self._create_session_button(session_name, is_selected)
             self.session_buttons.append(button)
             widgets.append(button)
         
-        # Track currently active buttons for pool management (Phase 1: Infrastructure)
         self.active_session_buttons = self.session_buttons.copy()
+
+        # Bottom scroll indicator  
+        widgets.append(self._create_scroll_indicator(self.ARROW_DOWN, self.has_sessions_below()))
         
-        # Phase 3: Periodic pool maintenance
-        if len(self.session_button_pool) > self.WIDGET_POOL_MAINTENANCE_THRESHOLD:  # Only optimize when pool gets large
+        return widgets
+
+    def _perform_periodic_pool_maintenance(self):
+        """Perform widget pool maintenance when threshold is exceeded"""
+        if len(self.session_button_pool) > self.WIDGET_POOL_MAINTENANCE_THRESHOLD:
             self._validate_widget_pool_integrity()
             self._optimize_widget_pool_size()
         
-        # Debug pool state (Phase 1-3: Remove this in production)
+        # Debug output (to be removed in cleanup phase)
         if hasattr(self, '_debug_pool_enabled') and self._debug_pool_enabled:
             self._debug_widget_pool_state()
 
-        # Always reserve space for "more sessions below" indicator
-        more_below = self._create_scroll_indicator(
-            self.ARROW_DOWN, self.has_sessions_below()
-        )
-        widgets.append(more_below)
-
-        return widgets
-
     def _handle_session_clicked(self, session_name):
-        """Handle session button click"""
+        """Handle session button click
+        
+        Args:
+            session_name: Name of the clicked session (must be non-empty string)
+            
+        Raises:
+            ValueError: If session_name is invalid
+        """
+        if not isinstance(session_name, str) or not session_name.strip():
+            raise ValueError(f"session_name must be non-empty string, got {repr(session_name)}")
+            
         print(f"Session clicked: {session_name}")
         if self.on_session_clicked:
             self.on_session_clicked(session_name)
@@ -669,7 +693,21 @@ class BrowsePanelWidget(Box):
         return 0
 
     def _calculate_optimal_window_start(self, selected_index):
-        """Calculate ideal window start position for given selection"""
+        """Calculate ideal window start position for given selection
+        
+        Args:
+            selected_index: Index of selected session (must be >= 0)
+            
+        Returns:
+            Optimal window start position
+            
+        Example:
+            If selected_index=7, window_size=5, current_start=0
+            Returns: 3 (positions selection in window at indices 3-7)
+        """
+        if not isinstance(selected_index, int) or selected_index < 0:
+            raise ValueError(f"selected_index must be non-negative integer, got {selected_index}")
+        
         window_end = self.visible_start_index + self.VISIBLE_WINDOW_SIZE
 
         if selected_index < self.visible_start_index:
@@ -683,12 +721,44 @@ class BrowsePanelWidget(Box):
             return self.visible_start_index
 
     def _clamp_to_valid_bounds(self, window_start, total_sessions):
-        """Ensure window position stays within valid bounds"""
+        """Ensure window position stays within valid bounds
+        
+        Args:
+            window_start: Proposed window start position
+            total_sessions: Total number of sessions (must be >= 0)
+            
+        Returns:
+            Clamped window start position within valid bounds
+            
+        Example:
+            If window_start=10, total_sessions=8, window_size=5
+            Returns: 3 (maximum valid start for 8 sessions)
+        """
+        if not isinstance(total_sessions, int) or total_sessions < 0:
+            raise ValueError(f"total_sessions must be non-negative integer, got {total_sessions}")
+        
+        if not isinstance(window_start, int):
+            raise ValueError(f"window_start must be integer, got {window_start}")
+        
         clamped = min(window_start, total_sessions - self.VISIBLE_WINDOW_SIZE)
         return max(0, clamped)
 
     def _get_visible_indices_range(self, total_sessions):
-        """Generate list of visible session indices"""
+        """Generate list of visible session indices
+        
+        Args:
+            total_sessions: Total number of sessions (must be >= 0)
+            
+        Returns:
+            List of indices for sessions visible in current window
+            
+        Example:
+            If visible_start_index=2, window_size=5, total_sessions=10
+            Returns: [2, 3, 4, 5, 6]
+        """
+        if not isinstance(total_sessions, int) or total_sessions < 0:
+            raise ValueError(f"total_sessions must be non-negative integer, got {total_sessions}")
+            
         window_end = min(
             self.visible_start_index + self.VISIBLE_WINDOW_SIZE, total_sessions
         )
@@ -1103,50 +1173,62 @@ class BrowsePanelWidget(Box):
         keyval = event.keyval
         has_ctrl = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
 
-        # Handle Ctrl+D for delete operation
-        if has_ctrl and keyval == Gdk.KEY_d:
-            selected_session = self.get_selected_session()
-            if selected_session:
-                # Debug log the delete trigger
-                if self.debug_logger:
-                    self.debug_logger.debug_navigation_operation(
-                        "delete_trigger", selected_session, None, "ctrl_d_shortcut",
-                        {"state": self.state}
-                    )
-                
-                self.delete_operation.selected_session = selected_session
-                self.set_state(DELETE_CONFIRM_STATE)
-                return True
-            else:
-                print("DEBUG: No session selected for Ctrl+D delete operation")
-                return True
+        # Handle keyboard shortcuts with focused methods
+        if has_ctrl:
+            return self._handle_ctrl_shortcuts(event, keyval)
+        
+        return self._handle_navigation_keys(keyval)
 
-        # Handle Ctrl+L for clearing search input
-        if has_ctrl and keyval == Gdk.KEY_l:
-            # Debug log the clear search trigger
+    def _handle_ctrl_shortcuts(self, event, keyval):
+        """Handle Ctrl+key combinations"""
+        if keyval == Gdk.KEY_d:
+            return self._handle_ctrl_d_delete()
+        elif keyval == Gdk.KEY_l:
+            return self._handle_ctrl_l_clear_search(event)
+        
+        return False
+
+    def _handle_ctrl_d_delete(self):
+        """Handle Ctrl+D delete operation trigger"""
+        selected_session = self.get_selected_session()
+        if selected_session:
+            # Debug log the delete trigger
             if self.debug_logger:
                 self.debug_logger.debug_navigation_operation(
-                    "clear_search_trigger", None, None, "ctrl_l_shortcut",
-                    {"search_query": self.search_query, "state": self.state}
+                    "delete_trigger", selected_session, None, "ctrl_d_shortcut",
+                    {"state": self.state}
                 )
             
-            self.clear_search()
+            self.delete_operation.selected_session = selected_session
+            self.set_state(DELETE_CONFIRM_STATE)
             return True
-        elif keyval in [Gdk.KEY_Up, Gdk.KEY_Down]:
+        else:
+            print("DEBUG: No session selected for Ctrl+D delete operation")
+            return True
+
+    def _handle_ctrl_l_clear_search(self, event):
+        """Handle Ctrl+L clear search operation"""
+        # Debug log the clear search trigger
+        if self.debug_logger:
+            self.debug_logger.debug_navigation_operation(
+                "clear_search_trigger", None, None, "ctrl_l_shortcut",
+                {"search_query": self.search_query, "state": self.state}
+            )
+        
+        self.clear_search()
+        return True
+
+    def _handle_navigation_keys(self, keyval):
+        """Handle navigation keys (arrows, enter, tab)"""
+        if keyval in [Gdk.KEY_Up, Gdk.KEY_Down]:
             # Handle session navigation directly
             if keyval == Gdk.KEY_Up:
                 self.select_previous()
             else:
                 self.select_next()
             return True
-        elif keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter]:
-            # Let main manager handle session activation
-            return False
-        elif keyval == Gdk.KEY_Tab:
-            # Let main manager handle panel switching
-            return False
-        elif keyval in [Gdk.KEY_Left, Gdk.KEY_Right]:
-            # Let main manager handle panel switching
+        elif keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_Tab, Gdk.KEY_Left, Gdk.KEY_Right]:
+            # Let main manager handle session activation and panel switching
             return False
 
         return False
