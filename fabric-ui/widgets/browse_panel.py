@@ -484,25 +484,30 @@ class BrowsePanelWidget(Box):
                 current_label = button.get_label()
                 expected_label = f"• {session_name}"
                 
-                print(f"DEBUG WIDGET STATE: Session '{session_name}' - Current: '{current_label}' Expected: '{expected_label}'")
+                if self.debug_logger and self.debug_logger.enabled:
+                    print(f"DEBUG WIDGET STATE: Session '{session_name}' - Current: '{current_label}' Expected: '{expected_label}'")
                 
                 # Check if button widget is valid
                 if not hasattr(button, 'get_label') or not hasattr(button, 'set_label'):
-                    print(f"DEBUG WIDGET ERROR: Button for '{session_name}' missing label methods")
+                    if self.debug_logger and self.debug_logger.enabled:
+                        print(f"DEBUG WIDGET ERROR: Button for '{session_name}' missing label methods")
                     invalid_sessions.append(session_name)
                     continue
                 
                 # Try to update label
                 if current_label != expected_label:
-                    print(f"DEBUG WIDGET FIX: Updating label for '{session_name}' from '{current_label}' to '{expected_label}'")
+                    if self.debug_logger and self.debug_logger.enabled:
+                        print(f"DEBUG WIDGET FIX: Updating label for '{session_name}' from '{current_label}' to '{expected_label}'")
                     button.set_label(expected_label)
                     
                     # Verify the fix worked
                     new_label = button.get_label()
                     if new_label != expected_label:
-                        print(f"DEBUG WIDGET FAILURE: Label update failed for '{session_name}' - still shows '{new_label}'")
+                        if self.debug_logger and self.debug_logger.enabled:
+                            print(f"DEBUG WIDGET FAILURE: Label update failed for '{session_name}' - still shows '{new_label}'")
                     else:
-                        print(f"DEBUG WIDGET SUCCESS: Label updated successfully for '{session_name}'")
+                        if self.debug_logger and self.debug_logger.enabled:
+                            print(f"DEBUG WIDGET SUCCESS: Label updated successfully for '{session_name}'")
                 
                 # Reset selection state - will be properly set during widget creation
                 style_context = button.get_style_context()
@@ -510,12 +515,14 @@ class BrowsePanelWidget(Box):
                     style_context.remove_class("selected")
                     
             except (AttributeError, RuntimeError) as e:
-                print(f"DEBUG WIDGET EXCEPTION: Button for '{session_name}' threw exception: {e}")
+                if self.debug_logger and self.debug_logger.enabled:
+                    print(f"DEBUG WIDGET EXCEPTION: Button for '{session_name}' threw exception: {e}")
                 invalid_sessions.append(session_name)
                 
         # Remove invalid widgets
         for session_name in invalid_sessions:
-            print(f"DEBUG WIDGET CLEANUP: Removing invalid button for '{session_name}'")
+            if self.debug_logger and self.debug_logger.enabled:
+                print(f"DEBUG WIDGET CLEANUP: Removing invalid button for '{session_name}'")
             del self.session_button_pool[session_name]
             if self.debug_logger:
                 self.debug_logger.debug_widget_pool_maintenance(
@@ -527,7 +534,8 @@ class BrowsePanelWidget(Box):
         """Prepare pooled widgets for container transitions by clearing stale state"""
         pool_size = len(self.session_button_pool)
         
-        print(f"DEBUG GTK FIX: Preparing {pool_size} pooled widgets for container transition")
+        if self.debug_logger and self.debug_logger.enabled:
+            print(f"DEBUG GTK FIX: Preparing {pool_size} pooled widgets for container transition")
         
         # GTK3 widget state refresh approach: prepare widgets for container transitions
         # This preserves widget pooling performance while fixing rendering corruption
@@ -536,7 +544,8 @@ class BrowsePanelWidget(Box):
             try:
                 # Check if widget is in a valid state for reuse
                 current_parent = button.get_parent()
-                print(f"DEBUG GTK FIX: Widget '{session_name}' parent: {current_parent}")
+                if self.debug_logger and self.debug_logger.enabled:
+                    print(f"DEBUG GTK FIX: Widget '{session_name}' parent: {current_parent}")
                 
                 # Clear any visual state that might be corrupted
                 # This forces a fresh rendering when the widget gets a new parent
@@ -547,13 +556,16 @@ class BrowsePanelWidget(Box):
                 if hasattr(button, 'set_sensitive'):
                     button.set_sensitive(True)
                     
-                print(f"DEBUG GTK FIX: Prepared widget '{session_name}' for reuse")
+                if self.debug_logger and self.debug_logger.enabled:
+                    print(f"DEBUG GTK FIX: Prepared widget '{session_name}' for reuse")
                     
             except Exception as e:
-                print(f"DEBUG GTK FIX: Error preparing widget '{session_name}': {e}")
+                if self.debug_logger and self.debug_logger.enabled:
+                    print(f"DEBUG GTK FIX: Error preparing widget '{session_name}': {e}")
         
         
-        print(f"DEBUG GTK FIX: Widget pool preparation complete")
+        if self.debug_logger and self.debug_logger.enabled:
+            print(f"DEBUG GTK FIX: Widget pool preparation complete")
         
         if self.debug_logger:
             self.debug_logger.debug_widget_pool_maintenance(
@@ -570,7 +582,8 @@ class BrowsePanelWidget(Box):
             
             # Ensure widget is visible (basic requirement)
             if not button.get_visible():
-                print(f"DEBUG GTK FIX: Widget '{session_name}' not visible, making visible")
+                if self.debug_logger and self.debug_logger.enabled:
+                    print(f"DEBUG GTK FIX: Widget '{session_name}' not visible, making visible")
                 button.set_visible(True)
             
             # Force a property refresh to clear any stale visual state
@@ -578,15 +591,18 @@ class BrowsePanelWidget(Box):
             if current_label:
                 button.set_label("")  # Clear
                 button.set_label(current_label)  # Restore - forces GTK refresh
-                print(f"DEBUG GTK FIX: Refreshed label for widget '{session_name}'")
+                if self.debug_logger and self.debug_logger.enabled:
+                    print(f"DEBUG GTK FIX: Refreshed label for widget '{session_name}'")
             
             # Queue a redraw to ensure fresh rendering
             button.queue_draw()
                 
-            print(f"DEBUG GTK FIX: Widget '{session_name}' ready for reuse")
+            if self.debug_logger and self.debug_logger.enabled:
+                print(f"DEBUG GTK FIX: Widget '{session_name}' ready for reuse")
                 
         except Exception as e:
-            print(f"DEBUG GTK FIX: Error preparing widget '{session_name}' for reuse: {e}")
+            if self.debug_logger and self.debug_logger.enabled:
+                print(f"DEBUG GTK FIX: Error preparing widget '{session_name}' for reuse: {e}")
             # Widget error handled gracefully by GTK3 refresh approach
 
     def _create_sessions_widget_list(self):
@@ -936,28 +952,33 @@ class BrowsePanelWidget(Box):
         active_count = len(self.active_session_buttons)
         total_sessions = len(self.all_session_names)
         
-        print(f"DEBUG Widget Pool: {pool_size} pooled, {active_count} active, {total_sessions} total sessions")
+        if self.debug_logger and self.debug_logger.verbose_mode:
+            print(f"DEBUG Widget Pool: {pool_size} pooled, {active_count} active, {total_sessions} total sessions")
         
         # Track comprehensive performance (Phase 2+3)
         if hasattr(self, '_widget_creation_count'):
             total_requests = self._widget_creation_count + self._widget_reuse_count
             if total_requests > 0:
                 reuse_rate = (self._widget_reuse_count / total_requests) * 100
-                print(f"DEBUG Widget Performance: {self._widget_creation_count} created, {self._widget_reuse_count} reused ({reuse_rate:.1f}% reuse rate)")
+                if self.debug_logger and self.debug_logger.verbose_mode:
+                    print(f"DEBUG Widget Performance: {self._widget_creation_count} created, {self._widget_reuse_count} reused ({reuse_rate:.1f}% reuse rate)")
                 
                 # Phase 3: Property update efficiency
                 if hasattr(self, '_property_update_count'):
                     total_property_checks = self._property_update_count + self._property_skip_count
                     if total_property_checks > 0:
                         skip_rate = (self._property_skip_count / total_property_checks) * 100
-                        print(f"DEBUG Property Updates: {self._property_update_count} changes, {self._property_skip_count} skipped ({skip_rate:.1f}% efficiency)")
+                        if self.debug_logger and self.debug_logger.verbose_mode:
+                            print(f"DEBUG Property Updates: {self._property_update_count} changes, {self._property_skip_count} skipped ({skip_rate:.1f}% efficiency)")
             else:
-                print(f"DEBUG Widget Performance: No widget requests this update")
+                if self.debug_logger and self.debug_logger.verbose_mode:
+                    print(f"DEBUG Widget Performance: No widget requests this update")
         
         # Verify pool integrity
         for session_name, button in self.session_button_pool.items():
             if not button or not hasattr(button, 'get_label'):
-                print(f"WARNING: Invalid button in pool for session '{session_name}'")
+                if self.debug_logger and self.debug_logger.verbose_mode:
+                    print(f"WARNING: Invalid button in pool for session '{session_name}'")
         
         return {
             'pool_size': pool_size,
@@ -968,12 +989,14 @@ class BrowsePanelWidget(Box):
     def enable_widget_pool_debug(self):
         """Enable widget pool debugging for testing (Phase 1)"""
         self.DEBUG_ENABLED = True
-        print("DEBUG: Widget pool debugging enabled")
+        if self.debug_logger and self.debug_logger.enabled:
+            print("DEBUG: Widget pool debugging enabled")
     
     def disable_widget_pool_debug(self):
         """Disable widget pool debugging (Phase 1)"""
         self.DEBUG_ENABLED = False
-        print("DEBUG: Widget pool debugging disabled")
+        if self.debug_logger and self.debug_logger.enabled:
+            print("DEBUG: Widget pool debugging disabled")
     
     def _update_button_selection(self, button, is_selected):
         """Update button selection state efficiently (Phase 3: Enhanced)"""
@@ -1055,7 +1078,8 @@ class BrowsePanelWidget(Box):
             except (AttributeError, RuntimeError):
                 # Widget has been destroyed or is invalid
                 invalid_widgets.append(session_name)
-                print(f"DEBUG: Found invalid widget for session '{session_name}', will remove")
+                if self.debug_logger and self.debug_logger.verbose_mode:
+                    print(f"DEBUG: Found invalid widget for session '{session_name}', will remove")
         
         # Remove invalid widgets from pool
         for session_name in invalid_widgets:
@@ -1085,7 +1109,8 @@ class BrowsePanelWidget(Box):
             removed_count += 1
         
         if removed_count > 0:
-            print(f"DEBUG: Optimized widget pool, removed {removed_count} obsolete widgets")
+            if self.debug_logger and self.debug_logger.verbose_mode:
+                print(f"DEBUG: Optimized widget pool, removed {removed_count} obsolete widgets")
         
         return removed_count
 
@@ -1203,7 +1228,8 @@ class BrowsePanelWidget(Box):
             self.set_state(DELETE_CONFIRM_STATE)
             return True
         else:
-            print("DEBUG: No session selected for Ctrl+D delete operation")
+            if self.debug_logger and self.debug_logger.enabled:
+                print("DEBUG: No session selected for Ctrl+D delete operation")
             return True
 
     def _handle_ctrl_l_clear_search(self, event):
