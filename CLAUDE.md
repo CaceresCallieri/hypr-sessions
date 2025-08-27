@@ -197,61 +197,18 @@ KEYCODE_DOWN_ARROW: Final[int] = 116
 from constants import KEYCODE_ENTER, KEYCODE_ESCAPE
 ```
 
-## Recent Development (2025-08-17)
+## Recent Development (2025-08-26)
 
-### Enter Key Enhancement Implementation
+### Persistent Search Architecture Implementation
 
-- **State-Aware Trigger**: Enter key triggers save only in "input" state, preventing accidental saves
-- **DRY Principle**: Extracted `_trigger_save_operation()` method for unified save logic
-- **Consistent Validation**: Same validation, error handling, and state management for both triggers
-- **User Experience**: Natural keyboard workflow eliminates mouse dependency
+- **Problem Solved**: Fixed search text preservation during state transitions (restore/delete confirmations)
+- **Architecture**: Separated persistent search input from dynamic content area to prevent widget destruction
+- **Technical Approach**: `_create_persistent_structure()` creates stable widget hierarchy with search input always preserved
+- **Quick Fix Applied**: Fixed broken session list by correcting container search logic in `_update_session_list_only()`
 
-### Constants Refactoring Achievement
+**Code Review Assessment (Grade: C+)**: Working solution but introduces architectural complexity. Dual update paths (`_update_dynamic_content()` vs `_update_session_list_only()`) create maintainability concerns. Marked for future refactoring to simpler approach.
 
-- **Centralized Management**: Created `fabric-ui/constants.py` with comprehensive type hints
-- **Type Safety**: `Final[int]` annotations prevent accidental constant modification
-- **Import Safety**: Enhanced path handling prevents duplicate path additions
-- **IDE Integration**: Better auto-completion, error detection, and code navigation
-- **Maintainability**: Single source of truth for all UI constants
-
-### Complete Delete Functionality Implementation
-
-- **Full Delete Workflow**: 'd' key → confirmation → async backend operation → success/error states
-- **State-Based Architecture**: Five states ("browsing", "delete_confirm", "deleting", "delete_success", "delete_error")
-- **Async Backend Integration**: Threading with BackendClient.delete_session(), timeout protection, session list refresh
-- **Professional UX**: Progress indicators, auto-return timers, retry mechanisms, comprehensive error handling
-- **Consistent Styling**: Catppuccin theme integration matching SavePanelWidget patterns
-
-### Scroll Wheel Navigation Implementation
-
-- **GTK Event Integration**: Proper scroll-event handling with SCROLL_MASK and SMOOTH_SCROLL_MASK event masks
-- **Natural Navigation**: Scroll up moves down in list (select_next), scroll down moves up in list (select_previous)
-- **Smooth Scrolling Support**: Handles both discrete wheel clicks and smooth trackpad scrolling via delta detection
-- **State-Aware Operation**: Only active in browse mode during "browsing" state, disabled during delete confirmation
-- **Clean Architecture**: Helper methods \_get_scroll_direction() and \_can_handle_scroll() for maintainability
-
-### GTK Layer Shell Focus Management Implementation (2025-08-20)
-
-- **Problem Resolution**: Fixed keyboard focus loss in Hyprland compositor where layer UI becomes unresponsive to keyboard input
-- **Solution Approach**: Implemented exclusive keyboard mode using GTK Layer Shell protocol (Solution 1 from focus guide)
-- **Technical Implementation**: Added `GtkLayerShell.set_keyboard_mode(window, GtkLayerShell.KeyboardMode.EXCLUSIVE)`
-- **Reliability**: Prevents focus loss at compositor level - most reliable solution for application launcher use case
-- **Graceful Handling**: Error handling ensures application continues with default behavior if layer shell unavailable
-- **Debug Output**: Added logging to confirm successful focus management configuration
-
-```python
-def _configure_layer_shell_focus(self):
-    """Configure layer shell properties for reliable keyboard focus management"""
-    try:
-        if not GtkLayerShell.is_layer_window(self):
-            GtkLayerShell.init_for_window(self)
-
-        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
-        print("DEBUG: Configured layer shell with exclusive keyboard mode")
-
-    except Exception as e:
-        print(f"Warning: Failed to configure layer shell focus management: {e}")
-```
+**Current Status**: Both search text preservation and session list functionality working correctly. Temporary solution pending architectural simplification.
 
 ## Browser Integration Evolution
 
