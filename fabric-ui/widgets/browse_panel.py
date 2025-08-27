@@ -42,6 +42,15 @@ from .operations import DeleteOperation, RestoreOperation
 class BrowsePanelWidget(Box):
     """Panel widget for browsing and selecting sessions"""
 
+    # UI Configuration Constants
+    VISIBLE_WINDOW_SIZE = 5  # Number of sessions visible at once
+    ARROW_UP = "\uf077"  # Nerd Font chevron up
+    ARROW_DOWN = "\uf078"  # Nerd Font chevron down
+    
+    # Widget Pool Configuration
+    WIDGET_POOL_MAINTENANCE_THRESHOLD = 20  # Trigger optimization when pool gets large
+    WIDGET_POOL_MAX_SIZE = 15  # Maximum widgets to keep in pool
+
     def __init__(self, session_utils, on_session_clicked=None):
         super().__init__(orientation="vertical", spacing=10, name="browse-panel")
 
@@ -67,48 +76,30 @@ class BrowsePanelWidget(Box):
         self.delete_operation = DeleteOperation(self, self.backend_client)
         self.restore_operation = RestoreOperation(self, self.backend_client)
 
-        # Selection state management
+        # Simplified state management - single source of truth
         self.all_session_names = []  # Complete list of all sessions
         self.filtered_sessions = []  # Filtered session names based on search
-        self.session_buttons = []  # List of currently visible session button widgets
         self.selected_session_name = None  # Single source of truth for selection
         
-        # Widget pool for performance optimization
-        self.session_button_pool = {}  # session_name -> Button widget mapping
-        self.active_session_buttons = []  # Currently visible button widgets
-        
-        # Performance tracking (Phase 2 + 3)
-        self._widget_creation_count = 0  # Count of new widgets created per update
-        self._widget_reuse_count = 0     # Count of widgets reused per update
-        self._property_update_count = 0  # Count of actual property changes (Phase 3)
-        self._property_skip_count = 0    # Count of skipped updates (Phase 3)
-
-        # Search functionality
-        self.search_input = None  # GTK Entry widget for search
-        self.search_query = ""  # Current search text
-
-        # Scrollable window management
-        self.VISIBLE_WINDOW_SIZE = (
-            5  # Maximum sessions to display at once (configurable)
-        )
-        self.visible_start_index = (
-            0  # First visible session index for scrolling display
-        )
-
-        # Scroll indicator symbols (Nerd Font triangles)
-        self.ARROW_UP = "\uf077"  # nf-fa-chevron_down
-        self.ARROW_DOWN = "\uf078"  # nf-fa-chevron_up
-
-        # Widget pool configuration constants
-        self.WIDGET_POOL_MAINTENANCE_THRESHOLD = 20
-        self.WIDGET_POOL_MAX_SIZE = 50
-        self.DEBUG_ENABLED = False  # Set to True for widget pool debugging
+        # Search functionality with explicit state preservation
+        self.search_input = None  # Current GTK Entry widget for search
+        self.search_query = ""  # Current search text (explicit state storage)
+        self.search_cursor_position = 0  # Cursor position for perfect state restoration
 
         # Panel state management
         self.state = BROWSING_STATE  # Browse panel state management using constants
+        
+        # Widget pooling system for performance
+        self.session_button_pool = {}  # Pool of reusable session button widgets
+        self.session_buttons = []  # Currently active session buttons
+        self.active_session_buttons = []  # Currently active buttons for pool management
+        self.visible_start_index = 0  # Starting index of visible window
+        
+        # Debug control for widget pool
+        self.DEBUG_ENABLED = True  # Enable widget pool debug output
 
-        # Create persistent panel structure
-        self._create_persistent_structure()
+        # Initialize with single update path
+        self.update_display()
 
     def _is_ui_navigation_key(self, keyval):
         """Check if keyval represents a UI navigation key using GTK constants"""
@@ -161,71 +152,97 @@ class BrowsePanelWidget(Box):
             )
         return True
 
-    def _create_persistent_structure(self):
-        """Create the persistent panel structure with search input and dynamic content area"""
-        # Create persistent search input (never destroyed)
-        self.search_input = self._create_search_input()
+    def update_display(self):
+        """Single update method handles ALL UI updates - no dual paths"""
+        # Store search state before rebuilding (if search input exists)
+        if hasattr(self, 'search_input') and self.search_input:
+            self.search_cursor_position = self.search_input.get_position()
         
-        # Create dynamic content container (changes with state)
-        from fabric.widgets.box import Box
-        self.dynamic_content_area = Box(
-            orientation="vertical",
-            spacing=10,
-            name="dynamic-content-area"
-        )
-        
-        # Set up persistent panel structure
-        self.children = [self.search_input, self.dynamic_content_area]
-        
-        # Initialize with browsing content
-        self._update_dynamic_content()
-        
-        # Show all content
-        self.show_all()
-
-    def _update_dynamic_content(self):
-        """Update only the dynamic content area based on current state"""
-        # Update only the dynamic content area, not the entire panel
+        # Create content based on current state
         if self.state == BROWSING_STATE:
-            self.dynamic_content_area.children = self._create_browsing_content()
+            content = self._create_browsing_content()
         elif self.state == DELETE_CONFIRM_STATE:
-            self.dynamic_content_area.children = self.delete_operation.create_confirmation_ui()
+            content = self.delete_operation.create_confirmation_ui()
         elif self.state == DELETING_STATE:
-            self.dynamic_content_area.children = self.delete_operation.create_progress_ui()
+            content = self.delete_operation.create_progress_ui()
         elif self.state == DELETE_SUCCESS_STATE:
-            self.dynamic_content_area.children = self.delete_operation.create_success_ui()
+            content = self.delete_operation.create_success_ui()
         elif self.state == DELETE_ERROR_STATE:
-            self.dynamic_content_area.children = self.delete_operation.create_error_ui()
+            content = self.delete_operation.create_error_ui()
         elif self.state == RESTORE_CONFIRM_STATE:
-            self.dynamic_content_area.children = self.restore_operation.create_confirmation_ui()
+            content = self.restore_operation.create_confirmation_ui()
         elif self.state == RESTORING_STATE:
-            self.dynamic_content_area.children = self.restore_operation.create_progress_ui()
+            content = self.restore_operation.create_progress_ui()
         elif self.state == RESTORE_SUCCESS_STATE:
-            self.dynamic_content_area.children = self.restore_operation.create_success_ui()
+            content = self.restore_operation.create_success_ui()
         elif self.state == RESTORE_ERROR_STATE:
-            self.dynamic_content_area.children = self.restore_operation.create_error_ui()
+            content = self.restore_operation.create_error_ui()
         else:
             print(f"ERROR: Unknown browse panel state: {self.state}")
+            content = [Label(text="Error: Unknown state", name="error-label")]
         
-        # Show all content
-        self.dynamic_content_area.show_all()
+        # Replace all content with new widgets
+        self.children = content
+        self.show_all()
+        
+        # Restore search input focus and cursor position (browsing state only)
+        if self.state == BROWSING_STATE and hasattr(self, 'search_input') and self.search_input:
+            self.search_input.grab_focus()
+            self.search_input.set_position(self.search_cursor_position)
+
 
     def _create_browsing_content(self):
-        """Create the browsing content (without search input which is now persistent)"""
-        # Get and create session buttons first
-        sessions_container = self._create_sessions_list()
+        """Create complete browsing content with search input and session list"""
+        # Create search input with preserved state
+        self.search_input = Entry(
+            text=self.search_query,  # Explicit state restoration
+            placeholder_text="🔍 Search sessions...",
+            name="session-search-input"
+        )
+        self.search_input.connect("changed", self._on_search_changed)
+        self.search_input.set_can_focus(True)
+        
+        # Create session buttons without complex pooling
+        sessions_container = self._create_sessions_container()
 
         # Sessions list section header with filtered/total count
+        sessions_header = self._create_sessions_header()
+
+        # Create keyboard shortcuts hint
+        shortcuts_hint = self._create_shortcuts_hint()
+
+        return [self.search_input, sessions_header, sessions_container, shortcuts_hint]
+    
+    def _create_sessions_container(self):
+        """Create session buttons container with simple widget creation"""
+        # Update session data
+        self._refresh_session_data()
+        
+        # Use shared widget creation method
+        session_widgets = self._create_session_widgets()
+        
+        return Box(
+            orientation="vertical",
+            spacing=5,
+            name="sessions-container",
+            children=session_widgets
+        )
+    
+    def _create_sessions_header(self):
+        """Create sessions header with count information"""
         total_sessions = len(self.all_session_names)
         filtered_count = len(self.filtered_sessions)
         if self.search_query:
             header_text = f"Available Sessions ({filtered_count}/{total_sessions}):"
         else:
             header_text = f"Available Sessions ({total_sessions}):"
+        
         sessions_header = Label(text=header_text, name="sessions-header")
         sessions_header.set_markup(f"<span weight='bold'>{header_text}</span>")
-
-        # Create keyboard shortcuts hint
+        return sessions_header
+    
+    def _create_shortcuts_hint(self):
+        """Create keyboard shortcuts hint label"""
         shortcuts_hint = Label(
             text="↑↓ Navigate • Enter Restore • Ctrl+D Delete",
             name="keyboard-shortcuts-hint"
@@ -233,28 +250,23 @@ class BrowsePanelWidget(Box):
         shortcuts_hint.set_markup(
             "<span size='small' style='italic'>↑↓ Navigate • Enter Restore • Ctrl+D Delete</span>"
         )
+        return shortcuts_hint
+    
+    def _refresh_session_data(self):
+        """Refresh session data and update filtered sessions"""
+        # Get current session data
+        self.all_session_names = self.session_utils.get_available_sessions()
+        
+        # Update filtered sessions
+        self._update_filtered_sessions()
+        
+        # Set initial selection if needed
+        if self.filtered_sessions and not self.selected_session_name:
+            self.selected_session_name = self.filtered_sessions[0]
 
-        return [sessions_header, sessions_container, shortcuts_hint]
-
-    def _create_search_input(self):
-        """Create the persistent search input widget (called only once)"""
-        # Create search input widget once - it will persist across all state changes
-        search_input = Entry(
-            text=self.search_query,  # Use current search query
-            placeholder_text="🔍 Search sessions...",
-            name="session-search-input",
-        )
-        
-        # Connect search input change event
-        search_input.connect("changed", self._on_search_changed)
-        
-        # Ensure search input can receive focus
-        search_input.set_can_focus(True)
-        
-        return search_input
 
     def _on_search_changed(self, entry):
-        """Handle search input text changes"""
+        """Handle search input text changes - optimized for typing"""
         import time
         start_time = time.time()
         
@@ -262,7 +274,9 @@ class BrowsePanelWidget(Box):
         
         self.search_query = new_text
         self._update_filtered_sessions()
-        self._update_session_list_only()
+        
+        # Only update the session list, not the entire UI (preserves search input)
+        self._update_sessions_only()
         
         # Log search operation performance
         timing_ms = (time.time() - start_time) * 1000
@@ -270,6 +284,70 @@ class BrowsePanelWidget(Box):
             self.debug_logger.debug_search_operation(
                 "filter_update", self.search_query, len(self.filtered_sessions), timing_ms
             )
+    
+    def _update_sessions_only(self):
+        """Update only session list and header without recreating search input"""
+        if self.state != BROWSING_STATE:
+            # For non-browsing states, do full update
+            self.update_display()
+            return
+            
+        # Find and update existing widgets in current children
+        current_children = list(self.children)
+        if len(current_children) >= 4:  # [search_input, header, sessions_container, shortcuts]
+            # Update the header (index 1)
+            header = current_children[1]
+            total_sessions = len(self.all_session_names)
+            filtered_count = len(self.filtered_sessions)
+            if self.search_query:
+                header_text = f"Available Sessions ({filtered_count}/{total_sessions}):"
+            else:
+                header_text = f"Available Sessions ({total_sessions}):"
+            header.set_markup(f"<span weight='bold'>{header_text}</span>")
+            
+            # Update the sessions container (index 2)
+            sessions_container = current_children[2]
+            new_session_widgets = self._create_session_widgets()
+            sessions_container.children = new_session_widgets
+            
+            # Show updated content
+            self.show_all()
+        else:
+            # Fallback to full update if structure is unexpected
+            self.update_display()
+    
+    def _create_session_widgets(self):
+        """Create session button widgets list"""
+        session_widgets = []
+        
+        # Get visible sessions using windowed approach
+        visible_sessions = self.get_visible_sessions()
+        
+        # Add scroll indicator for sessions above (if any)
+        if self.has_sessions_above():
+            more_above = self._create_scroll_indicator(self.ARROW_UP, True)
+            session_widgets.append(more_above)
+        
+        for session_name in visible_sessions:
+            button = Button(
+                label=f"• {session_name}",
+                name="session-button",
+                on_clicked=lambda *_, name=session_name: self._handle_session_clicked(name)
+            )
+            button.set_can_focus(False)  # Preserve dual focus behavior
+            
+            # Simple selection styling
+            if session_name == self.selected_session_name:
+                button.get_style_context().add_class("selected")
+            
+            session_widgets.append(button)
+        
+        # Add scroll indicator for sessions below (if any)
+        if self.has_sessions_below():
+            more_below = self._create_scroll_indicator(self.ARROW_DOWN, True)
+            session_widgets.append(more_below)
+        
+        return session_widgets
 
     def _update_filtered_sessions(self):
         """Update filtered sessions based on current search query"""
@@ -308,12 +386,11 @@ class BrowsePanelWidget(Box):
             self.selected_session_name = None
 
     def clear_search(self):
-        """Clear the search input (maintains permanent focus)"""
-        if self.search_input:
-            self.search_input.set_text("")
-            self.search_query = ""
-            self._update_filtered_sessions()
-            self._update_session_list_only()
+        """Clear the search input and refresh display"""
+        self.search_query = ""
+        self.search_cursor_position = 0
+        self._update_filtered_sessions()
+        self.update_display()  # Single update path!
 
     def _create_sessions_list(self):
         """Create the sessions list container using shared widget creation logic"""
@@ -634,7 +711,6 @@ class BrowsePanelWidget(Box):
         )
 
         # Note: selected_local_index no longer needed with name-based selection
-
         return self._get_visible_indices_range(total_filtered)
 
     def get_visible_sessions(self):
@@ -662,7 +738,7 @@ class BrowsePanelWidget(Box):
 
     def refresh(self):
         """Refresh the sessions list"""
-        self._update_dynamic_content()
+        self.update_display()  # Single update path!
 
     def select_next(self):
         """Select the next session with intelligent scrolling"""
@@ -683,11 +759,8 @@ class BrowsePanelWidget(Box):
                 {"current_idx": current_idx, "next_idx": next_idx, "wraparound": next_idx == 0}
             )
 
-        # Refresh display to show new selection and handle scrolling
-        self._update_session_list_only()
-
-        # Ensure search input maintains focus after navigation
-        self._ensure_search_focus()
+        # Refresh display to show new selection - single update path!
+        self.update_display()
 
     def select_previous(self):
         """Select the previous session with intelligent scrolling"""
@@ -708,11 +781,8 @@ class BrowsePanelWidget(Box):
                 {"current_idx": current_idx, "prev_idx": prev_idx, "wraparound": prev_idx == len(self.filtered_sessions) - 1}
             )
 
-        # Refresh display to show new selection and handle scrolling
-        self._update_session_list_only()
-        
-        # Ensure search input maintains focus after navigation
-        self._ensure_search_focus()
+        # Refresh display to show new selection - single update path!
+        self.update_display()
 
     def _ensure_search_focus(self):
         """Ensure search input maintains focus for continuous typing"""
@@ -730,10 +800,6 @@ class BrowsePanelWidget(Box):
                     {"trigger": "ensure_search_focus", "error": str(e)}
                 )
 
-    def update_display(self):
-        """Update the display to show current selection and scroll position"""
-        # Recalculate visible window and refresh content
-        self._update_dynamic_content()
 
     def _update_session_list_only(self):
         """Update only the session list while preserving persistent widgets like search input"""
@@ -971,13 +1037,8 @@ class BrowsePanelWidget(Box):
                     "browse_panel", old_state, new_state, "set_state"
                 )
             
-            # Fix: Preserve widget references during state transitions to prevent GTK rendering corruption
-            # Root cause: GTK loses rendering state when widgets move between container hierarchies
-            if new_state == BROWSING_STATE and old_state in [RESTORE_CONFIRM_STATE, DELETE_CONFIRM_STATE]:
-                self._prepare_widget_pool_for_reparenting()
-                
-            self._update_dynamic_content()
-            self.show_all()
+            # Use single update path for all state transitions
+            self.update_display()
             
             # Restore search focus when returning to browsing state from confirmations
             if new_state == BROWSING_STATE and old_state in [RESTORE_CONFIRM_STATE, DELETE_CONFIRM_STATE]:
