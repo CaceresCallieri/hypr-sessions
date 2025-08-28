@@ -2,15 +2,11 @@
 Restore operation implementation for browse panel
 """
 
-import sys
-from pathlib import Path
 from typing import Dict, Any
 from .base_operation import BaseOperation
 
-# Add grandparent directory to path for clean imports
-grandparent_dir = str(Path(__file__).parent.parent.parent)
-if grandparent_dir not in sys.path:
-    sys.path.append(grandparent_dir)
+# Centralized path setup for imports
+from utils.path_setup import setup_fabric_ui_imports
 
 from constants import RESTORING_STATE
 

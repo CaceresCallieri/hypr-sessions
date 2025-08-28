@@ -5,19 +5,14 @@ Streamlined version using modular component architecture.
 Reduced from 1260 lines to ~400 lines through component extraction.
 """
 
-import sys
-from pathlib import Path
-
 import gi
 from fabric.widgets.box import Box
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk
 
-# Add parent directory to path for clean imports
-parent_dir = str(Path(__file__).parent.parent)
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+# Centralized path setup for imports
+from utils.path_setup import setup_fabric_ui_imports
 
 # Import constants and backend client
 from constants import (

@@ -3,10 +3,8 @@ Save Panel Widget for Hypr Sessions Manager
 """
 
 # Import for backend integration
-import sys
 import threading
 import time
-from pathlib import Path
 
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
@@ -17,10 +15,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-# Add parent directory to path for clean imports
-parent_dir = str(Path(__file__).parent.parent)
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+# Centralized path setup for imports
+from utils.path_setup import setup_fabric_ui_imports
 
 from utils import BackendClient, BackendError
 from constants import KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q

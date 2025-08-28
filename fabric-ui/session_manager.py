@@ -3,7 +3,6 @@
 Hypr Sessions Manager - Fabric Layer Widget
 """
 
-import sys
 from pathlib import Path
 
 import gi
@@ -16,8 +15,8 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gdk, Gtk, GtkLayerShell, GLib
 
-# Add parent directory to path to import session utilities
-sys.path.append(str(Path(__file__).parent.parent))
+# Centralized path setup for imports
+from utils.path_setup import setup_fabric_ui_imports
 
 from constants import (
     BROWSING_STATE,

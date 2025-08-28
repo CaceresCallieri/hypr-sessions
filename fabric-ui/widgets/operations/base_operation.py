@@ -13,15 +13,10 @@ from fabric.widgets.button import Button
 from fabric.widgets.label import Label
 
 gi.require_version("Gtk", "3.0")
-import sys
-from pathlib import Path
-
 from gi.repository import GLib
 
-# Add grandparent directory to path for clean imports
-grandparent_dir = str(Path(__file__).parent.parent.parent)
-if grandparent_dir not in sys.path:
-    sys.path.append(grandparent_dir)
+# Centralized path setup for imports  
+from utils.path_setup import setup_fabric_ui_imports
 
 from constants import BROWSING_STATE
 

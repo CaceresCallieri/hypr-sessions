@@ -2,6 +2,9 @@
 Utilities package for Hypr Sessions Manager
 """
 
+# Centralized path setup - must be imported first
+from .path_setup import setup_fabric_ui_imports
+
 from .session_utils import SessionUtils
 from .backend_client import BackendClient, BackendError
 from .debug_logger import initialize_debug_logger, get_debug_logger
