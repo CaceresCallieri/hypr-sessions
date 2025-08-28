@@ -31,12 +31,13 @@ class SavePanelWidget(Box):
     MIN_DISPLAY_TIME = 0.5  # seconds (minimum saving state visibility)
     SUCCESS_AUTO_RETURN_DELAY = 2  # seconds (auto-return from success)
 
-    def __init__(self, on_save_success=None, on_save_error=None):
+    def __init__(self, on_save_success=None, on_save_error=None, debug_logger=None):
         super().__init__(orientation="vertical", spacing=15, name="save-panel")
 
         # Updated callback system
         self.on_save_success = on_save_success
         self.on_save_error = on_save_error
+        self.debug_logger = debug_logger
 
         # Backend client
         try:
@@ -327,28 +328,74 @@ class SavePanelWidget(Box):
             True if event was handled, False to continue propagation
         """
         keyval = event.keyval
+        modifiers = event.state
+        
+        # Enhanced debug logging with human-readable keys
+        if self.debug_logger:
+            key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
+            self.debug_logger.debug_event_flow(
+                key_name, "SavePanelWidget", "handle_key_press_event", "save_panel_key_handling",
+                {"state": self.state, "keyval": keyval}
+            )
         
         # Enter key handling - trigger save when in input state
         if keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter]:
             if self.state == "input":
+                if self.debug_logger:
+                    key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
+                    session_name = self.get_session_name()
+                    self.debug_logger.debug_action_outcome(
+                        key_name, "save_operation_triggered", 
+                        {"session": session_name, "state": f"{self.state}→saving"}
+                    )
+                    self.debug_logger.debug_event_flow(
+                        key_name, "SavePanelWidget", "_trigger_save_operation", 
+                        f"saving_session_{session_name}"
+                    )
+                
                 # Trigger the same save logic as button click
                 self._trigger_save_operation()
                 return True
         
         # Escape or Q key handling based on current state
         elif keyval == Gdk.KEY_Escape or keyval == Gdk.KEY_q:
+            if self.debug_logger:
+                key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
+                
             if self.state == "saving":
                 # Cancel save operation
+                if self.debug_logger:
+                    self.debug_logger.debug_action_outcome(
+                        key_name, "save_operation_cancelled", 
+                        {"state": f"{self.state}→input", "session": self.saving_session_name}
+                    )
+                    self.debug_logger.debug_event_flow(
+                        key_name, "SavePanelWidget", "handle_key_press_event", 
+                        "cancel_save_operation"
+                    )
+                
                 print("Cancelling save operation...")
                 self.save_in_progress = False
                 self.set_state("input")
                 return True
             elif self.state == "error":
                 # Return to input from error state
+                if self.debug_logger:
+                    self.debug_logger.debug_action_outcome(
+                        key_name, "error_state_dismissed", 
+                        {"state": f"{self.state}→input", "session": self.saving_session_name}
+                    )
+                
                 self.set_state("input")
                 return True
             elif self.state == "success":
                 # Skip auto-return timer and go directly to input
+                if self.debug_logger:
+                    self.debug_logger.debug_action_outcome(
+                        key_name, "success_state_dismissed", 
+                        {"state": f"{self.state}→input", "session": self.saving_session_name}
+                    )
+                
                 self.set_state("input")
                 self.clear_input()
                 return True

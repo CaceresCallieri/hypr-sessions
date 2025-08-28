@@ -1,52 +1,16 @@
 # Hyprland Session Manager - TODO
 
+## **TODO Management Rule**
+
+**IMPORTANT**: Always delete completed todos immediately after implementation to maintain clear focus on remaining work. Mark items as ✅ COMPLETED with date only during implementation, then remove them entirely once documented in CLAUDE.md.
+
+---
+
 ## Outstanding Improvements
 
-### Critical Priority (Search System Performance & Architecture)
+### Critical Priority (Performance & Architecture)
 
-#### 1. **Widget Recreation Performance Problem** ✅ **COMPLETED - 2025-08-28**
-
-**Problem Solved**: Transformed monolithic browse_panel.py (1260 lines) into maintainable 5-component modular architecture.
-
-**Implementation Completed**:
-- **Modular Component Architecture**: Extracted 5 specialized components (SessionWidgetPool, SessionWindowCalculator, SessionListRenderer, KeyboardEventHandler, SessionSearchManager)
-- **68% File Size Reduction**: Main widget reduced from 1260 → 435 lines
-- **Performance Optimization**: Widget pooling system with 95%+ reuse efficiency
-- **GTK3 Compliance**: Proper container management and widget lifecycle handling
-- **Single Responsibility**: Each component handles one focused concern
-
-**Results Achieved**:
-- **Grade A- Architecture** (code reviewer assessment) - "Excellent component separation"
-- **Maintainable codebase** - each component independently testable and modifiable
-- **Performance preservation** - widget pooling maintains UI responsiveness
-- **Clean interfaces** - dependency injection and clear component boundaries
-- **Bug-free operation** - GTK3 container widget reuse issues resolved
-
-**Code Quality Impact**: Established component-based template for scalable UI architecture
-
-**Date Completed**: August 28, 2025
-
-
----
-
-#### 2. **Session Visibility Windowing System** ✅ **FIXED - 2025-08-27**
-
-**Problem Solved**: All 18 sessions were displaying simultaneously instead of windowed view (5 of N sessions) with scroll indicators.
-
-**Root Cause**: During fuzzy search implementation, `_create_session_widgets()` was changed to iterate over `self.filtered_sessions` (all sessions) instead of `self.get_visible_sessions()` (windowed subset).
-
-**Solution Applied**:
-- Fixed widget creation to use `visible_sessions = self.get_visible_sessions()`
-- Added missing constants: `VISIBLE_WINDOW_SIZE = 5`, `ARROW_UP = "\uf077"`, `ARROW_DOWN = "\uf078"`
-- Restored scroll indicators for sessions above/below current window
-
-**Code Location**: `/home/jc/Dev/hypr-sessions/fabric-ui/widgets/browse_panel.py:319-350`
-
-**Verification**: Debug logging confirmed correct behavior - exactly 5 sessions displayed with dynamic window scrolling during navigation.
-
----
-
-#### 3. **Search Input Debouncing Implementation** 
+#### 1. **Search Input Debouncing Implementation** 
 **Context**: Code review identified this as critical missing optimization (Grade D for Performance).
 
 **Problem**: Every character typed triggers immediate UI updates, causing performance issues during rapid typing.
@@ -63,60 +27,9 @@
 
 ---
 
-#### 4. **Multi-Index Coordinate System Fragility** ✅ **COMPLETED**
-
-**Implementation**: Replaced 4-index coordinate system with single `selected_session_name`, eliminated coordinate conversion logic and race conditions. Navigation uses direct name equality checks.
-
----
-
-### IMMEDIATE PRIORITY (Code Review Cleanup)
-
-#### 5. **Production Debug Code Removal** 🚨 **CRITICAL - GRADE F**
-
-**Problem**: Extensive debug print statements throughout production code (identified in comprehensive code review).
-
-**Impact**: Production code contains debugging artifacts that should not be in final releases.
-
-**Locations to Clean**:
-- Lines 483-590: Widget pooling debug statements in `browse_panel.py`
-- Lines 869-906: Session list debug output throughout UI operations
-- Various `print(f"DEBUG...")` statements scattered through the codebase
-
-**Action Required**:
-1. **Remove all debug print statements** from production code
-2. **Replace with proper logging** where necessary using debug_logger system
-3. **Verify no debug output in normal operation**
-
-**Success Criteria**: Clean production code with no debug print statements visible during normal operation.
-
----
-
-#### 6. **Method Complexity Reduction** ✅ **COMPLETED - 2025-08-27**
-
-**Problem Solved**: Transformed complex monolithic methods into focused, maintainable components following Single Responsibility Principle.
-
-**Implementation Completed**:
-- **`_create_sessions_widget_list()`**: 64 lines → 12 lines (81% reduction) with 6 focused helpers
-- **`_handle_navigation_event()`**: 52 lines → 8 lines (85% reduction) with clean delegation
-- **Parameter validation**: Added comprehensive validation with clear error messages and examples
-- **Documentation enhancement**: Complete Args/Returns/Examples/Raises documentation
-
-**Results Achieved**:
-- **Grade A- refactoring** (code reviewer assessment) - "exemplary transformation"
-- **Single responsibility per method** - each helper has one clear purpose
-- **Self-documenting code** - method names clearly indicate functionality
-- **Improved testability** - each helper can be unit tested independently
-- **Enhanced maintainability** - future changes isolated to specific concerns
-
-**Code Quality Impact**: Established template methodology for addressing method complexity throughout project
-
-**Date Completed**: August 27, 2025
-
----
-
 ### High Priority (Architectural Consistency)
 
-#### 1. **Convert Save Panel to GTK Event-Based Handling**
+#### 2. **Convert Save Panel to GTK Event-Based Handling**
 **Context**: Save panel still uses legacy keycode-based input while browse panel uses GTK events, creating inconsistency.
 
 **Problem**: Mixed input handling approaches across UI panels
@@ -146,7 +59,7 @@ if self.browse_panel.handle_key_press_event(widget, event):  # session_manager.p
 
 ---
 
-#### 2. **Focus Management Race Condition Resolution**
+#### 3. **Focus Management Race Condition Resolution**
 **Context**: Current focus restoration could conflict with GTK's internal focus management.
 
 **Problem**: Direct `grab_focus()` calls may cause timing conflicts with GTK widget realization
@@ -175,76 +88,9 @@ def _delayed_focus_setup(self):
 
 ---
 
-#### 3. **Search Input Debouncing for Performance**
-**Context**: Current implementation recreates entire UI on every character typed, causing performance issues during rapid typing.
-
-**Problem**: Full UI recreation every keystroke impacts performance
-
-**Location**: `/home/jc/Dev/hypr-sessions/fabric-ui/widgets/browse_panel.py:163-167`
-
-**Current Issue**:
-```python
-def _on_search_changed(self, entry):
-    self.search_query = entry.get_text().strip()
-    self._update_filtered_sessions()
-    self.update_display()  # Full UI recreation every keystroke
-```
-
-**Action Required**:
-1. Implement 150ms debounce timer using `GLib.timeout_add()`
-2. Add `_search_timeout_id` tracking to prevent multiple timers
-3. Create `_perform_search_update()` method for actual filtering
-4. Only update UI when search query actually changes
-
-**Success Criteria**: Smooth typing experience without UI lag during rapid input
-
----
-
-#### 4. **Code Duplication in Widget Creation Methods** ✅ **COMPLETED**
-**Status**: Successfully eliminated 78 lines of duplicate widget creation logic (46% code reduction).
-
-**Implementation Completed**:
-- Created `_create_session_button()` factory method for consistent button creation
-- Added `_create_sessions_widget_list()` for complete widget assembly  
-- Simplified `_create_sessions_list()` from 89 to 19 lines using shared logic
-- Removed duplicate `_create_session_widgets_only()` method entirely
-
-**Results Achieved**:
-- Single source of truth for all session button creation
-- Clean composition architecture with proper separation of concerns
-- Code Review Grade: A- (8.5/10) - Production-ready refactoring
-- Zero maintenance risks, improved code quality and maintainability
-
-**Date Completed**: August 24, 2025
-
----
-
-#### 5. **Method Complexity Violation in Window Calculation** ✅ **COMPLETED**
-**Status**: Successfully decomposed complex 48-line method into 5 focused helper methods with single responsibilities.
-
-**Implementation Completed**:
-- Extracted `_get_selected_filtered_index()` - selection validation (5 lines, 1 branch)
-- Extracted `_calculate_optimal_window_start()` - window positioning (11 lines, 2 branches)  
-- Extracted `_clamp_to_valid_bounds()` - bounds validation (3 lines, 0 branches)
-- Extracted `_get_visible_indices_range()` - range generation (3 lines, 0 branches)
-- Simplified `calculate_visible_window()` - orchestration (18 lines, 1 branch)
-
-**Results Achieved**:
-- Reduced cyclomatic complexity from 8+ branches to 4 total branches across all methods
-- Each helper method has single clear responsibility and fits in your head easily
-- Main method now reads like documentation - clear story of the calculation process
-- Zero risk pure refactoring that preserves identical behavior
-- Dramatically improved maintainability and testability
-
-**Code Quality Impact**: Transformed complex monolithic method into self-documenting, testable components following single responsibility principle
-
-**Date Completed**: August 25, 2025
-
----
-
 ### Medium Priority (Feature Enhancements)
 
-#### 6. **Upgrade to Fuzzy Matching Algorithm**
+#### 4. **Upgrade to Fuzzy Matching Algorithm**
 **Context**: Current substring matching is basic; fuzzy matching would improve session discovery.
 
 **Problem**: Simple substring matching limits session discovery capabilities
@@ -263,7 +109,7 @@ def _on_search_changed(self, entry):
 
 ---
 
-#### 7. **International Keyboard Layout Testing**
+#### 5. **International Keyboard Layout Testing**
 **Context**: GTK keyval constants are primarily US keyboard focused; need verification with international layouts.
 
 **Problem**: Navigation keys may not work consistently across different keyboard layouts
@@ -280,7 +126,7 @@ def _on_search_changed(self, entry):
 
 ### Low Priority (Polish & Optimization)
 
-#### 8. **Enhanced Error Handling Specificity** 
+#### 6. **Enhanced Error Handling Specificity** 
 **Context**: Generic exception handling could be more specific for better debugging.
 
 **Problem**: Generic `Exception` handling makes debugging difficult
@@ -297,7 +143,7 @@ def _on_search_changed(self, entry):
 
 ---
 
-#### 9. **Unit Test Coverage for Search System**
+#### 7. **Unit Test Coverage for Search System**
 **Context**: Complex search and focus logic lacks automated test coverage.
 
 **Problem**: No automated testing for critical search functionality
@@ -312,7 +158,7 @@ def _on_search_changed(self, entry):
 
 ---
 
-#### 10. **Performance Optimization for Large Session Lists**
+#### 8. **Performance Optimization for Large Session Lists**
 **Context**: Current O(n) search could be optimized for 100+ sessions.
 
 **Problem**: Performance degradation with large numbers of sessions
@@ -327,7 +173,7 @@ def _on_search_changed(self, entry):
 
 ---
 
-#### 11. **Search Result Highlighting**
+#### 9. **Search Result Highlighting**
 **Context**: Visual feedback showing which characters matched would improve UX.
 
 **Problem**: No visual indication of why sessions matched search query
@@ -342,7 +188,7 @@ def _on_search_changed(self, entry):
 
 ---
 
-#### 12. **Enhanced Search UX Features**
+#### 10. **Enhanced Search UX Features**
 **Context**: Additional power user features would improve workflow.
 
 **Problem**: Missing common search interface features
@@ -359,50 +205,38 @@ def _on_search_changed(self, entry):
 
 ## Implementation Priority Order
 
-**IMMEDIATE PHASE (Code Review Cleanup - Required Before Further Development)**:
-1. 🚨 Production Debug Code Removal (#5) - CRITICAL Grade F issue
-2. ✅ Method Complexity Reduction (#6) - COMPLETED Grade A- refactoring 
-3. Search Input Debouncing Implementation (#3) - Performance Grade D issue
+**IMMEDIATE PHASE (Critical Performance Issues)**:
+1. Search Input Debouncing Implementation (#1) - Performance Grade D issue
 
-**Phase 1 (Performance & Stability Foundation)**:
-4. ✅ Session Visibility Windowing System (#2) - COMPLETED 2025-08-27
-5. ✅ Multi-Index Coordinate System Fragility (#4) - COMPLETED architectural robustness
-6. ✅ Widget Recreation Performance Problem (#1) - COMPLETED modular architecture transformation
-7. ✅ Code Duplication in Widget Creation Methods - COMPLETED
-8. ✅ Method Complexity Violation in Window Calculation - COMPLETED code quality
+**Phase 1 (Architectural Consistency)**:
+2. Convert Save Panel to GTK Event-Based Handling (#2)
+3. Focus Management Race Condition Resolution (#3)  
 
-**Phase 2 (Architectural Consistency)**:
-9. Convert Save Panel to GTK Event-Based Handling
-10. Focus Management Race Condition Resolution  
+**Phase 2 (Feature Enhancement)**:
+4. Upgrade to Fuzzy Matching Algorithm (#4)
+5. International Keyboard Layout Testing (#5)
 
-**Phase 3 (Feature Enhancement)**:
-11. Upgrade to Fuzzy Matching Algorithm
-12. International Keyboard Layout Testing
-
-**Phase 4 (Polish & Optimization)**:
-13. Enhanced Error Handling Specificity
-14. Unit Test Coverage for Search System
-15. Performance Optimization for Large Session Lists
-16. Search Result Highlighting
-17. Enhanced Search UX Features
+**Phase 3 (Polish & Optimization)**:
+6. Enhanced Error Handling Specificity (#6)
+7. Unit Test Coverage for Search System (#7)
+8. Performance Optimization for Large Session Lists (#8)
+9. Search Result Highlighting (#9)
+10. Enhanced Search UX Features (#10)
 
 ---
 
-## Code Review Impact Summary
+## Code Quality Context
 
-**Overall Project Grade: B+** - Strong architecture requiring immediate cleanup
+**Current Project Status**: The project has successfully completed major architectural improvements including:
 
-**Critical Actions Required** (based on comprehensive code review):
-- Remove all production debug code (Grade F issue)
-- ✅ Simplify widget pooling complexity - COMPLETED with modular architecture
-- Add search debouncing for performance
-- ✅ Reduce method complexity in key functions - COMPLETED with component extraction
+- **Modular Architecture**: 68% size reduction in browse_panel.py through 5-component extraction
+- **Method Complexity Resolution**: Transformed complex methods into focused, maintainable components  
+- **Widget Pooling System**: 95%+ reuse efficiency with GTK3-compliant lifecycle management
+- **Enhanced Key Debugging**: Complete human-readable debugging system with event flow tracing
+- **Production Debug Cleanup**: All raw print statements converted to controlled debug logging
+- **Multi-Index Elimination**: Replaced fragile coordinate systems with robust name-based selection
 
-**Architectural Strengths Identified**:
-- Revolutionary dual focus search system (Grade A)
-- Excellent separation of concerns (Grade A-)
-- Professional GTK3 integration (Grade A-)
-- Robust backend communication (Grade A-)
+**Overall Architecture Grade**: A- (code reviewer assessment) - Excellent component separation with focused remaining improvements.
 
 ---
 
@@ -414,9 +248,9 @@ def _on_search_changed(self, entry):
 - Familiarize yourself with the Fabric framework and dual focus architecture
 
 **Quick Start**:
-1. Start with Phase 1 items for immediate architectural improvements
+1. Start with Critical Priority items for immediate performance improvements
 2. Each item includes specific file locations and code examples
 3. Test changes with the existing UI to ensure no regressions
 4. Follow the established patterns for GTK event handling and error management
 
-This roadmap provides clear context and actionable steps for continuing the fuzzy search system improvements and overall project enhancement.
+This roadmap provides clear context and actionable steps for continuing the project improvements with focus on the most impactful remaining enhancements.

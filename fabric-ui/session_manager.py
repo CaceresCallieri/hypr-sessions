@@ -87,7 +87,8 @@ class SessionManagerWidget(WaylandWindow):
         )
 
         self.save_panel = SavePanelWidget(
-            on_save_success=self._on_save_success, on_save_error=self._on_save_error
+            on_save_success=self._on_save_success, on_save_error=self._on_save_error,
+            debug_logger=self.debug_logger
         )
 
         # Create dynamic content area
@@ -249,12 +250,23 @@ class SessionManagerWidget(WaylandWindow):
         """Handle key press events"""
         keycode = event.get_keycode()[1]
         keyval = event.keyval
+        modifiers = event.state
         
-        # Log high-level key processing
-        self.debug_logger.debug_event_routing(
-            "key_press", keyval, "session_manager", "top_level",
-            {"keycode": keycode, "save_mode": self.toggle_switch.is_save_mode}
-        )
+        # Enhanced debug logging with human-readable keys
+        if self.debug_logger:
+            key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
+            
+            # Event flow tracing for top-level processing
+            self.debug_logger.debug_event_flow(
+                key_name, "SessionManagerWidget", "on_key_press", "top_level_routing",
+                {"keycode": keycode, "save_mode": self.toggle_switch.is_save_mode}
+            )
+            
+            # Log high-level key processing
+            self.debug_logger.debug_event_routing(
+                "key_press", keyval, "session_manager", "top_level",
+                {"keycode": keycode, "save_mode": self.toggle_switch.is_save_mode, "key": key_name}
+            )
 
         # Give save panel first chance to handle events when in save mode
         # (especially for Escape key during save operations)
@@ -270,6 +282,15 @@ class SessionManagerWidget(WaylandWindow):
 
         # Check for Escape or Q key (global quit) - only if panels didn't handle it
         if keyval == Gdk.KEY_Escape or keyval == Gdk.KEY_q:
+            if self.debug_logger:
+                key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
+                self.debug_logger.debug_action_outcome(
+                    key_name, "application_quit_triggered", {"method": "app.quit()"}
+                )
+                self.debug_logger.debug_event_flow(
+                    key_name, "SessionManagerWidget", "on_key_press", "application_quit"
+                )
+            
             if self.app:
                 self.app.quit()  # Properly quit the entire application
             else:
@@ -278,6 +299,18 @@ class SessionManagerWidget(WaylandWindow):
 
         # Check for Tab key - panel switching only
         elif keyval == Gdk.KEY_Tab:
+            if self.debug_logger:
+                key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
+                old_mode = "save_mode" if self.toggle_switch.is_save_mode else "browse_mode"
+                new_mode = "browse_mode" if self.toggle_switch.is_save_mode else "save_mode"
+                
+                self.debug_logger.debug_action_outcome(
+                    key_name, "panel_switched", {"from": old_mode, "to": new_mode}
+                )
+                self.debug_logger.debug_event_flow(
+                    key_name, "SessionManagerWidget", "on_key_press", f"switch_to_{new_mode}"
+                )
+            
             # Toggle between panels - toggle switch handles everything automatically
             if self.toggle_switch.is_save_mode:
                 self.toggle_switch.set_browse_mode()  # Automatically calls _on_browse_mode()

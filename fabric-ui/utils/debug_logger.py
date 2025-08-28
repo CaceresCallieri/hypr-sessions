@@ -10,6 +10,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gdk
+
 
 class UIDebugLogger:
     """Centralized debug logging system for UI components"""
@@ -343,6 +347,131 @@ class UIDebugLogger:
             
         message = f"Session {operation} ({session_name}): {phase}"
         self._write_log("SESSION", self.INFO, message, extra_details)
+    
+    # Enhanced Key Debugging Methods
+    
+    def get_human_readable_key(self, keyval: int, modifiers: int = 0) -> str:
+        """Convert GTK keyval and modifiers to human-readable key name
+        
+        Args:
+            keyval: GTK key value 
+            modifiers: GTK modifier mask
+            
+        Returns:
+            Human-readable key description (e.g., "Ctrl+D", "Escape", "Up")
+        """
+        # Common key mappings for better readability (GTK3 compatible)
+        key_names = {
+            # Navigation keys
+            Gdk.KEY_Up: "Up",
+            Gdk.KEY_Down: "Down", 
+            Gdk.KEY_Left: "Left",
+            Gdk.KEY_Right: "Right",
+            
+            # Action keys
+            Gdk.KEY_Return: "Enter",
+            Gdk.KEY_KP_Enter: "NumPad_Enter",
+            Gdk.KEY_Escape: "Escape",
+            Gdk.KEY_Tab: "Tab",
+            Gdk.KEY_BackSpace: "Backspace",
+            Gdk.KEY_Delete: "Delete",
+            
+            # Function keys
+            Gdk.KEY_F1: "F1", Gdk.KEY_F2: "F2", Gdk.KEY_F3: "F3", Gdk.KEY_F4: "F4",
+            Gdk.KEY_F5: "F5", Gdk.KEY_F6: "F6", Gdk.KEY_F7: "F7", Gdk.KEY_F8: "F8",
+            Gdk.KEY_F9: "F9", Gdk.KEY_F10: "F10", Gdk.KEY_F11: "F11", Gdk.KEY_F12: "F12",
+            
+            # Special characters commonly used (GTK3 standard keys only)
+            Gdk.KEY_space: "Space",
+            Gdk.KEY_slash: "/",
+            Gdk.KEY_backslash: "\\",
+            Gdk.KEY_period: ".",
+            Gdk.KEY_comma: ",",
+            Gdk.KEY_semicolon: ";",
+            Gdk.KEY_question: "?",
+        }
+        
+        # Get base key name
+        if keyval in key_names:
+            key_name = key_names[keyval]
+        elif 32 <= keyval <= 126:  # Printable ASCII characters
+            key_name = chr(keyval).upper()
+        elif keyval >= Gdk.KEY_a and keyval <= Gdk.KEY_z:  # Lowercase letters
+            key_name = chr(keyval).upper()
+        elif keyval >= Gdk.KEY_A and keyval <= Gdk.KEY_Z:  # Uppercase letters  
+            key_name = chr(keyval)
+        elif keyval >= Gdk.KEY_0 and keyval <= Gdk.KEY_9:  # Numbers
+            key_name = chr(keyval)
+        else:
+            key_name = f"Key({keyval})"
+        
+        # Build modifier list
+        modifier_list = []
+        if modifiers & Gdk.ModifierType.CONTROL_MASK:
+            modifier_list.append("Ctrl")
+        if modifiers & Gdk.ModifierType.MOD1_MASK:  # Alt key
+            modifier_list.append("Alt")
+        if modifiers & Gdk.ModifierType.SHIFT_MASK:
+            modifier_list.append("Shift")
+        if modifiers & Gdk.ModifierType.SUPER_MASK:  # Windows/Cmd key
+            modifier_list.append("Super")
+        
+        # Combine modifiers with key name
+        if modifier_list:
+            return f"{'+'.join(modifier_list)}+{key_name}"
+        else:
+            return key_name
+    
+    def debug_event_flow(self, key_name: str, widget_source: str, 
+                        handler_method: str, action_taken: str, details: Optional[Dict] = None):
+        """Log complete event flow from key press to action (verbose mode only)
+        
+        Args:
+            key_name: Human-readable key name
+            widget_source: Widget that received the event
+            handler_method: Method that processed the event 
+            action_taken: Description of action taken
+            details: Additional context information
+        """
+        if not self.verbose_mode:
+            return
+            
+        extra_details = {
+            "key": key_name,
+            "source": widget_source,
+            "handler": handler_method,
+            "action": action_taken
+        }
+        if details:
+            extra_details.update(details)
+            
+        message = f"Key pressed: {key_name} → {widget_source} → {handler_method} → {action_taken}"
+        self._write_log("TRACE", self.DEBUG, message, extra_details)
+    
+    def debug_action_outcome(self, key_name: str, outcome_type: str, 
+                           details: Optional[Dict] = None):
+        """Log the outcome/result of a key press action
+        
+        Args:
+            key_name: Human-readable key name
+            outcome_type: Type of outcome (e.g., "selection_changed", "state_transition")
+            details: Specific outcome details (before/after values, etc.)
+        """
+        extra_details = {"key": key_name, "outcome": outcome_type}
+        if details:
+            extra_details.update(details)
+            
+        message = f"{key_name} key: {outcome_type}"
+        if details:
+            # Add context for common outcome types
+            if "from" in details and "to" in details:
+                message += f" ({details['from']} → {details['to']})"
+            elif "session" in details:
+                message += f" ({details['session']})"
+            elif "state" in details:
+                message += f" (state: {details['state']})"
+                
+        self._write_log("ACTION", self.INFO, message, extra_details)
 
 
 # Global debug logger instance - will be initialized by session manager

@@ -39,12 +39,22 @@ class KeyboardEventHandler:
             True if event was handled, False to continue propagation
         """
         keyval = event.keyval
+        modifiers = event.state
         
-        # Debug event routing decisions
+        # Enhanced debug event routing with human-readable keys
         if self.debug_logger:
+            key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
+            
+            # Event flow tracing for verbose mode
+            self.debug_logger.debug_event_flow(
+                key_name, widget.__class__.__name__, "handle_key_press_event", "routing_decision",
+                {"state": self.browse_panel.state, "keyval": keyval}
+            )
+            
+            # Standard event routing log  
             self.debug_logger.debug_event_routing(
                 "key_press", keyval, "browse_panel", "handle_key_press_event",
-                {"state": self.browse_panel.state, "widget": widget.__class__.__name__}
+                {"state": self.browse_panel.state, "widget": widget.__class__.__name__, "key": key_name}
             )
 
         # Route based on current panel state
@@ -78,6 +88,7 @@ class KeyboardEventHandler:
             True if event should go to search input, False for navigation
         """
         keyval = event.keyval
+        key_name = self.debug_logger.get_human_readable_key(keyval, event.state) if self.debug_logger else str(keyval)
 
         # UI navigation keys go to navigation handlers
         is_navigation = self._is_ui_navigation_key(keyval)
@@ -85,7 +96,10 @@ class KeyboardEventHandler:
             if self.debug_logger:
                 self.debug_logger.debug_key_detection(
                     keyval, "navigation", False, False,
-                    {"routing_decision": "navigation_handler"}
+                    {"routing_decision": "navigation_handler", "key": key_name}
+                )
+                self.debug_logger.debug_action_outcome(
+                    key_name, "routed_to_navigation", {"handler": "keyboard_event_handler"}
                 )
             return False
 
@@ -95,7 +109,10 @@ class KeyboardEventHandler:
             if self.debug_logger:
                 self.debug_logger.debug_key_detection(
                     keyval, "modifier_combo", False, has_modifiers,
-                    {"routing_decision": "blocked", "modifiers": event.state}
+                    {"routing_decision": "blocked", "modifiers": event.state, "key": key_name}
+                )
+                self.debug_logger.debug_action_outcome(
+                    key_name, "modifier_combo_blocked", {"modifiers": event.state}
                 )
             return False  # Don't route modifier combinations to search
 
@@ -103,7 +120,10 @@ class KeyboardEventHandler:
         if self.debug_logger:
             self.debug_logger.debug_key_detection(
                 keyval, "printable", True, has_modifiers,
-                {"routing_decision": "search_input"}
+                {"routing_decision": "search_input", "key": key_name}
+            )
+            self.debug_logger.debug_action_outcome(
+                key_name, "routed_to_search", {"handler": "search_input"}
             )
         return True
 
@@ -209,6 +229,15 @@ class KeyboardEventHandler:
                     "delete_trigger", selected_session, None, "ctrl_d_shortcut",
                     {"state": self.browse_panel.state}
                 )
+                # Enhanced action outcome logging
+                self.debug_logger.debug_action_outcome(
+                    "Ctrl+D", "delete_confirmation_displayed", 
+                    {"session": selected_session, "state": f"{self.browse_panel.state}→{DELETE_CONFIRM_STATE}"}
+                )
+                self.debug_logger.debug_event_flow(
+                    "Ctrl+D", "KeyboardEventHandler", "_handle_ctrl_d_delete", 
+                    f"delete_confirmation_for_{selected_session}"
+                )
             
             self.browse_panel.delete_operation.selected_session = selected_session
             self.browse_panel.set_state(DELETE_CONFIRM_STATE)
@@ -218,6 +247,9 @@ class KeyboardEventHandler:
                 self.debug_logger.debug_navigation_operation(
                     "delete_trigger_failed", None, None, "ctrl_d_shortcut",
                     {"reason": "no_session_selected"}
+                )
+                self.debug_logger.debug_action_outcome(
+                    "Ctrl+D", "delete_failed", {"reason": "no_session_selected"}
                 )
             return True
 
@@ -229,9 +261,18 @@ class KeyboardEventHandler:
         """
         # Debug log the clear search trigger
         if self.debug_logger:
+            old_query = self.browse_panel.search_query
             self.debug_logger.debug_navigation_operation(
                 "clear_search_trigger", None, None, "ctrl_l_shortcut",
-                {"search_query": self.browse_panel.search_query, "state": self.browse_panel.state}
+                {"search_query": old_query, "state": self.browse_panel.state}
+            )
+            self.debug_logger.debug_action_outcome(
+                "Ctrl+L", "search_cleared", 
+                {"from": old_query, "to": "", "focus": "search_input"}
+            )
+            self.debug_logger.debug_event_flow(
+                "Ctrl+L", "KeyboardEventHandler", "_handle_ctrl_l_clear_search", 
+                "search_input_cleared_and_focused"
             )
         
         self.browse_panel.clear_search()
@@ -247,11 +288,37 @@ class KeyboardEventHandler:
             True if key was handled
         """
         if keyval in [Gdk.KEY_Up, Gdk.KEY_Down]:
+            # Get current selection for outcome logging
+            old_selection = self.browse_panel.get_selected_session()
+            
             # Handle session navigation directly
             if keyval == Gdk.KEY_Up:
                 self.browse_panel.select_previous()
+                direction = "previous"
+                key_name = "Up"
             else:
                 self.browse_panel.select_next()
+                direction = "next"
+                key_name = "Down"
+            
+            # Log action outcome
+            if self.debug_logger:
+                new_selection = self.browse_panel.get_selected_session()
+                if old_selection != new_selection:
+                    self.debug_logger.debug_action_outcome(
+                        key_name, "selection_changed", 
+                        {"from": old_selection, "to": new_selection, "direction": direction}
+                    )
+                    self.debug_logger.debug_event_flow(
+                        key_name, "KeyboardEventHandler", "_handle_navigation_keys", 
+                        f"selected_{direction}_session_{new_selection}"
+                    )
+                else:
+                    self.debug_logger.debug_action_outcome(
+                        key_name, "selection_unchanged", 
+                        {"session": old_selection, "reason": "boundary_reached", "direction": direction}
+                    )
+            
             return True
         elif keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_Tab, Gdk.KEY_Left, Gdk.KEY_Right]:
             # Let main manager handle session activation and panel switching
