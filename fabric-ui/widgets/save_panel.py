@@ -13,7 +13,7 @@ from fabric.widgets.label import Label
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib
+from gi.repository import Gdk, GLib
 
 from utils.path_setup import setup_fabric_ui_imports
 
@@ -21,7 +21,6 @@ from utils import (
     BackendClient,
     BackendError
 )
-from constants import KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q
 
 
 class SavePanelWidget(Box):
@@ -317,17 +316,27 @@ class SavePanelWidget(Box):
             return self.session_name_entry.get_text().strip()
         return ""
 
-    def handle_key_press(self, keycode):
-        """Handle keyboard events for different states"""
+    def handle_key_press_event(self, widget, event):
+        """Handle keyboard events using GTK event-based handling
+        
+        Args:
+            widget: Widget that received the event
+            event: GTK key press event
+            
+        Returns:
+            True if event was handled, False to continue propagation
+        """
+        keyval = event.keyval
+        
         # Enter key handling - trigger save when in input state
-        if keycode == KEYCODE_ENTER:
+        if keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter]:
             if self.state == "input":
                 # Trigger the same save logic as button click
                 self._trigger_save_operation()
                 return True
         
         # Escape or Q key handling based on current state
-        if keycode == KEYCODE_ESCAPE or keycode == KEYCODE_Q:
+        elif keyval == Gdk.KEY_Escape or keyval == Gdk.KEY_q:
             if self.state == "saving":
                 # Cancel save operation
                 print("Cancelling save operation...")

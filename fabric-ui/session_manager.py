@@ -259,7 +259,7 @@ class SessionManagerWidget(WaylandWindow):
         # Give save panel first chance to handle events when in save mode
         # (especially for Escape key during save operations)
         if self.toggle_switch.is_save_mode:
-            if self.save_panel.handle_key_press(keycode):
+            if self.save_panel.handle_key_press_event(widget, event):
                 return True
 
         # Give browse panel first chance to handle events when in browse mode

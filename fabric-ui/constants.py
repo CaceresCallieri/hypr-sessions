@@ -7,12 +7,6 @@ including GTK keycodes and other configuration values.
 
 from typing import Final
 
-# GTK Keycodes (Legacy - used by save_panel.py)
-# These are the specific keycodes used by GTK for keyboard event handling
-# TODO: Migrate save_panel.py to GTK event-based handling to remove these
-KEYCODE_ESCAPE: Final[int] = 9
-KEYCODE_ENTER: Final[int] = 36
-KEYCODE_Q: Final[int] = 24
 
 # Browse Panel States
 # These constants define the possible states of the browse panel for better maintainability
