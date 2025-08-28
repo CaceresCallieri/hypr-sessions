@@ -9,7 +9,11 @@ from typing import List, Optional, Callable
 
 from fabric.widgets.label import Label
 
-from utils import ARROW_UP, ARROW_DOWN, create_scroll_indicator
+from utils import (
+    ARROW_UP,
+    ARROW_DOWN,
+    create_scroll_indicator
+)
 from .session_widget_pool import SessionWidgetPool
 from .session_window_calculator import SessionWindowCalculator
 

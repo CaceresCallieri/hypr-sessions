@@ -15,7 +15,6 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gdk, Gtk, GtkLayerShell, GLib
 
-# Centralized path setup for imports
 from utils.path_setup import setup_fabric_ui_imports
 
 from constants import (
@@ -32,8 +31,11 @@ from constants import (
 # Import our custom widgets and utilities
 from widgets import BrowsePanelWidget, SavePanelWidget, ToggleSwitchWidget
 
-from utils import SessionUtils
-from utils.debug_logger import initialize_debug_logger, get_debug_logger
+from utils import (
+    SessionUtils,
+    initialize_debug_logger,
+    get_debug_logger
+)
 
 
 class SessionManagerWidget(WaylandWindow):

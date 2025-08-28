@@ -15,10 +15,12 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-# Centralized path setup for imports
 from utils.path_setup import setup_fabric_ui_imports
 
-from utils import BackendClient, BackendError
+from utils import (
+    BackendClient,
+    BackendError
+)
 from constants import KEYCODE_ENTER, KEYCODE_ESCAPE, KEYCODE_Q
 
 

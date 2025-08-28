@@ -9,11 +9,6 @@ import gi
 from fabric.widgets.box import Box
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk
-
-# Centralized path setup for imports
-from utils.path_setup import setup_fabric_ui_imports
-
 # Import constants and backend client
 from constants import (
     BROWSING_STATE,
@@ -26,21 +21,23 @@ from constants import (
     RESTORE_SUCCESS_STATE,
     RESTORING_STATE,
 )
+from gi.repository import Gdk
 
-from utils import BackendClient
-from utils.debug_logger import get_debug_logger
+from utils import BackendClient, get_debug_logger
 
-# Import operation classes
-from .operations import DeleteOperation, RestoreOperation
+from utils.path_setup import setup_fabric_ui_imports
 
 # Import extracted components
 from .components import (
+    KeyboardEventHandler,
+    SessionListRenderer,
+    SessionSearchManager,
     SessionWidgetPool,
     SessionWindowCalculator,
-    SessionListRenderer,
-    KeyboardEventHandler,
-    SessionSearchManager
 )
+
+# Import operation classes
+from .operations import DeleteOperation, RestoreOperation
 
 
 class BrowsePanelWidget(Box):
@@ -55,16 +52,22 @@ class BrowsePanelWidget(Box):
         # Initialize debug logger
         self.debug_logger = get_debug_logger()
         if self.debug_logger:
-            self.debug_logger.debug_session_lifecycle("ui_startup", "browse_panel", "initializing")
+            self.debug_logger.debug_session_lifecycle(
+                "ui_startup", "browse_panel", "initializing"
+            )
 
         # Backend client for operations
         try:
             self.backend_client = BackendClient()
             if self.debug_logger:
-                self.debug_logger.debug_backend_call("init", None, 0, True, {"status": "available"})
+                self.debug_logger.debug_backend_call(
+                    "init", None, 0, True, {"status": "available"}
+                )
         except FileNotFoundError as e:
             if self.debug_logger:
-                self.debug_logger.debug_backend_call("init", None, 0, False, {"error": str(e)})
+                self.debug_logger.debug_backend_call(
+                    "init", None, 0, False, {"error": str(e)}
+                )
             self.backend_client = None
 
         # Initialize operation handlers
@@ -93,7 +96,7 @@ class BrowsePanelWidget(Box):
         """Single update method handles ALL UI updates - delegates to components"""
         # Store search state before rebuilding
         self.search_manager.preserve_search_state()
-        
+
         # Create content based on current state
         if self.state == BROWSING_STATE:
             content = self._create_browsing_content()
@@ -119,11 +122,11 @@ class BrowsePanelWidget(Box):
                     "browse_panel", self.state, "error", "unknown_state"
                 )
             content = [Label(text="Error: Unknown state", name="error-label")]
-        
+
         # Replace all content with new widgets
         self.children = content
         self.show_all()
-        
+
         # Restore search input focus and cursor position (browsing state only)
         if self.state == BROWSING_STATE:
             self.search_manager.restore_search_state()
@@ -132,20 +135,20 @@ class BrowsePanelWidget(Box):
         """Create complete browsing content using components"""
         # Update session data
         self._refresh_session_data()
-        
+
         # Create search input using search manager
         search_input = self.search_manager.create_search_input(self._on_search_changed)
-        
+
         # Create sessions header using list renderer
         sessions_header = self.list_renderer.create_sessions_header(
-            len(self.all_session_names), 
+            len(self.all_session_names),
             len(self.filtered_sessions),
-            self.search_manager.has_search_query()
+            self.search_manager.has_search_query(),
         )
-        
+
         # Create session widgets container
         sessions_container = self._create_sessions_container()
-        
+
         # Create keyboard shortcuts hint using list renderer
         shortcuts_hint = self.list_renderer.create_shortcuts_hint()
 
@@ -156,29 +159,29 @@ class BrowsePanelWidget(Box):
         # Create session widgets using list renderer
         session_widgets = self.list_renderer.create_session_widget_list(
             self.all_session_names,
-            self.filtered_sessions, 
+            self.filtered_sessions,
             self.selected_session_name,
             self.search_manager.get_search_query(),
-            self._handle_session_clicked
+            self._handle_session_clicked,
         )
-        
+
         return Box(
             orientation="vertical",
             spacing=5,
             name="sessions-container",
-            children=session_widgets
+            children=session_widgets,
         )
 
     def _refresh_session_data(self):
         """Refresh session data and update filtered sessions"""
         # Get current session data
         self.all_session_names = self.session_utils.get_available_sessions()
-        
+
         # Update filtered sessions using search manager
-        self.filtered_sessions, suggested_selection = self.search_manager.update_filtered_sessions(
-            self.all_session_names
+        self.filtered_sessions, suggested_selection = (
+            self.search_manager.update_filtered_sessions(self.all_session_names)
         )
-        
+
         # Set initial selection if needed
         if self.filtered_sessions and not self.selected_session_name:
             self.selected_session_name = suggested_selection
@@ -187,19 +190,19 @@ class BrowsePanelWidget(Box):
         """Handle search input text changes - delegates to search manager"""
         # Update search query using search manager
         self.search_manager.handle_search_changed(entry)
-        
+
         # Update filtered sessions
-        self.filtered_sessions, suggested_selection = self.search_manager.update_filtered_sessions(
-            self.all_session_names
+        self.filtered_sessions, suggested_selection = (
+            self.search_manager.update_filtered_sessions(self.all_session_names)
         )
-        
+
         # Update selection if current selection is not in filtered results
         if self.filtered_sessions:
             if self.selected_session_name not in self.filtered_sessions:
                 self.selected_session_name = suggested_selection
         else:
             self.selected_session_name = None
-        
+
         # Update only session list, not entire UI (preserves search input)
         self._update_sessions_only()
 
@@ -209,30 +212,32 @@ class BrowsePanelWidget(Box):
             # For non-browsing states, do full update
             self.update_display()
             return
-            
+
         # Find and update existing widgets in current children
         current_children = list(self.children)
-        if len(current_children) >= 4:  # [search_input, header, sessions_container, shortcuts]
+        if (
+            len(current_children) >= 4
+        ):  # [search_input, header, sessions_container, shortcuts]
             # Update the header (index 1)
             header = current_children[1]
             updated_header = self.list_renderer.create_sessions_header(
                 len(self.all_session_names),
-                len(self.filtered_sessions), 
-                self.search_manager.has_search_query()
+                len(self.filtered_sessions),
+                self.search_manager.has_search_query(),
             )
             header.set_markup(updated_header.get_text())
-            
+
             # Update the sessions container (index 2)
             sessions_container = current_children[2]
             new_session_widgets = self.list_renderer.create_session_widget_list(
                 self.all_session_names,
                 self.filtered_sessions,
-                self.selected_session_name, 
+                self.selected_session_name,
                 self.search_manager.get_search_query(),
-                self._handle_session_clicked
+                self._handle_session_clicked,
             )
             sessions_container.children = new_session_widgets
-            
+
             # Show updated content
             self.show_all()
         else:
@@ -242,8 +247,8 @@ class BrowsePanelWidget(Box):
     def clear_search(self):
         """Clear the search and refresh display - delegates to search manager"""
         self.search_manager.clear_search()
-        self.filtered_sessions, suggested_selection = self.search_manager.update_filtered_sessions(
-            self.all_session_names
+        self.filtered_sessions, suggested_selection = (
+            self.search_manager.update_filtered_sessions(self.all_session_names)
         )
         self.selected_session_name = suggested_selection
         self.update_display()
@@ -261,15 +266,18 @@ class BrowsePanelWidget(Box):
         next_idx = self.window_calculator.get_next_selection_index(
             self.filtered_sessions, self.selected_session_name
         )
-        
+
         old_session = self.selected_session_name
         self.selected_session_name = self.filtered_sessions[next_idx]
-        
+
         # Debug navigation
         if self.debug_logger:
             self.debug_logger.debug_navigation_operation(
-                "select_next", old_session, self.selected_session_name, "arrow_key",
-                {"next_idx": next_idx, "wraparound": next_idx == 0}
+                "select_next",
+                old_session,
+                self.selected_session_name,
+                "arrow_key",
+                {"next_idx": next_idx, "wraparound": next_idx == 0},
             )
 
         # Refresh display to show new selection
@@ -284,15 +292,21 @@ class BrowsePanelWidget(Box):
         prev_idx = self.window_calculator.get_previous_selection_index(
             self.filtered_sessions, self.selected_session_name
         )
-        
+
         old_session = self.selected_session_name
         self.selected_session_name = self.filtered_sessions[prev_idx]
-        
+
         # Debug navigation
         if self.debug_logger:
             self.debug_logger.debug_navigation_operation(
-                "select_previous", old_session, self.selected_session_name, "arrow_key",
-                {"prev_idx": prev_idx, "wraparound": prev_idx == len(self.filtered_sessions) - 1}
+                "select_previous",
+                old_session,
+                self.selected_session_name,
+                "arrow_key",
+                {
+                    "prev_idx": prev_idx,
+                    "wraparound": prev_idx == len(self.filtered_sessions) - 1,
+                },
             )
 
         # Refresh display to show new selection
@@ -301,13 +315,15 @@ class BrowsePanelWidget(Box):
     def _handle_session_clicked(self, session_name):
         """Handle session button click - delegates to callback"""
         if not isinstance(session_name, str) or not session_name.strip():
-            raise ValueError(f"session_name must be non-empty string, got {repr(session_name)}")
-            
+            raise ValueError(
+                f"session_name must be non-empty string, got {repr(session_name)}"
+            )
+
         if self.debug_logger and self.debug_logger.enabled:
             self.debug_logger.debug_navigation_operation(
                 "session_click", None, session_name, "mouse_click"
             )
-        
+
         if self.on_session_clicked:
             self.on_session_clicked(session_name)
 
@@ -330,22 +346,28 @@ class BrowsePanelWidget(Box):
         if new_state != self.state:
             old_state = self.state
             self.state = new_state
-            
+
             # Debug state transitions
             if self.debug_logger:
                 self.debug_logger.debug_state_transition(
                     "browse_panel", old_state, new_state, "set_state"
                 )
-            
+
             # Prepare widgets for state transitions
-            if new_state == BROWSING_STATE and old_state in [RESTORE_CONFIRM_STATE, DELETE_CONFIRM_STATE]:
+            if new_state == BROWSING_STATE and old_state in [
+                RESTORE_CONFIRM_STATE,
+                DELETE_CONFIRM_STATE,
+            ]:
                 self.list_renderer.prepare_for_state_transition()
-            
+
             # Use single update path for all state transitions
             self.update_display()
-            
+
             # Restore search focus when returning to browsing state from confirmations
-            if new_state == BROWSING_STATE and old_state in [RESTORE_CONFIRM_STATE, DELETE_CONFIRM_STATE]:
+            if new_state == BROWSING_STATE and old_state in [
+                RESTORE_CONFIRM_STATE,
+                DELETE_CONFIRM_STATE,
+            ]:
                 self.search_manager.ensure_search_focus()
 
     def handle_key_press_event(self, widget, event):
@@ -363,7 +385,7 @@ class BrowsePanelWidget(Box):
         """Get current search query - compatibility property"""
         return self.search_manager.get_search_query()
 
-    @search_query.setter 
+    @search_query.setter
     def search_query(self, value):
         """Set search query - compatibility property"""
         self.search_manager.search_query = value
@@ -390,7 +412,7 @@ class BrowsePanelWidget(Box):
         return self.window_calculator.has_sessions_above()
 
     def has_sessions_below(self):
-        """Check if sessions below - delegates to window calculator"""  
+        """Check if sessions below - delegates to window calculator"""
         return self.window_calculator.has_sessions_below(len(self.filtered_sessions))
 
     # Legacy method stubs for operation classes (will be removed after operations are updated)
@@ -409,11 +431,11 @@ class BrowsePanelWidget(Box):
         """Get performance statistics from components"""
         widget_pool_stats = self.list_renderer.get_performance_stats()
         return {
-            'component': 'browse_panel_modular',
-            'widget_pool': widget_pool_stats,
-            'total_sessions': len(self.all_session_names),
-            'filtered_sessions': len(self.filtered_sessions),
-            'visible_window_start': self.window_calculator.visible_start_index
+            "component": "browse_panel_modular",
+            "widget_pool": widget_pool_stats,
+            "total_sessions": len(self.all_session_names),
+            "filtered_sessions": len(self.filtered_sessions),
+            "visible_window_start": self.window_calculator.visible_start_index,
         }
 
     def enable_component_debug(self):
@@ -429,3 +451,4 @@ class BrowsePanelWidget(Box):
             self.debug_logger.debug_session_lifecycle(
                 "debug_control", "browse_panel", "components_debug_disabled"
             )
+

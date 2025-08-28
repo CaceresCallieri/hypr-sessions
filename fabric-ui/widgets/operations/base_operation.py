@@ -15,7 +15,6 @@ from fabric.widgets.label import Label
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-# Centralized path setup for imports  
 from utils.path_setup import setup_fabric_ui_imports
 
 from constants import BROWSING_STATE

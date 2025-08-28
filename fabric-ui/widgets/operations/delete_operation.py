@@ -5,7 +5,6 @@ Delete operation implementation for browse panel
 from typing import Dict, Any
 from .base_operation import BaseOperation
 
-# Centralized path setup for imports
 from utils.path_setup import setup_fabric_ui_imports
 
 from constants import DELETING_STATE
