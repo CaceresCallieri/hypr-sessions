@@ -72,6 +72,9 @@ class SessionConfig:
 
         # Ensure sessions directory exists
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Perform automatic migration if needed
+        self._ensure_folder_structure()
 
     @classmethod
     def from_env(cls) -> "SessionConfig":
@@ -176,6 +179,67 @@ class SessionConfig:
     def get_archive_metadata_path(self, archived_session_name: str) -> Path:
         """Get the archive metadata file path"""
         return self.get_archived_session_directory(archived_session_name) / ".archive-metadata.json"
+    
+    def _ensure_folder_structure(self) -> None:
+        """Ensure proper folder structure and migrate if needed"""
+        # Check if we need to migrate from old flat structure to new nested structure
+        if self._needs_migration():
+            self._migrate_to_new_structure()
+    
+    def _needs_migration(self) -> bool:
+        """Check if migration from flat structure to nested structure is needed"""
+        active_dir = self.sessions_dir / "sessions"
+        archived_dir = self.sessions_dir / "archived"
+        
+        # If both directories exist, assume migration is already done
+        if active_dir.exists() and archived_dir.exists():
+            return False
+        
+        # Check for session directories in the root sessions_dir (old structure)
+        try:
+            root_dirs = [d for d in self.sessions_dir.iterdir() 
+                        if d.is_dir() and not d.name.startswith('.') 
+                        and d.name not in ['sessions', 'archived', 'zen-browser-backups']]
+            
+            # If we have session directories in root, we need migration
+            return len(root_dirs) > 0
+        except (OSError, PermissionError):
+            # If we can't read the directory, assume no migration needed
+            return False
+    
+    def _migrate_to_new_structure(self) -> None:
+        """Migrate from flat structure to nested active/archived structure"""
+        import shutil
+        
+        print("🔄 Migrating session storage to new archive-enabled structure...")
+        
+        # Create the new directories
+        active_dir = self.get_active_sessions_dir()
+        archived_dir = self.get_archived_sessions_dir()
+        
+        # Find all session directories in root
+        session_dirs = [d for d in self.sessions_dir.iterdir() 
+                       if d.is_dir() and not d.name.startswith('.') 
+                       and d.name not in ['sessions', 'archived', 'zen-browser-backups']]
+        
+        migrated_count = 0
+        for session_dir in session_dirs:
+            try:
+                # Move to active sessions directory
+                new_location = active_dir / session_dir.name
+                shutil.move(str(session_dir), str(new_location))
+                migrated_count += 1
+                print(f"  ✓ Migrated session: {session_dir.name}")
+            except (OSError, PermissionError) as e:
+                print(f"  ✗ Failed to migrate session {session_dir.name}: {e}")
+        
+        print(f"✅ Migration complete: {migrated_count} sessions moved to new structure")
+        print(f"   Active sessions: {active_dir}")
+        print(f"   Archive location: {archived_dir}")
+    
+    def is_using_legacy_structure(self) -> bool:
+        """Check if we're still using the legacy flat structure"""
+        return not (self.sessions_dir / "sessions").exists()
 
 
 # Global configuration instance
