@@ -17,6 +17,12 @@ class SessionConfig:
 
     # Session Management
     sessions_dir: Path = Path.home() / ".config" / "hypr-sessions"
+    
+    # Archive Configuration
+    archive_enabled: bool = True
+    archive_max_sessions: int = 20
+    archive_auto_cleanup: bool = True
+    archive_cleanup_strategy: str = "oldest_first"  # or "largest_first"
 
     # Timing Configuration
     delay_between_instructions: TimeoutSeconds = 0.4  # Seconds between window operations
@@ -81,6 +87,17 @@ class SessionConfig:
             downloads_dir=Path(
                 os.getenv("HYPR_DOWNLOADS_DIR", str(defaults.downloads_dir))
             ),
+            # Archive configuration
+            archive_enabled=os.getenv("HYPR_ARCHIVE_ENABLED", "true").lower()
+            in ("true", "1", "yes"),
+            archive_max_sessions=int(
+                os.getenv("HYPR_ARCHIVE_MAX", str(defaults.archive_max_sessions))
+            ),
+            archive_auto_cleanup=os.getenv("HYPR_ARCHIVE_AUTO_CLEANUP", "true").lower()
+            in ("true", "1", "yes"),
+            archive_cleanup_strategy=os.getenv(
+                "HYPR_ARCHIVE_CLEANUP_STRATEGY", defaults.archive_cleanup_strategy
+            ),
             # Timing configuration
             delay_between_instructions=float(
                 os.getenv("HYPR_DELAY", str(defaults.delay_between_instructions))
@@ -123,6 +140,42 @@ class SessionConfig:
     def get_legacy_neovide_session_file_path(self, pid: int) -> Path:
         """Get the legacy Neovide session file path (for migration purposes)"""
         return self.sessions_dir / f"neovide-session-{pid}.vim"
+
+    # Archive System Methods
+    
+    def get_active_sessions_dir(self) -> Path:
+        """Get the active sessions directory path (new folder structure)"""
+        active_dir = self.sessions_dir / "sessions"
+        active_dir.mkdir(parents=True, exist_ok=True)
+        return active_dir
+    
+    def get_archived_sessions_dir(self) -> Path:
+        """Get the archived sessions directory path"""
+        archived_dir = self.sessions_dir / "archived"
+        archived_dir.mkdir(parents=True, exist_ok=True)
+        return archived_dir
+    
+    def get_active_session_directory(self, session_name: str) -> Path:
+        """Get an active session directory path (new structure)"""
+        session_dir = self.get_active_sessions_dir() / session_name
+        session_dir.mkdir(parents=True, exist_ok=True)
+        return session_dir
+    
+    def get_active_session_file_path(self, session_name: str) -> Path:
+        """Get the active session file path (new structure)"""
+        return self.get_active_session_directory(session_name) / "session.json"
+    
+    def get_archived_session_directory(self, archived_session_name: str) -> Path:
+        """Get an archived session directory path"""
+        return self.get_archived_sessions_dir() / archived_session_name
+    
+    def get_archived_session_file_path(self, archived_session_name: str) -> Path:
+        """Get an archived session file path"""
+        return self.get_archived_session_directory(archived_session_name) / "session.json"
+    
+    def get_archive_metadata_path(self, archived_session_name: str) -> Path:
+        """Get the archive metadata file path"""
+        return self.get_archived_session_directory(archived_session_name) / ".archive-metadata.json"
 
 
 # Global configuration instance
