@@ -188,25 +188,27 @@ SessionManagerWidget (WaylandWindow)
 Panel Navigation:
 - Tab: Toggle between Browse/Save panels
 - ← →: Directional panel switching
-- Esc or Q: Exit application
+- Esc or Ctrl+Q: Exit application
 
 Session Navigation (Browse Mode):
 - ↑ ↓: Navigate sessions with wraparound
 - Scroll Wheel: Navigate sessions (scroll up = next, scroll down = previous)
 - Enter: Restore confirmation for selected session
 - d: Delete confirmation for selected session
+- Ctrl+L: Clear search input
+- Ctrl+D: Delete confirmation for selected session
 
 Restore Confirmation:
 - Enter: Confirm restoration (launches all session applications)
-- Esc or Q: Cancel restoration and return to browsing
+- Esc: Cancel restoration and return to browsing
 
 Delete Confirmation:
 - Enter: Confirm deletion (permanent action)
-- Esc or Q: Cancel deletion and return to browsing
+- Esc: Cancel deletion and return to browsing
 
 Save Panel:
 - Enter: Trigger save operation (input state only)
-- Esc or Q: Cancel operations or return to input
+- Esc: Cancel operations or return to input
 ```
 
 ### Constants Management
@@ -789,9 +791,10 @@ background-color: alpha(@primary_white, 0.8);
 
 **Revolutionary approach**: Separates text input focus from visual navigation focus for frictionless session discovery.
 
-- **Search Input**: Maintains permanent GTK focus for continuous typing
+- **Search Input**: Maintains permanent GTK focus for continuous typing (including "q" character)
 - **Session Navigation**: Independent visual selection with non-focusable buttons
 - **Key Routing**: Routes by type (printable vs navigation) rather than focus state
+- **Quit Protection**: Global quit changed from "q" to "Ctrl+Q" to prevent accidental exit while typing
 
 ### Implementation
 

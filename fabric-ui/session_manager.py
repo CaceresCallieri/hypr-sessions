@@ -280,8 +280,9 @@ class SessionManagerWidget(WaylandWindow):
             if self.browse_panel.handle_key_press_event(widget, event):
                 return True
 
-        # Check for Escape or Q key (global quit) - only if panels didn't handle it
-        if keyval == Gdk.KEY_Escape or keyval == Gdk.KEY_q:
+        # Check for Escape or Ctrl+Q key (global quit) - only if panels didn't handle it
+        has_ctrl = bool(modifiers & Gdk.ModifierType.CONTROL_MASK)
+        if keyval == Gdk.KEY_Escape or (keyval == Gdk.KEY_q and has_ctrl):
             if self.debug_logger:
                 key_name = self.debug_logger.get_human_readable_key(keyval, modifiers)
                 self.debug_logger.debug_action_outcome(
@@ -429,7 +430,7 @@ def main():
         print("Warning: session_manager.css not found")
 
     print(
-        "Session Manager started! Press Tab/←→ to switch panels, ↑↓ to navigate sessions, Enter to restore, Esc or Q to exit"
+        "Session Manager started! Press Tab/←→ to switch panels, ↑↓ to navigate sessions, Enter to restore, Esc or Ctrl+Q to exit"
     )
     app.run()
 
