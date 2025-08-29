@@ -26,7 +26,7 @@ class SessionSaver(Utils):
         self.current_session_name: Optional[str] = None
         self.hyprctl_client: HyprctlClient = HyprctlClient(debug=debug)
         self.launch_command_generator: LaunchCommandGenerator = LaunchCommandGenerator(debug=debug)
-        self.terminal_handler: TerminalHandler = TerminalHandler()
+        self.terminal_handler: TerminalHandler = TerminalHandler(debug=debug)
         self.neovide_handler: NeovideHandler = NeovideHandler(debug=debug)
         self.browser_handler: BrowserHandler = BrowserHandler(debug=debug)
     
@@ -171,7 +171,7 @@ class SessionSaver(Utils):
                         # Detect running program in the terminal
                         try:
                             self.debug_print(f"Detecting running program for terminal PID {pid}")
-                            running_program = self.terminal_handler.get_running_program(pid, debug=self.debug)
+                            running_program = self.terminal_handler.get_running_program(pid)
                             if running_program:
                                 window_data["running_program"] = running_program
                                 self.debug_print(f"Running program details: {running_program}")

@@ -14,7 +14,7 @@ from .terminal_handler import TerminalHandler
 
 class LaunchCommandGenerator:
     def __init__(self, debug: bool = False) -> None:
-        self.terminal_handler: TerminalHandler = TerminalHandler()
+        self.terminal_handler: TerminalHandler = TerminalHandler(debug=debug)
         self.neovide_handler: NeovideHandler = NeovideHandler(debug=debug)
         self.browser_handler: BrowserHandler = BrowserHandler(debug=debug)
 
