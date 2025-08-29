@@ -24,11 +24,12 @@ class SessionList(Utils):
         """List all saved sessions in folder format"""
         result = OperationResult(operation_name="List sessions")
         
-        self.debug_print(f"Searching for session directories in: {self.config.sessions_dir}")
+        active_sessions_dir = self.config.get_active_sessions_dir()
+        self.debug_print(f"Searching for session directories in: {active_sessions_dir}")
         
         try:
             # Find session directories (exclude hidden dirs and zen-browser-backups)
-            session_dirs = [d for d in self.config.sessions_dir.iterdir() 
+            session_dirs = [d for d in active_sessions_dir.iterdir() 
                            if d.is_dir() and not d.name.startswith('.') and d.name != 'zen-browser-backups']
         except Exception as e:
             result.add_error(f"Failed to scan sessions directory: {e}")

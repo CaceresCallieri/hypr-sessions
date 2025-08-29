@@ -10,9 +10,17 @@ class SessionUtils:
     
     @staticmethod
     def get_sessions_directory():
-        """Get the sessions directory path"""
+        """Get the active sessions directory path (new structure)"""
         home = Path.home()
-        return home / ".config" / "hypr-sessions"
+        sessions_root = home / ".config" / "hypr-sessions"
+        
+        # Check if new structure exists
+        active_dir = sessions_root / "sessions"
+        if active_dir.exists():
+            return active_dir
+        
+        # Fallback to old structure for compatibility
+        return sessions_root
     
     @staticmethod
     def get_available_sessions():

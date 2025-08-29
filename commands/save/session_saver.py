@@ -49,7 +49,7 @@ class SessionSaver(Utils):
             result.add_success("Sessions directory accessible")
             
             # Check if session already exists
-            session_path = self.config.get_session_directory(session_name)
+            session_path = self.config.get_active_session_directory(session_name)
             if session_path.exists():
                 session_file = session_path / "session.json"
                 if session_file.exists():
@@ -191,7 +191,7 @@ class SessionSaver(Utils):
                         if neovide_session_info:
                             window_data["neovide_session"] = neovide_session_info
                             # Try to create/capture session file in session directory
-                            session_dir = str(self.config.get_session_directory(self.current_session_name))
+                            session_dir = str(self.config.get_active_session_directory(self.current_session_name))
                             session_file = self.neovide_handler.create_session_file(pid, session_dir)
                             self.debug_print(f"Created session file: {session_file}")
                             if session_file:
@@ -254,7 +254,7 @@ class SessionSaver(Utils):
             result.add_success(f"Detected {len(groups)} window groups")
 
         # Save session to file in new folder structure
-        session_file = self.config.get_session_file_path(session_name)
+        session_file = self.config.get_active_session_file_path(session_name)
         try:
             with open(session_file, "w") as f:
                 json.dump(session_data, f, indent=2)

@@ -31,13 +31,13 @@ class SessionDelete(Utils):
             
             self.debug_print(f"Attempting to delete session: {session_name}")
             
-            # Check if session exists BEFORE calling get_session_directory (which creates directory)
-            session_dir = self.config.sessions_dir / session_name
+            # Check if session exists BEFORE calling get_active_session_directory (which creates directory)
+            session_dir = self.config.get_active_sessions_dir() / session_name
             SessionValidator.validate_session_exists(session_dir, session_name)
             result.add_success("Session exists and is accessible")
             
             # Now get the session directory (it won't create since it exists)
-            session_dir = self.config.get_session_directory(session_name)
+            session_dir = self.config.get_active_session_directory(session_name)
             self.debug_print(f"Session directory path: {session_dir}")
             
         except (SessionValidationError, SessionNotFoundError) as e:

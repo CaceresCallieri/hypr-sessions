@@ -129,12 +129,12 @@ class SessionRestore(Utils):
             
             self.debug_print(f"Starting restoration of session: {session_name}")
             
-            # Check if session exists BEFORE calling get_session_file_path (which creates directory)
-            session_dir = self.config.sessions_dir / session_name
+            # Check if session exists BEFORE calling get_active_session_file_path (which creates directory)
+            session_dir = self.config.get_active_sessions_dir() / session_name
             SessionValidator.validate_session_exists(session_dir, session_name)
             result.add_success("Session exists and is accessible")
             
-            session_file = self.config.get_session_file_path(session_name)
+            session_file = self.config.get_active_session_file_path(session_name)
             self.debug_print(f"Session file path: {session_file}")
             
         except (SessionValidationError, SessionNotFoundError) as e:
