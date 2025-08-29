@@ -9,7 +9,7 @@ import json
 import sys
 from typing import Optional
 
-from commands.delete import SessionDelete
+from commands.delete import SessionArchive
 from commands.list import SessionList
 from commands.restore import SessionRestore
 from commands.save import SessionSaver
@@ -27,7 +27,7 @@ class HyprlandSessionManager:
         self.saver: SessionSaver = SessionSaver(debug=debug)
         self.restorer: SessionRestore = SessionRestore(debug=debug)
         self.lister: SessionList = SessionList(debug=debug)
-        self.deleter: SessionDelete = SessionDelete(debug=debug)
+        self.archiver: SessionArchive = SessionArchive(debug=debug)
 
     def save_session(self, session_name: str) -> bool:
         try:
@@ -174,7 +174,7 @@ class HyprlandSessionManager:
     def delete_session(self, session_name: str) -> bool:
         try:
             validate_session_name(session_name)
-            result = self.deleter.delete_session(session_name)
+            result = self.archiver.archive_session(session_name)
             
             if self.json_output:
                 self._output_json_result(result)
@@ -186,11 +186,11 @@ class HyprlandSessionManager:
             else:
                 # Print summary for normal operation
                 if result.success:
-                    print(f"✓ Session deleted successfully")
+                    print(f"✓ Session archived successfully")
                     if result.has_warnings:
-                        print(f"  ⚠ {result.warning_count} warnings occurred during deletion")
+                        print(f"  ⚠ {result.warning_count} warnings occurred during archiving")
                 else:
-                    print(f"✗ Session deletion failed")
+                    print(f"✗ Session archiving failed")
                     for error in result.errors:
                         print(f"  Error: {error.message}")
             
@@ -199,7 +199,7 @@ class HyprlandSessionManager:
             if self.json_output:
                 error_result = {
                     "success": False,
-                    "operation": f"Delete session '{session_name}'",
+                    "operation": f"Archive session '{session_name}'",
                     "error": str(e),
                     "messages": [{"status": "error", "message": str(e), "context": None}]
                 }

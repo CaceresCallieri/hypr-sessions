@@ -47,7 +47,19 @@ class SessionConfig:
     debug_enabled: bool = False
 
     def __post_init__(self) -> None:
-        """Initialize default values that can't be set as dataclass defaults"""
+        """Initialize default values and apply environment variable overrides"""
+        # Apply environment variable overrides for archive settings
+        if "ARCHIVE_MAX_SESSIONS" in os.environ:
+            try:
+                self.archive_max_sessions = int(os.environ["ARCHIVE_MAX_SESSIONS"])
+            except ValueError:
+                pass  # Keep default if invalid
+        
+        if "ARCHIVE_AUTO_CLEANUP" in os.environ:
+            self.archive_auto_cleanup = os.environ["ARCHIVE_AUTO_CLEANUP"].lower() in ("true", "1", "yes")
+        
+        if "ARCHIVE_ENABLED" in os.environ:
+            self.archive_enabled = os.environ["ARCHIVE_ENABLED"].lower() in ("true", "1", "yes")
         if self.supported_browsers is None:
             self.supported_browsers = {
                 "zen-alpha",  # Zen Browser (alpha)

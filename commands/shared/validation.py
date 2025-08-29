@@ -248,6 +248,26 @@ class SessionValidator:
                 )
         
         return debug
+    
+    @classmethod
+    def validate_archived_sessions_dir(cls, archived_dir: Path) -> None:
+        """
+        Validate that archived sessions directory is accessible
+        
+        Args:
+            archived_dir: Path to the archived sessions directory
+            
+        Raises:
+            SessionValidationError: If archived directory is not accessible
+        """
+        try:
+            archived_dir.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError) as e:
+            raise SessionValidationError(
+                f"Cannot create archived sessions directory: {archived_dir} - {e}"
+            )
+        
+        cls.validate_directory_writable(archived_dir)
 
 
 def validate_session_name(session_name: str) -> None:
