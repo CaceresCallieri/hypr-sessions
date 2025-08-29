@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Set, Optional
 
-from session_types import TimeoutSeconds
+from .session_types import TimeoutSeconds
 
 
 @dataclass

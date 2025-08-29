@@ -4,9 +4,9 @@ Session list functionality
 
 import json
 
-from config import get_config, SessionConfig
-from operation_result import OperationResult
-from utils import Utils
+from .shared.config import get_config, SessionConfig
+from .shared.operation_result import OperationResult
+from .shared.utils import Utils
 
 
 class SessionList(Utils):

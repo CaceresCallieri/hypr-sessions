@@ -5,7 +5,7 @@ Launch command generation for different applications
 import shlex
 from typing import Dict, List
 
-from session_types import WindowInfo
+from ..shared.session_types import WindowInfo
 
 from .browser_handler import BrowserHandler
 from .neovide_handler import NeovideHandler

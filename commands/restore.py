@@ -8,13 +8,13 @@ import subprocess
 import time
 from typing import Any, Dict, List
 
-from config import SessionConfig, get_config
-from operation_result import OperationResult
-from session_save.browser_handler import BrowserHandler
-from session_save.hyprctl_client import HyprctlClient
-from session_types import GroupMapping, SessionData, WindowInfo
-from utils import Utils
-from validation import SessionValidator, SessionNotFoundError, SessionValidationError
+from .shared.config import SessionConfig, get_config
+from .shared.operation_result import OperationResult
+from .save.browser_handler import BrowserHandler
+from .save.hyprctl_client import HyprctlClient
+from .shared.session_types import GroupMapping, SessionData, WindowInfo
+from .shared.utils import Utils
+from .shared.validation import SessionValidator, SessionNotFoundError, SessionValidationError
 
 
 class SessionRestore(Utils):

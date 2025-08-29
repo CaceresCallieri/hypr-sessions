@@ -15,18 +15,26 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 
 ```
 ├── hypr-sessions.py              # Main CLI with --debug and --json flags
-├── session_save/                 # Modular save functionality
-│   ├── session_saver.py          # Main orchestration with debug logging
-│   ├── hyprctl_client.py         # Hyprctl data retrieval
-│   ├── launch_commands.py        # Launch command generation
-│   ├── terminal_handler.py       # Terminal working directory capture
-│   ├── neovide_handler.py        # Neovide session management via remote API
-│   └── browser_handler.py        # Browser tab capture via keyboard extension
-├── session_restore.py            # Restore with grouping logic and timing
-├── session_list.py, session_delete.py  # Session management operations
-├── utils.py, validation.py       # Shared utilities and input validation
-├── operation_result.py           # Structured error handling system
-├── session_types.py              # Type definitions and data structures
+├── commands/                     # Backend command implementations
+│   ├── __init__.py               # Command module exports
+│   ├── shared/                   # Shared utilities and core logic
+│   │   ├── __init__.py           # Shared module exports
+│   │   ├── config.py             # Configuration management
+│   │   ├── operation_result.py   # Structured error handling system
+│   │   ├── session_types.py      # Type definitions and data structures
+│   │   ├── utils.py              # Shared utilities and base classes
+│   │   └── validation.py         # Input validation and custom exceptions
+│   ├── save/                     # Save command implementation
+│   │   ├── __init__.py           # Save module exports
+│   │   ├── session_saver.py      # Main orchestration with debug logging
+│   │   ├── hyprctl_client.py     # Hyprctl data retrieval
+│   │   ├── launch_commands.py    # Launch command generation
+│   │   ├── terminal_handler.py   # Terminal working directory capture
+│   │   ├── neovide_handler.py    # Neovide session management via remote API
+│   │   └── browser_handler.py    # Browser tab capture via keyboard extension
+│   ├── restore.py                # Restore command with grouping logic and timing
+│   ├── list.py                   # List command for session enumeration
+│   └── delete.py                 # Delete command for session removal
 ├── fabric-ui/                    # Graphical user interface
 │   ├── session_manager.py        # Main UI application (166 lines)
 │   ├── constants.py              # Shared UI constants with type hints

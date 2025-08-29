@@ -24,7 +24,6 @@ from constants import (
 from gi.repository import Gdk
 
 from utils import BackendClient, get_debug_logger
-
 from utils.path_setup import setup_fabric_ui_imports
 
 # Import extracted components
@@ -451,4 +450,3 @@ class BrowsePanelWidget(Box):
             self.debug_logger.debug_session_lifecycle(
                 "debug_control", "browse_panel", "components_debug_disabled"
             )
-

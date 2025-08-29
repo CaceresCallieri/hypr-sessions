@@ -6,11 +6,11 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from utils import Utils
-from config import get_config
-from session_types import SessionData, WindowInfo
-from validation import SessionValidator, SessionAlreadyExistsError, SessionValidationError
-from operation_result import OperationResult
+from ..shared.utils import Utils
+from ..shared.config import get_config
+from ..shared.session_types import SessionData, WindowInfo
+from ..shared.validation import SessionValidator, SessionAlreadyExistsError, SessionValidationError
+from ..shared.operation_result import OperationResult
 from .hyprctl_client import HyprctlClient
 from .launch_commands import LaunchCommandGenerator
 from .terminal_handler import TerminalHandler

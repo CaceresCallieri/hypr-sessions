@@ -5,7 +5,7 @@ Terminal-specific functionality for working directory capture
 from pathlib import Path
 from typing import Set, List, Optional
 
-from session_types import RunningProgram
+from ..shared.session_types import RunningProgram
 
 
 class TerminalHandler:

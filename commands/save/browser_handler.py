@@ -9,8 +9,8 @@ import subprocess
 import time
 from typing import Dict, List, Optional, Any, Set
 
-from config import get_config, SessionConfig
-from session_types import WindowInfo, BrowserSession, BrowserTabs
+from ..shared.config import get_config, SessionConfig
+from ..shared.session_types import WindowInfo, BrowserSession, BrowserTabs
 
 
 class BrowserHandler:

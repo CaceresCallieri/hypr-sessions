@@ -9,12 +9,12 @@ import json
 import sys
 from typing import Optional
 
-from session_delete import SessionDelete
-from session_list import SessionList
-from session_restore import SessionRestore
-from session_save import SessionSaver
-from utils import Utils
-from validation import (
+from commands.delete import SessionDelete
+from commands.list import SessionList
+from commands.restore import SessionRestore
+from commands.save import SessionSaver
+from commands.shared.utils import Utils
+from commands.shared.validation import (
     SessionValidationError, InvalidSessionNameError, SessionNotFoundError,
     SessionAlreadyExistsError, validate_session_name
 )

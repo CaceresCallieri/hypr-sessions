@@ -3,10 +3,10 @@ Session delete functionality
 """
 
 import shutil
-from config import get_config, SessionConfig
-from operation_result import OperationResult
-from utils import Utils
-from validation import SessionValidator, SessionNotFoundError, SessionValidationError
+from .shared.config import get_config, SessionConfig
+from .shared.operation_result import OperationResult
+from .shared.utils import Utils
+from .shared.validation import SessionValidator, SessionNotFoundError, SessionValidationError
 
 
 class SessionDelete(Utils):
