@@ -54,6 +54,7 @@ class SessionArchive(Utils):
             return result
 
         self.debug_print(f"Session directory exists, proceeding with archiving")
+        temp_metadata_file = None
         try:
             # Count files before archiving for user feedback
             files_in_session = list(session_dir.iterdir())
@@ -63,20 +64,29 @@ class SessionArchive(Utils):
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             archived_name = f"{session_name}-{timestamp}"
             
-            # Create archived session directory
+            # Create archived session directory path (don't create yet)
             archived_dir = self.config.get_archived_session_directory(archived_name)
-            self.debug_print(f"Moving session to archive: {archived_dir}")
             
-            # Move session directory to archived location
+            # METADATA-FIRST PATTERN: Create metadata in temporary location first
+            archived_sessions_dir = self.config.get_archived_sessions_dir()
+            temp_metadata_file = archived_sessions_dir / f".archive-metadata-{archived_name}.tmp"
+            metadata = self._create_archive_metadata(session_name, archived_name, file_count)
+            
+            self.debug_print(f"Creating temporary metadata: {temp_metadata_file}")
+            with open(temp_metadata_file, "w") as f:
+                json.dump(metadata, f, indent=2)
+            self.debug_print(f"Temporary metadata created successfully")
+            
+            # Now perform the irreversible operation: move session directory
+            self.debug_print(f"Moving session to archive: {archived_dir}")
             shutil.move(str(session_dir), str(archived_dir))
             self.debug_print(f"Successfully moved session directory to archive")
             
-            # Create archive metadata
-            metadata = self._create_archive_metadata(session_name, archived_name, file_count)
-            metadata_file = archived_dir / ".archive-metadata.json"
-            with open(metadata_file, "w") as f:
-                json.dump(metadata, f, indent=2)
-            self.debug_print(f"Created archive metadata: {metadata_file}")
+            # Move metadata to final location (atomic rename)
+            final_metadata_file = archived_dir / ".archive-metadata.json"
+            temp_metadata_file.rename(final_metadata_file)
+            temp_metadata_file = None  # Successfully moved, don't clean up
+            self.debug_print(f"Moved metadata to final location: {final_metadata_file}")
             
             result.add_success(f"Archived session directory and {file_count} files")
             
@@ -95,6 +105,14 @@ class SessionArchive(Utils):
             return result
         except Exception as e:
             self.debug_print(f"Error archiving session directory {session_dir}: {e}")
+            # Clean up temporary metadata file if it exists
+            if temp_metadata_file and temp_metadata_file.exists():
+                try:
+                    temp_metadata_file.unlink()
+                    self.debug_print(f"Cleaned up temporary metadata file: {temp_metadata_file}")
+                except Exception as cleanup_error:
+                    self.debug_print(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
+            
             result.add_error(f"Failed to archive session directory: {e}")
             return result
 
