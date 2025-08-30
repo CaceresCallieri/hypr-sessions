@@ -105,8 +105,8 @@ class HyprlandSessionManager:
                 print(f"Error: {e}")
             return False
 
-    def list_sessions(self) -> None:
-        result = self.lister.list_sessions()
+    def list_sessions(self, archived: bool = False, show_all: bool = False) -> None:
+        result = self.lister.list_sessions(archived=archived, show_all=show_all)
         
         if self.json_output:
             self._output_json_result(result)
@@ -114,7 +114,7 @@ class HyprlandSessionManager:
         
         # Normal output mode - CLI handles all presentation
         if result.success and result.data:
-            self._print_session_list(result.data)
+            self._print_session_list(result.data, archived=archived, show_all=show_all)
         
         if self.debug:
             result.print_detailed_result()
@@ -127,23 +127,58 @@ class HyprlandSessionManager:
                 for error in result.errors:
                     print(f"  Error: {error.message}")
     
-    def _print_session_list(self, data: dict) -> None:
+    def _print_session_list(self, data: dict, archived: bool = False, show_all: bool = False) -> None:
         """Handle session list presentation in CLI"""
-        sessions = data.get('sessions', [])
+        active_sessions = data.get('active_sessions', [])
+        archived_sessions = data.get('archived_sessions', [])
         
-        if not sessions:
-            print("No saved sessions found")
-            return
-
-        print("Saved sessions:")
-        print("-" * 40)
-
+        # Handle legacy format for backward compatibility
+        if 'sessions' in data and not active_sessions and not archived_sessions:
+            active_sessions = data.get('sessions', [])
+        
+        if show_all:
+            # Show both active and archived
+            if active_sessions:
+                print(f"Active sessions ({len(active_sessions)}):")
+                print("-" * 40)
+                self._print_sessions_section(active_sessions, session_type="active")
+            
+            if archived_sessions:
+                print(f"Archived sessions ({len(archived_sessions)}):")
+                print("-" * 40)
+                self._print_sessions_section(archived_sessions, session_type="archived")
+            
+            if not active_sessions and not archived_sessions:
+                print("No sessions found")
+        elif archived:
+            # Show only archived
+            if archived_sessions:
+                print(f"Archived sessions ({len(archived_sessions)}):")
+                print("-" * 40)
+                self._print_sessions_section(archived_sessions, session_type="archived")
+            else:
+                print("No archived sessions found")
+        else:
+            # Show only active (default behavior)
+            if active_sessions:
+                print("Saved sessions:")
+                print("-" * 40)
+                self._print_sessions_section(active_sessions, session_type="active")
+            else:
+                print("No saved sessions found")
+    
+    def _print_sessions_section(self, sessions: list, session_type: str) -> None:
+        """Print a section of sessions with proper formatting"""
         for session in sessions:
             if session.get('valid', False):
                 print(f"  {session['name']}")
-                print(f"    Windows: {session['windows']}")
-                print(f"    Files: {session['files']}")
-                print(f"    Saved: {session['timestamp']}")
+                if session_type == "archived":
+                    print(f"    Archived: {session.get('archive_timestamp', 'Unknown')}")
+                    print(f"    Original name: {session.get('original_name', session['name'])}")
+                else:
+                    print(f"    Windows: {session.get('windows', 0)}")
+                    print(f"    Saved: {session.get('timestamp', 'Unknown')}")
+                print(f"    Files: {session.get('files', 0)}")
                 print()
             else:
                 error = session.get('error', 'Unknown error')
@@ -232,6 +267,16 @@ def main() -> None:
         action="store_true",
         help="Output results in JSON format for UI integration",
     )
+    parser.add_argument(
+        "--archived",
+        action="store_true",
+        help="Show only archived sessions (list command only)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Show both active and archived sessions (list command only)",
+    )
 
     args = parser.parse_args()
 
@@ -250,7 +295,7 @@ def main() -> None:
         manager.restore_session(args.session_name)
 
     elif args.action == "list":
-        manager.list_sessions()
+        manager.list_sessions(archived=args.archived, show_all=args.all)
 
     elif args.action == "delete":
         if not args.session_name:
