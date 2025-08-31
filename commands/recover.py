@@ -24,6 +24,43 @@ class SessionRecovery(Utils):
         if self.debug:
             print(f"[DEBUG SessionRecovery] {message}")
     
+    def _extract_safe_original_name(self, archived_session_name: str, result: OperationResult) -> str:
+        """
+        Safely extract original session name from archived session name with validation.
+        
+        Args:
+            archived_session_name: The archived session name (e.g., 'session-name-20250831-123456')
+            result: OperationResult to add warnings to
+            
+        Returns:
+            Validated original session name or safe fallback
+        """
+        try:
+            # Attempt to extract original name using standard archive format
+            if '-' in archived_session_name:
+                potential_original = archived_session_name.split('-')[0]
+            else:
+                potential_original = archived_session_name
+            
+            # Validate the extracted name using SessionValidator
+            SessionValidator.validate_session_name(potential_original)
+            
+            self.debug_print(f"Successfully extracted safe original name: {potential_original}")
+            return potential_original
+            
+        except SessionValidationError as e:
+            # If extracted name is invalid, use safe fallback
+            self.debug_print(f"Extracted name '{potential_original}' is invalid: {e}")
+            result.add_warning(f"Cannot determine safe original name from archive name '{archived_session_name}': {e}")
+            result.add_warning("Using safe fallback name 'recovered-session'")
+            return "recovered-session"
+        except Exception as e:
+            # Handle any unexpected errors during extraction
+            self.debug_print(f"Unexpected error during name extraction: {e}")
+            result.add_warning(f"Error extracting original name from '{archived_session_name}': {e}")
+            result.add_warning("Using safe fallback name 'recovered-session'")
+            return "recovered-session"
+    
     def recover_session(self, archived_session_name: str, new_name: Optional[str] = None) -> OperationResult:
         """Recover an archived session back to active sessions"""
         result = OperationResult(operation_name=f"Recover archived session '{archived_session_name}'")
@@ -43,19 +80,39 @@ class SessionRecovery(Utils):
             # Read archive metadata to get original name
             metadata_file = archived_dir / ".archive-metadata.json"
             if not metadata_file.exists():
-                result.add_warning("Archive metadata missing, will use provided name")
-                original_name = archived_session_name.split('-')[0] if '-' in archived_session_name else archived_session_name
+                result.add_warning("Archive metadata missing, will extract from archive name")
+                original_name = self._extract_safe_original_name(archived_session_name, result)
             else:
                 try:
                     with open(metadata_file, "r") as f:
                         metadata = json.load(f)
-                    original_name = metadata.get("original_name", archived_session_name)
-                    self.debug_print(f"Found original name in metadata: {original_name}")
-                    result.add_success("Archive metadata read successfully")
-                except Exception as e:
+                    
+                    # Validate metadata structure
+                    if not isinstance(metadata, dict):
+                        raise ValueError(f"Archive metadata is not a valid dictionary: {type(metadata)}")
+                    
+                    # Extract original name from metadata with validation
+                    original_name = str(metadata.get("original_name", archived_session_name))
+                    if not original_name.strip():
+                        result.add_warning("Archive metadata contains empty original name")
+                        original_name = self._extract_safe_original_name(archived_session_name, result)
+                    else:
+                        # Validate extracted name from metadata
+                        try:
+                            SessionValidator.validate_session_name(original_name)
+                            self.debug_print(f"Found valid original name in metadata: {original_name}")
+                            result.add_success("Archive metadata read successfully")
+                        except SessionValidationError:
+                            result.add_warning(f"Archive metadata contains invalid original name: {original_name}")
+                            original_name = self._extract_safe_original_name(archived_session_name, result)
+                except (json.JSONDecodeError, ValueError) as e:
                     self.debug_print(f"Error reading metadata: {e}")
                     result.add_warning(f"Could not read archive metadata: {e}")
-                    original_name = archived_session_name.split('-')[0] if '-' in archived_session_name else archived_session_name
+                    original_name = self._extract_safe_original_name(archived_session_name, result)
+                except Exception as e:
+                    self.debug_print(f"Unexpected error reading metadata: {e}")
+                    result.add_warning(f"Unexpected error reading archive metadata: {e}")
+                    original_name = self._extract_safe_original_name(archived_session_name, result)
             
             # Determine target name (use new_name if provided, otherwise original_name)
             target_name = new_name if new_name else original_name

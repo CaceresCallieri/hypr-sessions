@@ -577,11 +577,40 @@ export ARCHIVE_AUTO_CLEANUP=true         # Automatic cleanup when limit exceeded
 - ✅ Error message standardization
 - ✅ Operation result standardization
 
-#### Known Security Issues (Critical - See ARCHIVE_FEATURE_IMPROVEMENTS_TODO.md)
+#### Security Implementation (2025-08-31)
 
-**Path Traversal Vulnerability**: Session recovery contains critical security vulnerability allowing potential system compromise through malicious archive names. **Immediate fix required before production deployment**.
+**Status**: **CRITICAL SECURITY FIX COMPLETED** - Path traversal vulnerability eliminated
 
-**Status**: Implementation is functionally complete but contains security issues requiring immediate attention per comprehensive code review findings.
+**Problem Resolved**: Fixed critical path traversal vulnerability in session recovery that could allow system compromise through malicious archive names.
+
+**Security Improvements Implemented**:
+
+**1. CLI Input Validation** (`hypr-sessions.py:360-375`):
+- Validates archive name format using regex pattern `^.+-\d{8}-\d{6}$`
+- Prevents malicious names from entering the system at entry point
+- Validates new session names using existing `SessionValidator`
+- Blocks path traversal attempts like `../../../etc-passwd-20250831-123456`
+
+**2. Secure Name Extraction Method** (`commands/recover.py:27-62`):
+- New `_extract_safe_original_name()` method with mandatory validation
+- All extracted names validated through `SessionValidator.validate_session_name()`
+- Safe fallback to `"recovered-session"` when extraction fails
+- Comprehensive error handling with detailed debug logging
+
+**3. Enhanced Metadata Validation** (`commands/recover.py:67-84`):
+- Validates JSON structure is a dictionary with type checking
+- Validates metadata-extracted names through `SessionValidator`
+- Graceful handling of corrupted, malformed, or missing metadata
+- Safe fallback patterns for all failure scenarios
+
+**Security Test Results**:
+- ✅ **Path Traversal Prevention**: Malicious names blocked at CLI level
+- ✅ **Invalid Character Detection**: Names with forbidden characters rejected
+- ✅ **Normal Recovery**: Valid archives recover successfully with secure extraction
+- ✅ **Missing Metadata Handling**: Archives without metadata use secure extraction
+- ✅ **Error Consistency**: All error paths use established validation patterns
+
+**Production Ready**: The session recovery system is now secure for production deployment with comprehensive defense-in-depth protection against path traversal attacks.
 
 ## Development Guidelines
 

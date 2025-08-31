@@ -6,6 +6,7 @@ Captures and restores workspace sessions in Hyprland
 
 import argparse
 import json
+import re
 import sys
 from typing import Optional
 
@@ -352,6 +353,25 @@ def main() -> None:
         if not args.session_name:
             print("Archived session name is required for recover action")
             sys.exit(1)
+        
+        # Validate archived session name format for security
+        try:
+            # Basic validation - archived names should contain timestamp
+            if not re.match(r'^.+-\d{8}-\d{6}$', args.session_name):
+                print("Error: Invalid archived session name format. Expected: session-name-YYYYMMDD-HHMMSS")
+                sys.exit(1)
+        except Exception:
+            print("Error: Invalid archived session name format")
+            sys.exit(1)
+        
+        # Validate new name if provided
+        if args.new_name:
+            try:
+                validate_session_name(args.new_name)
+            except SessionValidationError as e:
+                print(f"Error: Invalid new session name: {e}")
+                sys.exit(1)
+        
         manager.recover_session(args.session_name, args.new_name)
 
 
