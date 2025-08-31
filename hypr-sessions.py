@@ -271,7 +271,7 @@ class HyprlandSessionManager:
                         print(f"  Error: {error.message}")
             
             return result.success
-        except Exception as e:
+        except SessionValidationError as e:
             if self.json_output:
                 error_result = {
                     "success": False,

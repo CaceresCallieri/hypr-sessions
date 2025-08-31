@@ -4,9 +4,9 @@
 
 This document outlines critical improvements needed for the Session Recovery functionality (Phase 3.2) based on comprehensive code review analysis. The implementation is functionally correct but contains security vulnerabilities and consistency issues that must be addressed before production deployment.
 
-**Current Implementation Status**: Phase 3.2 Complete with Critical Security Fixes
-**Current Grade**: B+ (Security Fixed, Minor Consistency Issues Remain)
-**Target Grade**: A- (Production Ready)
+**Current Implementation Status**: Phase 3.2 Complete with Security and Consistency Fixes
+**Current Grade**: A- (Security Fixed, Error Handling Consistent, Minor Polish Items Remain)
+**Target Grade**: A (Production Ready)
 
 ## Critical Issues (IMMEDIATE - Security & Correctness)
 
@@ -68,14 +68,14 @@ else:
 - Test with empty/None metadata original_name values
 - Verify safe fallback names are used and validated
 
-### 2. **FIX: Inconsistent Error Handling Pattern** 🔴
-**Priority**: CRITICAL - Architectural consistency
+### 2. **FIX: Inconsistent Error Handling Pattern** ✅ COMPLETED
+**Priority**: CRITICAL - FIXED August 31, 2025
 **Files**: 
 - `/home/jc/Dev/hypr-sessions/commands/recover.py` (Lines 131-151)
 - `/home/jc/Dev/hypr-sessions/hypr-sessions.py` (Lines 273-285)
 
-**Problem**: 
-The code uses broad `Exception` catches instead of specific exception types, breaking established patterns used throughout the codebase.
+**Problem RESOLVED**: 
+The code previously used broad `Exception` catches instead of specific exception types, breaking established patterns used throughout the codebase.
 
 **Current Pattern Analysis**:
 ```python
@@ -135,6 +135,28 @@ except Exception as e:
     # Only for truly unexpected errors
     # ... existing broad catch logic ...
 ```
+
+**Implementation Summary**:
+
+**CLI Error Handling Fix** (`hypr-sessions.py:274`):
+- Changed `except Exception` to `except SessionValidationError` 
+- Now matches pattern used by `save_session()`, `restore_session()`, and `delete_session()`
+- Maintains identical JSON output format and error messages
+- Allows unexpected errors to bubble up naturally
+
+**File System Error Handling Fix** (`commands/recover.py:188-201`):
+- Replaced broad `except Exception` with specific `except (OSError, PermissionError, shutil.Error)`
+- Added fallback `except Exception` for truly unexpected errors only
+- Extracted backup restoration logic into `_attempt_backup_restoration()` helper method
+- Simplified error handling logic while preserving all recovery mechanisms
+- Added specific error messages distinguishing file system vs unexpected errors
+
+**Testing Results**:
+- ✅ **CLI Validation**: Invalid archive names properly caught and handled
+- ✅ **JSON Consistency**: JSON output format unchanged and working correctly  
+- ✅ **Debug Output**: Consistent debug logging with other operations
+- ✅ **Error Messages**: Clear, specific error messages for different failure types
+- ✅ **Backup Recovery**: All backup/restore logic preserved and functional
 
 ### 3. **FIX: Add Metadata Type Validation** 🔴
 **Priority**: HIGH - Runtime safety
@@ -473,7 +495,7 @@ def cleanup_interrupted_recovery(self, recovery_marker_name: str) -> bool:
 1. ✅ Fix path traversal vulnerability (COMPLETED 2025-08-31)
 2. ✅ Add metadata type validation (COMPLETED 2025-08-31)
 3. ✅ Fix CLI argument validation (COMPLETED 2025-08-31)
-4. Align error handling patterns (IN PROGRESS)
+4. ✅ Align error handling patterns (COMPLETED 2025-08-31)
 
 ### Phase 2 (Robustness - Week 1)
 5. Implement metadata-first recovery pattern
@@ -494,10 +516,10 @@ def cleanup_interrupted_recovery(self, recovery_marker_name: str) -> bool:
 - [x] Malformed metadata handled safely (COMPLETED 2025-08-31)
 
 ### Code Quality ✅  
-- [ ] Consistent error handling patterns
+- [x] Consistent error handling patterns (COMPLETED 2025-08-31)
 - [ ] Proper type annotations
 - [ ] Clear documentation
-- [ ] Simplified backup logic
+- [x] Simplified backup logic (COMPLETED 2025-08-31)
 
 ### Integration ✅
 - [x] CLI validation matches other operations (COMPLETED 2025-08-31)

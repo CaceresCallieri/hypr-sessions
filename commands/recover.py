@@ -185,26 +185,55 @@ class SessionRecovery(Utils):
             
             return result
             
-        except Exception as e:
-            self.debug_print(f"Error during recovery operation: {e}")
+        except (OSError, PermissionError, shutil.Error) as e:
+            self.debug_print(f"File system error during recovery operation: {e}")
+            result.add_error(f"Failed to recover session due to file system error: {e}")
             
-            # Restore from backup if possible
-            if temp_metadata_file and temp_metadata_file.exists():
-                try:
-                    # If we have a backup and the original archive dir is gone, try to restore
-                    if not archived_dir.exists() and final_active_dir.exists():
-                        shutil.move(str(final_active_dir), str(archived_dir))
-                        if metadata_file.exists():
-                            metadata_file.unlink()
-                        shutil.move(str(temp_metadata_file), str(metadata_file))
-                        self.debug_print("Restored archive from backup after recovery failure")
-                        result.add_warning("Recovery failed, session restored to archive")
-                    else:
-                        temp_metadata_file.unlink()
-                        self.debug_print("Cleaned up metadata backup after recovery failure")
-                except Exception as restore_error:
-                    self.debug_print(f"Could not restore from backup: {restore_error}")
-                    result.add_warning("Recovery failed and backup restoration also failed")
-            
-            result.add_error(f"Failed to recover session: {e}")
+            # Attempt to restore from backup after file system error
+            self._attempt_backup_restoration(temp_metadata_file, archived_dir, final_active_dir, metadata_file, result)
             return result
+        except Exception as e:
+            self.debug_print(f"Unexpected error during recovery operation: {e}")
+            result.add_error(f"Unexpected error during recovery: {e}")
+            
+            # Attempt to restore from backup after unexpected error
+            self._attempt_backup_restoration(temp_metadata_file, archived_dir, final_active_dir, metadata_file, result)
+            return result
+    
+    def _attempt_backup_restoration(self, temp_metadata_file: Optional[Path], 
+                                  archived_dir: Path, final_active_dir: Path, 
+                                  metadata_file: Path, result: OperationResult) -> None:
+        """Attempt to restore archive from backup after recovery failure"""
+        
+        if not temp_metadata_file or not temp_metadata_file.exists():
+            self.debug_print("No backup available for restoration")
+            return
+        
+        try:
+            # Case 1: Archive directory was moved but recovery failed
+            if not archived_dir.exists() and final_active_dir.exists():
+                self.debug_print("Restoring archive directory from recovered location")
+                shutil.move(str(final_active_dir), str(archived_dir))
+                
+                # Restore metadata
+                if metadata_file.exists():
+                    metadata_file.unlink()
+                shutil.move(str(temp_metadata_file), str(metadata_file))
+                
+                self.debug_print("Successfully restored archive from backup")
+                result.add_warning("Recovery failed, session restored to archive")
+                return
+            
+            # Case 2: Just cleanup temp metadata
+            temp_metadata_file.unlink()
+            self.debug_print("Cleaned up temporary metadata file")
+            
+        except (OSError, PermissionError) as restore_error:
+            self.debug_print(f"Warning: Could not restore from backup: {restore_error}")
+            result.add_warning("Recovery failed and backup restoration also failed")
+            # Try to at least cleanup temp file
+            try:
+                if temp_metadata_file.exists():
+                    temp_metadata_file.unlink()
+            except:
+                pass  # Best effort cleanup
