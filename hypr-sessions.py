@@ -11,6 +11,7 @@ from typing import Optional
 
 from commands.delete import SessionArchive
 from commands.list import SessionList
+from commands.recover import SessionRecovery
 from commands.restore import SessionRestore
 from commands.save import SessionSaver
 from commands.shared.utils import Utils
@@ -28,6 +29,7 @@ class HyprlandSessionManager:
         self.restorer: SessionRestore = SessionRestore(debug=debug)
         self.lister: SessionList = SessionList(debug=debug)
         self.archiver: SessionArchive = SessionArchive(debug=debug)
+        self.recoverer: SessionRecovery = SessionRecovery(debug=debug)
 
     def save_session(self, session_name: str) -> bool:
         try:
@@ -244,18 +246,61 @@ class HyprlandSessionManager:
                 print(f"Error: {e}")
             return False
 
+    def recover_session(self, archived_session_name: str, new_name: Optional[str] = None) -> bool:
+        try:
+            result = self.recoverer.recover_session(archived_session_name, new_name)
+            
+            if self.json_output:
+                self._output_json_result(result)
+                sys.exit(0 if result.success else 1)
+            
+            # Normal output mode
+            if self.debug:
+                result.print_detailed_result()
+            else:
+                # Print summary for normal operation
+                if result.success:
+                    recovered_name = result.data.get("recovered_session_name", archived_session_name) if result.data else archived_session_name
+                    print(f"✓ Session recovered successfully as '{recovered_name}'")
+                    if result.has_warnings:
+                        print(f"  ⚠ {result.warning_count} warnings occurred during recovery")
+                else:
+                    print(f"✗ Session recovery failed")
+                    for error in result.errors:
+                        print(f"  Error: {error.message}")
+            
+            return result.success
+        except Exception as e:
+            if self.json_output:
+                error_result = {
+                    "success": False,
+                    "operation": f"Recover archived session '{archived_session_name}'",
+                    "error": str(e),
+                    "messages": [{"status": "error", "message": str(e), "context": None}]
+                }
+                print(json.dumps(error_result, indent=2))
+                sys.exit(1)
+            else:
+                print(f"Error: {e}")
+            return False
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hyprland Session Manager")
     parser.add_argument(
         "action",
-        choices=["save", "restore", "list", "delete"],
+        choices=["save", "restore", "list", "delete", "recover"],
         help="Action to perform",
     )
     parser.add_argument(
         "session_name",
         nargs="?",
-        help="Name of the session (required for save/restore/delete)",
+        help="Name of the session (required for save/restore/delete/recover)",
+    )
+    parser.add_argument(
+        "new_name",
+        nargs="?",
+        help="New name for recovered session (optional for recover action)",
     )
     parser.add_argument(
         "--debug",
@@ -302,6 +347,12 @@ def main() -> None:
             print("Session name is required for delete action")
             sys.exit(1)
         manager.delete_session(args.session_name)
+
+    elif args.action == "recover":
+        if not args.session_name:
+            print("Archived session name is required for recover action")
+            sys.exit(1)
+        manager.recover_session(args.session_name, args.new_name)
 
 
 if __name__ == "__main__":

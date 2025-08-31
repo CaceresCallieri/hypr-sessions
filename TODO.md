@@ -8,6 +8,26 @@
 
 ## Outstanding Improvements
 
+### **IMMEDIATE CRITICAL SECURITY FIX** ⚠️
+
+#### **0. Fix Path Traversal Vulnerability in Session Recovery** 
+**Priority**: CRITICAL SECURITY - Must fix before any other work
+**Context**: Code review identified critical security vulnerability in session recovery (Grade C+ → needs immediate upgrade to production-ready Grade A-).
+
+**Problem**: `/home/jc/Dev/hypr-sessions/commands/recover.py` lines 47 and 58 contain path traversal vulnerability:
+```python
+# VULNERABLE: String manipulation on untrusted input
+original_name = archived_session_name.split('-')[0] if '-' in archived_session_name else archived_session_name
+```
+
+**Attack Vector**: Malicious archive names like `../../../etc-passwd-20250831-123456` could compromise system security.
+
+**Action Required**: Implement secure name extraction with validation (see ARCHIVE_FEATURE_IMPROVEMENTS_TODO.md for complete implementation plan)
+
+**Success Criteria**: All extracted names validated through SessionValidator.validate_session_name() with safe fallbacks
+
+---
+
 ### Critical Priority (Performance & Architecture)
 
 #### 1. **Search Input Debouncing Implementation** 
@@ -205,7 +225,10 @@ def _delayed_focus_setup(self):
 
 ## Implementation Priority Order
 
-**IMMEDIATE PHASE (Critical Performance Issues)**:
+**IMMEDIATE PHASE (Critical Security Issues)**:
+0. **Fix Path Traversal Vulnerability in Session Recovery (#0) - CRITICAL SECURITY VULNERABILITY**
+
+**CRITICAL PHASE (Performance Issues)**:
 1. Search Input Debouncing Implementation (#1) - Performance Grade D issue
 
 **Phase 1 (Architectural Consistency)**:

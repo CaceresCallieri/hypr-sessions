@@ -6,7 +6,8 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 
 ### Architecture
 
-- **CLI Interface**: `hypr-sessions.py` - Main entry point with commands: `save`, `restore`, `list`, `delete`
+- **CLI Interface**: `hypr-sessions.py` - Main entry point with commands: `save`, `restore`, `list`, `delete`, `recover`
+- **Archive System**: Complete session archiving system with recovery capabilities instead of permanent deletion
 - **Modular Structure**: Specialized handlers for different application types (terminals, Neovide, browsers)
 - **Fabric UI**: Professional graphical interface using Fabric framework for desktop widgets
 - **JSON API**: Clean API for UI integration with structured responses and error handling
@@ -34,7 +35,8 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 │   │   └── browser_handler.py    # Browser tab capture via keyboard extension
 │   ├── restore.py                # Restore command with grouping logic and timing
 │   ├── list.py                   # List command for session enumeration
-│   └── delete.py                 # Delete command for session removal
+│   ├── delete.py                 # Archive command (formerly delete) - archives sessions with metadata
+│   └── recover.py                # Recovery command - recovers archived sessions back to active
 ├── fabric-ui/                    # Graphical user interface
 │   ├── session_manager.py        # Main UI application (166 lines)
 │   ├── constants.py              # Shared UI constants with type hints
@@ -424,14 +426,20 @@ chrome.commands.onCommand.addListener((command) => {
 
 ## Session Data Format & Storage
 
-### Current Structure (Folder-Based, 2025-08-13)
+### Current Structure (Archive-Enabled, 2025-08-31)
 
 ```
 ~/.config/hypr-sessions/
-├── session_name/
-│   ├── session.json           # Main session metadata
-│   ├── neovide-session-*.vim  # Neovide session files
-│   └── (future: browser-*.json, app-specific data)
+├── sessions/                     # Active sessions directory
+│   └── session_name/
+│       ├── session.json          # Main session metadata
+│       ├── neovide-session-*.vim # Neovide session files
+│       └── (app-specific data)
+└── archived/                     # Archived sessions directory
+    └── session_name-20250831-123456/
+        ├── .archive-metadata.json # Archive metadata
+        ├── session.json          # Original session data
+        └── (original session files)
 ```
 
 ### Session JSON Schema
@@ -470,8 +478,110 @@ chrome.commands.onCommand.addListener((command) => {
 
 - **Self-Contained**: Each session directory contains all related files
 - **No Conflicts**: Elimination of file name collisions between sessions
-- **Easy Cleanup**: Delete entire session with single directory removal
+- **Easy Cleanup**: Archive entire session with single directory operation
 - **Extensible**: Ready for additional per-session data (configs, caches, etc.)
+- **Data Safety**: Archive system prevents accidental permanent data loss
+
+## Archive System Implementation
+
+### Complete Archive System (2025-08-31)
+
+**Status**: **Phase 3.2 Complete** - Full archive and recovery system implemented
+
+The project has evolved from permanent deletion to a comprehensive archive system that provides data safety while maintaining familiar workflows.
+
+#### Core Architecture
+
+**Archive Instead of Delete**: All "delete" operations now archive sessions to timestamped directories with complete metadata for recovery.
+
+**Automatic Migration**: Existing installations automatically migrate from flat structure (`session.json` files) to nested structure (`sessions/` and `archived/` directories) without user intervention.
+
+**Metadata-First Pattern**: All operations use comprehensive metadata tracking for data integrity and recovery capabilities.
+
+#### Archive Operations
+
+**Archive Command** (`./hypr-sessions.py delete <session-name>`):
+- Moves session from `sessions/` to `archived/` with timestamp suffix
+- Creates `.archive-metadata.json` with original name, timestamp, and file count
+- Maintains backward compatibility - CLI interface unchanged
+- Automatic cleanup when archive limit exceeded (configurable, default 20 sessions)
+
+**Recovery Command** (`./hypr-sessions.py recover <archived-session-name> [new-name]`):
+- Recovers archived sessions back to active directory
+- Supports original name recovery or custom naming
+- Validates name conflicts and provides clear error messages
+- Removes archive metadata from recovered sessions
+
+**Enhanced List Command**:
+```bash
+./hypr-sessions.py list --archived    # Show only archived sessions
+./hypr-sessions.py list --all         # Show both active and archived
+./hypr-sessions.py list --json        # JSON output for UI integration
+```
+
+#### Archive Metadata Format
+
+```json
+{
+  "original_name": "session-name",
+  "archived_name": "session-name-20250831-123456", 
+  "archive_timestamp": "2025-08-31T12:34:56.789012",
+  "file_count": 3,
+  "archive_version": "1.0"
+}
+```
+
+#### Configuration System
+
+**Environment Variables**:
+```bash
+export ARCHIVE_ENABLED=true              # Enable/disable archive system
+export ARCHIVE_MAX_SESSIONS=20           # Maximum archived sessions to keep
+export ARCHIVE_AUTO_CLEANUP=true         # Automatic cleanup when limit exceeded
+```
+
+**Runtime Configuration** (`commands/shared/config.py`):
+- Configurable archive limits with automatic cleanup
+- Environment variable overrides for deployment flexibility
+- Graceful degradation when archive system disabled
+
+#### Implementation Details
+
+**Atomic Operations**: Archive operations use metadata-first pattern with backup/restore capability on failure.
+
+**Timestamped Naming**: Archive directories use `YYYYMMDD-HHMMSS` format for chronological ordering and conflict prevention.
+
+**Validation System**: Comprehensive validation using existing `SessionValidator` with archive-specific checks.
+
+**JSON API Integration**: Complete JSON output support for UI integration with structured error reporting.
+
+#### Testing Results
+
+**Core Functionality**:
+- ✅ Archive creation with metadata
+- ✅ Recovery to original and custom names  
+- ✅ Name conflict detection and prevention
+- ✅ Archive limit enforcement with cleanup
+- ✅ JSON API compatibility
+- ✅ Automatic migration from flat structure
+
+**Edge Cases**:
+- ✅ Non-existent session handling
+- ✅ Invalid archive name handling
+- ✅ Disk space and permission error handling
+- ✅ Malformed session data recovery
+
+**Integration**:
+- ✅ CLI interface backward compatibility
+- ✅ Debug output consistency
+- ✅ Error message standardization
+- ✅ Operation result standardization
+
+#### Known Security Issues (Critical - See ARCHIVE_FEATURE_IMPROVEMENTS_TODO.md)
+
+**Path Traversal Vulnerability**: Session recovery contains critical security vulnerability allowing potential system compromise through malicious archive names. **Immediate fix required before production deployment**.
+
+**Status**: Implementation is functionally complete but contains security issues requiring immediate attention per comprehensive code review findings.
 
 ## Development Guidelines
 
