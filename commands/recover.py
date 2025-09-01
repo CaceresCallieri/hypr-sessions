@@ -1,5 +1,42 @@
 """
-Session recovery functionality - recover archived sessions back to active
+Session recovery functionality - secure recovery of archived sessions back to active status.
+
+This module provides comprehensive session recovery capabilities with production-ready
+security features, atomic operations, and data safety guarantees. The recovery system
+uses a metadata-first pattern to ensure complete success or complete rollback,
+preventing partial recovery corruption.
+
+Key Components:
+- SessionRecovery: Main recovery class with atomic operations
+- Path traversal prevention and input validation
+- Metadata parsing with type validation and safe fallbacks
+- Recovery marker system for health monitoring and cleanup
+- Comprehensive error handling with specific exception types
+
+Security Features:
+- Defense-in-depth validation preventing path traversal attacks
+- Safe name extraction with validated fallbacks
+- Atomic file operations with automatic rollback on failure
+- Complete audit trail through recovery markers and debug logging
+
+Example Usage:
+    from commands.recover import SessionRecovery
+    
+    # Create recoverer instance
+    recoverer = SessionRecovery(debug=True)
+    
+    # Recover session with original name
+    result = recoverer.recover_session("work-session-20250831-143022")
+    
+    # Recover session with custom name
+    result = recoverer.recover_session("work-session-20250831-143022", "new-work")
+    
+    # Check results
+    if result.success:
+        print(f"Recovered {result.data['files_recovered']} files to {result.data['recovered_session_name']}")
+    else:
+        for error in result.errors:
+            print(f"Recovery failed: {error.message}")
 """
 
 import json
@@ -14,6 +51,38 @@ from .shared.validation import SessionValidator, SessionNotFoundError, SessionVa
 
 
 class SessionRecovery(Utils):
+    """
+    Session recovery system for restoring archived sessions to active status.
+    
+    This class provides comprehensive session recovery functionality with production-ready
+    security, atomic operations, and data safety features. It handles the complete recovery
+    workflow from archived sessions back to active sessions with proper validation,
+    metadata management, and error handling.
+    
+    Key Features:
+    - Atomic recovery operations with automatic rollback
+    - Path traversal attack prevention and input validation
+    - Metadata-first recovery pattern for data integrity
+    - Recovery marker system for health monitoring
+    - Comprehensive error handling with graceful degradation
+    - Debug logging support for troubleshooting
+    
+    Security:
+    - All session names validated through SessionValidator
+    - Safe fallback names for malformed archive metadata
+    - Defense-in-depth validation at multiple layers
+    - Prevents system compromise through malicious archive names
+    
+    Usage:
+        recoverer = SessionRecovery(debug=True)
+        result = recoverer.recover_session("work-session-20250831-143022", "new-work")
+        if result.success:
+            print(f"Recovered {result.data['files_recovered']} files")
+    
+    Attributes:
+        debug (bool): Enable debug output for operations
+        config (SessionConfig): Configuration for paths and settings
+    """
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
         self.debug: bool = debug
@@ -26,14 +95,39 @@ class SessionRecovery(Utils):
     
     def _extract_safe_original_name(self, archived_session_name: str, result: OperationResult) -> str:
         """
-        Safely extract original session name from archived session name with validation.
+        Safely extract original session name from archived session name with comprehensive validation.
+        
+        This method implements secure name extraction with defense-in-depth validation
+        to prevent path traversal attacks and ensure only valid session names are recovered.
+        When extraction fails validation, it uses a safe fallback name that's guaranteed
+        to be valid.
         
         Args:
-            archived_session_name: The archived session name (e.g., 'session-name-20250831-123456')
-            result: OperationResult to add warnings to
+            archived_session_name: The archived session name with timestamp suffix.
+                                  Expected format: "session-name-YYYYMMDD-HHMMSS"
+                                  Example: "work-session-20250831-143022"
+            result: OperationResult instance to add warning messages for tracking
+                   extraction failures and fallback usage
             
         Returns:
-            Validated original session name or safe fallback
+            str: Validated original session name if extraction succeeds, or 
+                 "recovered-session" as safe fallback if extraction/validation fails.
+                 The returned name is guaranteed to pass SessionValidator checks.
+                 
+        Security:
+            - Prevents path traversal attacks by validating extracted names
+            - Uses SessionValidator.validate_session_name() for comprehensive checking
+            - Provides safe fallback that cannot be exploited
+            - Logs all failures for security monitoring
+            
+        Examples:
+            # Successful extraction
+            name = self._extract_safe_original_name("work-session-20250831-143022", result)
+            # Returns: "work-session"
+            
+            # Malicious name blocked
+            name = self._extract_safe_original_name("../../../etc-passwd-20250831-143022", result)
+            # Returns: "recovered-session" (safe fallback)
         """
         try:
             # Attempt to extract original name using standard archive format
@@ -62,8 +156,61 @@ class SessionRecovery(Utils):
             return "recovered-session"
     
     def recover_session(self, archived_session_name: str, new_name: Optional[str] = None) -> OperationResult:
-        """Recover an archived session back to active sessions"""
-        result = OperationResult(operation_name=f"Recover archived session '{archived_session_name}'")
+        """
+        Recover an archived session back to active sessions directory.
+        
+        This method performs atomic recovery operations using a metadata-first pattern
+        to ensure data safety and prevent race conditions. The recovery process includes
+        validation, metadata parsing, atomic file operations, and automatic rollback
+        on failure.
+        
+        Args:
+            archived_session_name: Name of the archived session (with timestamp suffix).
+                                  Expected format: "session-name-YYYYMMDD-HHMMSS"
+                                  Example: "work-session-20250831-143022"
+            new_name: Optional new name for the recovered session. If not provided,
+                     uses the original name from archive metadata or safe extraction
+                     from archived session name. Must be a valid session name.
+        
+        Returns:
+            OperationResult with recovery status and comprehensive data:
+            - success: True if recovery completed successfully
+            - data: Dictionary containing:
+                - archived_session_name: Original archived session name
+                - recovered_session_name: Final name of recovered session  
+                - original_name: Original session name from metadata
+                - files_recovered: Number of files in recovered session
+                - active_session_dir: Path to recovered session directory
+            - messages: List of success/warning/error messages with context
+        
+        Raises:
+            SessionValidationError: If session names contain invalid characters or format
+            SessionNotFoundError: If archived session doesn't exist in archive directory
+            SessionAlreadyExistsError: If target session name already exists in active sessions
+            OSError: File system errors during atomic recovery operations
+            PermissionError: Insufficient permissions for file operations
+            ValueError: Malformed archive metadata structure
+            
+        Examples:
+            # Recover with original name
+            result = recoverer.recover_session("work-session-20250831-143022")
+            
+            # Recover with custom name  
+            result = recoverer.recover_session("work-session-20250831-143022", "new-work")
+            
+            # Check for errors
+            if not result.success:
+                for error in result.errors:
+                    print(f"Recovery failed: {error.message}")
+        
+        Notes:
+            - Uses atomic operations to prevent partial recovery corruption
+            - Automatically removes archive metadata from recovered sessions
+            - Creates recovery markers during operation for health monitoring
+            - Provides automatic rollback on any failure during recovery
+            - Validates all names using SessionValidator for security
+        """
+        result: OperationResult = OperationResult(operation_name=f"Recover archived session '{archived_session_name}'")
         
         try:
             # Validate archived session name
@@ -73,19 +220,20 @@ class SessionRecovery(Utils):
             self.debug_print(f"Attempting to recover archived session: {archived_session_name}")
             
             # Check if archived session exists
-            archived_dir = self.config.get_archived_session_directory(archived_session_name)
+            archived_dir: Path = self.config.get_archived_session_directory(archived_session_name)
             if not archived_dir.exists():
                 raise SessionNotFoundError(f"Archived session '{archived_session_name}' not found")
             
             # Read archive metadata to get original name
-            metadata_file = archived_dir / ".archive-metadata.json"
+            metadata_file: Path = archived_dir / ".archive-metadata.json"
+            original_name: str
             if not metadata_file.exists():
                 result.add_warning("Archive metadata missing, will extract from archive name")
                 original_name = self._extract_safe_original_name(archived_session_name, result)
             else:
                 try:
                     with open(metadata_file, "r") as f:
-                        metadata = json.load(f)
+                        metadata: Dict[str, Any] = json.load(f)
                     
                     # Validate metadata structure
                     if not isinstance(metadata, dict):
@@ -115,7 +263,7 @@ class SessionRecovery(Utils):
                     original_name = self._extract_safe_original_name(archived_session_name, result)
             
             # Determine target name (use new_name if provided, otherwise original_name)
-            target_name = new_name if new_name else original_name
+            target_name: str = new_name if new_name else original_name
             
             # Validate target name
             if new_name:
@@ -125,14 +273,14 @@ class SessionRecovery(Utils):
             self.debug_print(f"Target recovery name: {target_name}")
             
             # Check if target name already exists in active sessions (without creating it)
-            active_target_dir = self.config.get_active_sessions_dir() / target_name
+            active_target_dir: Path = self.config.get_active_sessions_dir() / target_name
             if active_target_dir.exists():
                 raise SessionAlreadyExistsError(f"Active session '{target_name}' already exists")
             
             result.add_success("Target session name is available")
             
             # Ensure active sessions directory exists
-            active_sessions_dir = self.config.get_active_sessions_dir()
+            active_sessions_dir: Path = self.config.get_active_sessions_dir()
             active_sessions_dir.mkdir(parents=True, exist_ok=True)
             
         except (SessionValidationError, SessionNotFoundError, SessionAlreadyExistsError) as e:
@@ -141,11 +289,11 @@ class SessionRecovery(Utils):
             return result
         
         # Perform the atomic recovery operation
-        final_active_dir = self.config.get_active_sessions_dir() / target_name
+        final_active_dir: Path = self.config.get_active_sessions_dir() / target_name
         try:
             # Count files for user feedback
-            files_in_archive = list(archived_dir.iterdir())
-            file_count = len(files_in_archive)
+            files_in_archive: List[Path] = list(archived_dir.iterdir())
+            file_count: int = len(files_in_archive)
             
             self.debug_print(f"Recovering {file_count} files from archive using atomic recovery")
             
@@ -178,22 +326,41 @@ class SessionRecovery(Utils):
         """
         Perform atomic recovery using metadata-first pattern for data safety.
         
-        This method implements a robust atomic recovery process:
+        This method implements a robust atomic recovery process that ensures either
+        complete success or complete rollback, preventing partial recovery corruption:
+        
+        Recovery Steps:
         1. Creates recovery-in-progress marker with operation metadata
         2. Performs atomic directory move (atomic on same filesystem)
         3. Cleans up archive metadata from recovered session
         4. Removes recovery marker on success
-        5. Automatic rollback on any failure
+        5. Automatic rollback on any failure with cleanup
         
         Args:
-            archived_dir: Path to archived session directory
+            archived_dir: Path to archived session directory to be recovered
             final_active_dir: Target path in active sessions directory
-            target_name: Name for recovered session
-            file_count: Number of files being recovered (for logging)
+            target_name: Name for recovered session (used in recovery marker)
+            file_count: Number of files being recovered (for logging and metadata)
             
         Raises:
-            OSError, PermissionError: File system errors during recovery
-            Exception: Any other errors during recovery process
+            OSError: File system errors during directory operations
+            PermissionError: Insufficient permissions for file operations  
+            shutil.Error: Errors during atomic directory move operations
+            Exception: Any other unexpected errors during recovery process
+            
+        Recovery Marker Format:
+            The recovery marker contains JSON metadata for operation tracking:
+            - target_name: Target session name
+            - archived_dir: Source archive directory path
+            - recovery_timestamp: ISO format operation timestamp
+            - recovery_version: Recovery format version
+            - file_count: Number of files being recovered
+            
+        Notes:
+            - Uses shutil.move() which is atomic on same filesystem
+            - Recovery markers enable health monitoring and cleanup
+            - Automatic rollback preserves data integrity on failure
+            - All operations logged for debugging and audit trails
         """
         from datetime import datetime
         import json
