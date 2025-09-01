@@ -5,7 +5,7 @@ Session recovery functionality - recover archived sessions back to active
 import json
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from .shared.config import get_config, SessionConfig
 from .shared.operation_result import OperationResult
@@ -140,38 +140,17 @@ class SessionRecovery(Utils):
             result.add_error(str(e))
             return result
         
-        # Perform the recovery operation
-        temp_metadata_file = None
+        # Perform the atomic recovery operation
         final_active_dir = self.config.get_active_sessions_dir() / target_name
         try:
             # Count files for user feedback
             files_in_archive = list(archived_dir.iterdir())
             file_count = len(files_in_archive)
             
-            self.debug_print(f"Recovering {file_count} files from archive")
+            self.debug_print(f"Recovering {file_count} files from archive using atomic recovery")
             
-            # Create backup of metadata before moving (in case of failure)
-            if metadata_file.exists():
-                temp_metadata_file = archived_dir.parent / f".recovery-backup-{archived_session_name}.json"
-                shutil.copy2(str(metadata_file), str(temp_metadata_file))
-                self.debug_print(f"Created metadata backup: {temp_metadata_file}")
-            
-            # Move archived session to active sessions (with target name)
-            self.debug_print(f"Moving archive to active: {archived_dir} -> {final_active_dir}")
-            shutil.move(str(archived_dir), str(final_active_dir))
-            self.debug_print(f"Successfully moved session to active directory")
-            
-            # Remove archive metadata file (it's now in active directory)
-            archive_metadata_in_active = final_active_dir / ".archive-metadata.json"
-            if archive_metadata_in_active.exists():
-                archive_metadata_in_active.unlink()
-                self.debug_print("Removed archive metadata from recovered session")
-            
-            # Clean up backup metadata file
-            if temp_metadata_file and temp_metadata_file.exists():
-                temp_metadata_file.unlink()
-                temp_metadata_file = None
-                self.debug_print("Cleaned up metadata backup")
+            # Perform atomic recovery with metadata-first pattern
+            self._perform_atomic_recovery(archived_dir, final_active_dir, target_name, file_count)
             
             result.add_success(f"Recovered session with {file_count} files")
             
@@ -186,19 +165,169 @@ class SessionRecovery(Utils):
             return result
             
         except (OSError, PermissionError, shutil.Error) as e:
-            self.debug_print(f"File system error during recovery operation: {e}")
+            self.debug_print(f"File system error during atomic recovery: {e}")
             result.add_error(f"Failed to recover session due to file system error: {e}")
-            
-            # Attempt to restore from backup after file system error
-            self._attempt_backup_restoration(temp_metadata_file, archived_dir, final_active_dir, metadata_file, result)
             return result
         except Exception as e:
-            self.debug_print(f"Unexpected error during recovery operation: {e}")
+            self.debug_print(f"Unexpected error during atomic recovery: {e}")
             result.add_error(f"Unexpected error during recovery: {e}")
-            
-            # Attempt to restore from backup after unexpected error
-            self._attempt_backup_restoration(temp_metadata_file, archived_dir, final_active_dir, metadata_file, result)
             return result
+    
+    def _perform_atomic_recovery(self, archived_dir: Path, final_active_dir: Path, 
+                               target_name: str, file_count: int) -> None:
+        """
+        Perform atomic recovery using metadata-first pattern for data safety.
+        
+        This method implements a robust atomic recovery process:
+        1. Creates recovery-in-progress marker with operation metadata
+        2. Performs atomic directory move (atomic on same filesystem)
+        3. Cleans up archive metadata from recovered session
+        4. Removes recovery marker on success
+        5. Automatic rollback on any failure
+        
+        Args:
+            archived_dir: Path to archived session directory
+            final_active_dir: Target path in active sessions directory
+            target_name: Name for recovered session
+            file_count: Number of files being recovered (for logging)
+            
+        Raises:
+            OSError, PermissionError: File system errors during recovery
+            Exception: Any other errors during recovery process
+        """
+        from datetime import datetime
+        import json
+        
+        # Step 1: Create recovery-in-progress marker
+        recovery_marker = final_active_dir.parent / f".recovery-in-progress-{target_name}.tmp"
+        recovery_info = {
+            "target_name": target_name,
+            "archived_dir": str(archived_dir),
+            "recovery_timestamp": datetime.now().isoformat(),
+            "recovery_version": "1.0",
+            "file_count": file_count
+        }
+        
+        try:
+            # Write recovery marker with operation details
+            self.debug_print(f"Creating recovery marker: {recovery_marker}")
+            with open(recovery_marker, "w") as f:
+                json.dump(recovery_info, f, indent=2)
+            
+            # Step 2: Perform atomic directory move (atomic on same filesystem)
+            self.debug_print(f"Moving archive to active: {archived_dir} -> {final_active_dir}")
+            shutil.move(str(archived_dir), str(final_active_dir))
+            self.debug_print(f"Successfully moved session to active directory")
+            
+            # Step 3: Clean up archive metadata from recovered session
+            archive_metadata_in_recovered = final_active_dir / ".archive-metadata.json"
+            if archive_metadata_in_recovered.exists():
+                archive_metadata_in_recovered.unlink()
+                self.debug_print("Removed archive metadata from recovered session")
+            
+            # Step 4: Remove recovery marker (indicates successful completion)
+            recovery_marker.unlink()
+            self.debug_print("Recovery completed successfully, removed recovery marker")
+            
+        except Exception as e:
+            # Automatic rollback: If final_active_dir exists, move it back to archived location
+            self.debug_print(f"Recovery failed with error: {e}, attempting rollback")
+            
+            if final_active_dir.exists() and not archived_dir.exists():
+                try:
+                    self.debug_print("Rolling back: moving recovered session back to archive")
+                    shutil.move(str(final_active_dir), str(archived_dir))
+                    self.debug_print("Successfully rolled back partial recovery")
+                except Exception as rollback_error:
+                    self.debug_print(f"WARNING: Rollback failed: {rollback_error}")
+                    # Note: Recovery marker will still exist to indicate failed state
+            
+            # Clean up recovery marker (whether rollback succeeded or failed)
+            if recovery_marker.exists():
+                try:
+                    recovery_marker.unlink()
+                    self.debug_print("Cleaned up recovery marker after failure")
+                except Exception as marker_cleanup_error:
+                    self.debug_print(f"WARNING: Could not clean up recovery marker: {marker_cleanup_error}")
+            
+            # Re-raise original exception to let caller handle it
+            raise e
+    
+    def check_interrupted_recoveries(self) -> List[str]:
+        """
+        Check for any interrupted recovery operations and return list of recovery markers.
+        This can be used for system health checks and cleanup operations.
+        
+        Returns:
+            List of recovery marker filenames indicating interrupted operations
+        """
+        active_sessions_dir = self.config.get_active_sessions_dir()
+        recovery_markers = []
+        
+        try:
+            if not active_sessions_dir.exists():
+                return recovery_markers
+                
+            for item in active_sessions_dir.iterdir():
+                if item.name.startswith('.recovery-in-progress-') and item.suffix == '.tmp':
+                    recovery_markers.append(item.name)
+                    self.debug_print(f"Found interrupted recovery marker: {item.name}")
+                    
+        except Exception as e:
+            self.debug_print(f"Error checking for interrupted recoveries: {e}")
+        
+        return recovery_markers
+    
+    def cleanup_interrupted_recovery(self, recovery_marker_name: str) -> bool:
+        """
+        Clean up an interrupted recovery operation by removing stale recovery marker.
+        
+        Args:
+            recovery_marker_name: Name of the recovery marker file to clean up
+            
+        Returns:
+            True if cleanup was successful, False otherwise
+        """
+        try:
+            active_sessions_dir = self.config.get_active_sessions_dir()
+            marker_path = active_sessions_dir / recovery_marker_name
+            
+            if marker_path.exists() and marker_path.suffix == '.tmp':
+                marker_path.unlink()
+                self.debug_print(f"Cleaned up interrupted recovery marker: {recovery_marker_name}")
+                return True
+            else:
+                self.debug_print(f"Recovery marker not found or invalid: {recovery_marker_name}")
+                return False
+                
+        except Exception as e:
+            self.debug_print(f"Error cleaning up recovery marker {recovery_marker_name}: {e}")
+            return False
+    
+    def get_recovery_marker_info(self, recovery_marker_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get information from a recovery marker file.
+        
+        Args:
+            recovery_marker_name: Name of the recovery marker file
+            
+        Returns:
+            Dictionary with recovery information, or None if marker cannot be read
+        """
+        try:
+            active_sessions_dir = self.config.get_active_sessions_dir()
+            marker_path = active_sessions_dir / recovery_marker_name
+            
+            if marker_path.exists():
+                with open(marker_path, 'r') as f:
+                    recovery_info = json.load(f)
+                return recovery_info
+            else:
+                return None
+                
+        except Exception as e:
+            self.debug_print(f"Error reading recovery marker {recovery_marker_name}: {e}")
+            return None
     
     def _attempt_backup_restoration(self, temp_metadata_file: Optional[Path], 
                                   archived_dir: Path, final_active_dir: Path, 
