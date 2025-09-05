@@ -1,246 +1,70 @@
-# Archive Feature Improvements TODO
+# Hyprland Session Manager - Code Quality Improvements
 
 ## Overview
 
-This document outlines critical improvements needed for the Session Recovery functionality (Phase 3.2) based on comprehensive code review analysis. The implementation is functionally correct but contains security vulnerabilities and consistency issues that must be addressed before production deployment.
+This document outlines code quality improvements identified by comprehensive code review analysis. The Archive Feature Implementation is complete and production-ready (Grade A+), but several practical improvements have been identified to enhance robustness, security, and maintainability.
 
-**Current Implementation Status**: Phase 3.2 Complete with All Critical Fixes Implemented  
-**Current Grade**: A+ (All Critical Security and Robustness Items Complete - Production Ready)
-**Next Phase**: Optional Polish Items (Phase 3 - Code Quality Enhancements)
+**Current Project Status**: Archive System Complete - Production Ready  
+**Current Grade**: A+ (All Critical Security and Robustness Items Complete)  
+**Focus**: Code Quality and Operational Excellence
 
-## Critical Issues (IMMEDIATE - Security & Correctness)
+## Code Review Assessment Summary
 
-### 1. **SECURITY FIX: Path Traversal Vulnerability** ✅ COMPLETED
-**Priority**: CRITICAL - FIXED August 31, 2025
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py`
-**Lines**: 27-62 (new secure method), 67-84 (enhanced validation)
-**Risk Level**: ELIMINATED - System now secure
+**Overall Grade: B+** - Well-architected system with good separation of concerns and production-ready features. The system demonstrates solid architecture with some areas for practical improvement.
 
-**Problem RESOLVED**: 
+### Strengths Identified
+- **Comprehensive Type Annotations** throughout the codebase
+- **Strong Error Handling** via the OperationResult system  
+- **Security Conscious Design** with path traversal prevention
+- **Modular Architecture** with clean separation of concerns
+- **Production Ready Features** including atomic operations and rollback mechanisms
+
+### Areas for Improvement
+Focus on practical enhancements that improve robustness without over-engineering.
+
+## High Priority Issues (Security & Robustness)
+
+### 1. **Incomplete Input Sanitization in CLI Entry Point**
+**Priority**: HIGH - Security Enhancement  
+**Location**: `/home/jc/Dev/hypr-sessions/hypr-sessions.py:358-365`  
+**Severity**: Medium
+
+**Problem**: 
+The CLI uses basic regex validation that could allow malicious names to pass through. While the recovery module has comprehensive validation, the CLI should apply the same rigor for defense in depth.
+
 ```python
-# VULNERABLE (old): String manipulation on untrusted input
-original_name = archived_session_name.split('-')[0] if '-' in archived_session_name else archived_session_name
-
-# SECURE (new): Validation-first extraction with safe fallback
-original_name = self._extract_safe_original_name(archived_session_name, result)
-```
-
-**Security Implementation Completed**:
-- **CLI Input Validation**: Regex validation prevents malicious names at entry point
-- **Secure Extraction Method**: `_extract_safe_original_name()` with mandatory `SessionValidator` checks
-- **Safe Fallback**: Uses `"recovered-session"` when extraction fails validation
-- **Enhanced Metadata Validation**: Type checking and structure validation for JSON metadata
-- **Defense in Depth**: Multiple validation layers prevent system compromise
-
-**Implementation Plan**:
-```python
-# BEFORE (vulnerable):
-if metadata_file.exists():
-    # ... read metadata ...
-    original_name = metadata.get("original_name", archived_session_name)
-else:
-    original_name = archived_session_name.split('-')[0] if '-' in archived_session_name else archived_session_name
-
-# AFTER (secure):
-if metadata_file.exists():
-    # ... read metadata ...
-    original_name = metadata.get("original_name", archived_session_name)
-    # Validate extracted name from metadata
-    try:
-        SessionValidator.validate_session_name(original_name)
-    except InvalidSessionNameError:
-        result.add_warning(f"Archive metadata contains invalid original name: {original_name}")
-        original_name = "recovered-session"  # Safe fallback
-else:
-    # Attempt to extract from archive name with validation
-    try:
-        potential_original = archived_session_name.split('-')[0] if '-' in archived_session_name else archived_session_name
-        SessionValidator.validate_session_name(potential_original)
-        original_name = potential_original
-    except InvalidSessionNameError:
-        result.add_warning(f"Cannot determine safe original name from archive name: {archived_session_name}")
-        original_name = "recovered-session"  # Safe fallback
-```
-
-**Testing Requirements**:
-- Test with malicious archive names: `../../../etc-passwd-20250830-123456`
-- Test with invalid characters: `session<>name-20250830-123456`
-- Test with empty/None metadata original_name values
-- Verify safe fallback names are used and validated
-
-### 2. **FIX: Inconsistent Error Handling Pattern** ✅ COMPLETED
-**Priority**: CRITICAL - FIXED August 31, 2025
-**Files**: 
-- `/home/jc/Dev/hypr-sessions/commands/recover.py` (Lines 131-151)
-- `/home/jc/Dev/hypr-sessions/hypr-sessions.py` (Lines 273-285)
-
-**Problem RESOLVED**: 
-The code previously used broad `Exception` catches instead of specific exception types, breaking established patterns used throughout the codebase.
-
-**Current Pattern Analysis**:
-```python
-# Other operations follow this pattern:
-try:
-    # operation code
-except (SessionValidationError, SessionNotFoundError, SessionAlreadyExistsError) as e:
-    result.add_error(str(e))
-    return result
-except Exception as e:
-    # Only for truly unexpected errors
+# Current (potentially vulnerable):
+if not re.match(r'^.+-\d{8}-\d{6}$', args.session_name):
+    print("Error: Invalid archived session name format. Expected: session-name-YYYYMMDD-HHMMSS")
+    sys.exit(1)
 ```
 
 **Implementation Plan**:
-
-**In `commands/recover.py`**:
 ```python
-# REPLACE (Lines 131-151):
-except Exception as e:
-    self.debug_print(f"Error during recovery operation: {e}")
-    # ... complex backup restoration logic ...
-
-# WITH:
-except (OSError, PermissionError, FileNotFoundError) as e:
-    self.debug_print(f"File system error during recovery operation: {e}")
-    result.add_error(f"Failed to recover session due to file system error: {e}")
-    # Simplified backup restoration
-    self._attempt_backup_restoration(temp_metadata_file, archived_dir, final_active_dir, metadata_file)
-    return result
-except Exception as e:
-    self.debug_print(f"Unexpected error during recovery operation: {e}")
-    result.add_error(f"Unexpected error during recovery: {e}")
-    return result
-```
-
-**In `hypr-sessions.py`**:
-```python
-# REPLACE (Lines 273-285):
-except Exception as e:
-    # ... broad catch ...
-
-# WITH:
-except SessionValidationError as e:
-    if self.json_output:
-        error_result = {
-            "success": False,
-            "operation": f"Recover archived session '{archived_session_name}'",
-            "error": str(e),
-            "messages": [{"status": "error", "message": str(e), "context": None}]
-        }
-        print(json.dumps(error_result, indent=2))
-        sys.exit(1)
-    else:
-        print(f"Error: {e}")
-    return False
-except Exception as e:
-    # Only for truly unexpected errors
-    # ... existing broad catch logic ...
-```
-
-**Implementation Summary**:
-
-**CLI Error Handling Fix** (`hypr-sessions.py:274`):
-- Changed `except Exception` to `except SessionValidationError` 
-- Now matches pattern used by `save_session()`, `restore_session()`, and `delete_session()`
-- Maintains identical JSON output format and error messages
-- Allows unexpected errors to bubble up naturally
-
-**File System Error Handling Fix** (`commands/recover.py:188-201`):
-- Replaced broad `except Exception` with specific `except (OSError, PermissionError, shutil.Error)`
-- Added fallback `except Exception` for truly unexpected errors only
-- Extracted backup restoration logic into `_attempt_backup_restoration()` helper method
-- Simplified error handling logic while preserving all recovery mechanisms
-- Added specific error messages distinguishing file system vs unexpected errors
-
-**Testing Results**:
-- ✅ **CLI Validation**: Invalid archive names properly caught and handled
-- ✅ **JSON Consistency**: JSON output format unchanged and working correctly  
-- ✅ **Debug Output**: Consistent debug logging with other operations
-- ✅ **Error Messages**: Clear, specific error messages for different failure types
-- ✅ **Backup Recovery**: All backup/restore logic preserved and functional
-
-### 3. **FIX: Add Metadata Type Validation** ✅ COMPLETED
-**Priority**: HIGH - COMPLETED September 1, 2025
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py`
-**Lines**: 90-107 (validation implementation)
-
-**Problem RESOLVED**: 
-Metadata validation has been successfully implemented with comprehensive type checking and error handling.
-
-**Implementation Completed**:
-```python
-# Implemented validation (lines 90-107):
-try:
-    with open(metadata_file, "r") as f:
-        metadata = json.load(f)
-    
-    # Validate metadata structure
-    if not isinstance(metadata, dict):
-        raise ValueError(f"Archive metadata is not a valid dictionary: {type(metadata)}")
-    
-    # Extract original name from metadata with validation
-    original_name = str(metadata.get("original_name", archived_session_name))
-    if not original_name.strip():
-        result.add_warning("Archive metadata contains empty original name")
-        original_name = self._extract_safe_original_name(archived_session_name, result)
-    else:
-        # Validate extracted name from metadata
-        try:
-            SessionValidator.validate_session_name(original_name)
-            self.debug_print(f"Found valid original name in metadata: {original_name}")
-            result.add_success("Archive metadata read successfully")
-        except SessionValidationError:
-            result.add_warning(f"Archive metadata contains invalid original name: {original_name}")
-            original_name = self._extract_safe_original_name(archived_session_name, result)
-except (json.JSONDecodeError, ValueError) as e:
-    self.debug_print(f"Error reading metadata: {e}")
-    result.add_warning(f"Could not read archive metadata: {e}")
-    original_name = self._extract_safe_original_name(archived_session_name, result)
-```
-
-**Security Improvements Implemented**:
-- **Type Validation**: Verifies metadata is a dictionary using `isinstance()` check
-- **String Conversion**: Safe conversion with `str()` wrapper and empty string validation
-- **Comprehensive Error Handling**: Catches JSON decode errors and validation errors
-- **Safe Fallbacks**: Uses secure name extraction when metadata is invalid
-- **Detailed Logging**: Debug output for successful validation and error scenarios
-
-### 4. **FIX: CLI Argument Validation** ✅ COMPLETED  
-**Priority**: HIGH - FIXED August 31, 2025
-**File**: `/home/jc/Dev/hypr-sessions/hypr-sessions.py`
-**Lines**: 357-375 (new validation logic)
-
-**Problem RESOLVED**: 
-The recover command now validates both archived session name format and optional new session names before processing, matching validation patterns used by other operations.
-
-**Implementation Plan**:
-```python
-# REPLACE:
-elif args.action == "recover":
-    if not args.session_name:
-        print("Archived session name is required for recover action")
-        sys.exit(1)
-    manager.recover_session(args.session_name, args.new_name)
-
-# WITH:
+# Enhanced validation using existing SessionValidator
 elif args.action == "recover":
     if not args.session_name:
         print("Archived session name is required for recover action")
         sys.exit(1)
     
-    # Validate archived session name format
+    # Validate archived session name format AND content
     try:
-        # Basic validation - archived names should contain timestamp
         if not re.match(r'^.+-\d{8}-\d{6}$', args.session_name):
             print("Error: Invalid archived session name format. Expected: session-name-YYYYMMDD-HHMMSS")
             sys.exit(1)
-    except Exception:
-        print("Error: Invalid archived session name format")
+            
+        # Extract potential session name and validate it
+        base_name = args.session_name.rsplit('-', 2)[0]  # Remove timestamp suffix
+        SessionValidator.validate_session_name(base_name)
+        
+    except (SessionValidationError, ValueError) as e:
+        print(f"Error: Invalid archived session name: {e}")
         sys.exit(1)
     
-    # Validate new name if provided
+    # Validate new name if provided  
     if args.new_name:
         try:
-            validate_session_name(args.new_name)
+            SessionValidator.validate_session_name(args.new_name)
         except SessionValidationError as e:
             print(f"Error: Invalid new session name: {e}")
             sys.exit(1)
@@ -248,394 +72,359 @@ elif args.action == "recover":
     manager.recover_session(args.session_name, args.new_name)
 ```
 
-## High Priority Issues (Code Quality & Robustness)
+**Benefits**:
+- Defense in depth security
+- Consistent validation patterns across CLI
+- Prevention of malicious input reaching backend
 
-### 5. **IMPLEMENT: Metadata-First Recovery Pattern** ✅ COMPLETED
-**Priority**: HIGH - FIXED August 31, 2025
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py`
-**Lines**: 203-282 (new atomic recovery method), 143-174 (updated recovery logic)
-
-**Problem RESOLVED**: 
-Race condition vulnerability where partial recovery could occur without proper cleanup has been eliminated through implementation of atomic recovery pattern.
-
-**Implementation Summary**:
-
-**New `_perform_atomic_recovery()` Method** (Lines 203-282):
-- **Recovery Markers**: Creates `.recovery-in-progress-{target_name}.tmp` files with operation metadata
-- **Atomic Operations**: Uses `shutil.move()` for atomic directory moves on same filesystem
-- **Automatic Rollback**: Comprehensive rollback on any failure, restoring archived session to original location
-- **Metadata Cleanup**: Removes archive metadata from recovered sessions automatically
-- **Operation Tracking**: Detailed logging and operation metadata for debugging and recovery
-
-**Recovery Marker System** (Lines 283-358):
-- **`check_interrupted_recoveries()`**: Scans for stale recovery markers indicating interrupted operations
-- **`cleanup_interrupted_recovery()`**: Safely removes stale recovery markers after manual intervention
-- **`get_recovery_marker_info()`**: Retrieves operation details from recovery markers for debugging
-
-**Main Recovery Logic Simplification** (Lines 143-174):
-- **Reduced Complexity**: Eliminated complex backup/restore logic in favor of atomic operations
-- **Error Handling Improvement**: Specific exception handling without overly complex recovery mechanisms
-- **Cleaner Code Path**: Single atomic operation call replaces 40+ lines of complex file operations
-
-**Recovery Marker Format**:
-```json
-{
-  "target_name": "session-name",
-  "archived_dir": "/path/to/archived/session-name-20250831-123456",
-  "recovery_timestamp": "2025-08-31T12:34:56.789012",
-  "recovery_version": "1.0",
-  "file_count": 3
-}
-```
-
-**Key Benefits Achieved**:
-- **Data Safety**: All-or-nothing recovery operations with automatic rollback
-- **Operation Visibility**: Recovery markers provide complete audit trail
-- **Race Condition Elimination**: Atomic operations prevent partial state corruption
-- **Simplified Error Handling**: Clear error paths without complex nested conditionals
-- **Health Monitoring**: System can detect and handle interrupted operations
-
-**Testing Results**:
-- ✅ **Compilation**: Module compiles successfully with all new methods
-- ✅ **Error Handling**: Non-existent archives handled correctly with proper error messages
-- ✅ **Health Check**: Recovery marker detection system working correctly
-- ✅ **CLI Integration**: All existing CLI functionality preserved and enhanced
-- ✅ **Debug Output**: Consistent debug logging with atomic operation details
-
-### 6. **REFACTOR: Simplify Backup Restoration Logic** 🟡
-**Priority**: MEDIUM - Code maintainability
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py**
-**Lines**: 134-151
+### 2. **Race Condition in Archive Cleanup**
+**Priority**: HIGH - Data Safety  
+**Location**: `/home/jc/Dev/hypr-sessions/commands/delete.py:129-179`  
+**Severity**: Medium
 
 **Problem**: 
-Overly complex nested conditions that are difficult to understand and test.
-
-**Implementation Plan**:
-
-Extract method `_attempt_backup_restoration()`:
-```python
-def _attempt_backup_restoration(self, temp_metadata_file: Optional[Path], 
-                              archived_dir: Path, final_active_dir: Path, 
-                              metadata_file: Path) -> None:
-    """Attempt to restore archive from backup after recovery failure"""
-    
-    if not temp_metadata_file or not temp_metadata_file.exists():
-        self.debug_print("No backup available for restoration")
-        return
-    
-    try:
-        # Case 1: Archive directory was moved but recovery failed
-        if not archived_dir.exists() and final_active_dir.exists():
-            self.debug_print("Restoring archive directory from recovered location")
-            shutil.move(str(final_active_dir), str(archived_dir))
-            
-            # Restore metadata
-            if metadata_file.exists():
-                metadata_file.unlink()
-            shutil.move(str(temp_metadata_file), str(metadata_file))
-            
-            self.debug_print("Successfully restored archive from backup")
-            return
-        
-        # Case 2: Just cleanup temp metadata
-        temp_metadata_file.unlink()
-        self.debug_print("Cleaned up temporary metadata file")
-        
-    except Exception as restore_error:
-        self.debug_print(f"Warning: Could not restore from backup: {restore_error}")
-        # Try to at least cleanup temp file
-        try:
-            if temp_metadata_file.exists():
-                temp_metadata_file.unlink()
-        except:
-            pass  # Best effort cleanup
-```
-
-## Medium Priority Issues (Consistency & Polish)
-
-### 7. **FIX: Operation Initialization Consistency** 🟢
-**Priority**: MEDIUM - Code consistency
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py**
-**Line**: 29
-
-**Problem**: 
-Inconsistent OperationResult initialization pattern compared to other operations.
+Archive cleanup operations have a window between scanning directories and removing files where another process could modify the archive state, leading to inconsistent cleanup.
 
 **Implementation Plan**:
 ```python
-# Check how other operations initialize OperationResult
-# If they don't pass operation_name in constructor, change to:
+import fcntl  # For file locking
 
-def recover_session(self, archived_session_name: str, new_name: Optional[str] = None) -> OperationResult:
-    """Recover an archived session back to active sessions"""
-    result = OperationResult()  # Initialize without operation name
-    result.operation_name = f"Recover archived session '{archived_session_name}'"  # Set separately
+def _enforce_archive_limits(self) -> str:
+    """Enforce archive limits with concurrent access protection"""
     
-    # ... rest of method
-```
-
-### 8. **ADD: Type Annotations for Internal Variables** ✅ COMPLETED
-**Priority**: MEDIUM - COMPLETED September 1, 2025
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py`
-**Lines**: 66, 76, 81-82, 89, 119, 129, 136, 145, 148-149
-
-**Implementation Completed**:
-Added comprehensive type annotations for all internal variables in the recover_session method:
-
-```python
-def recover_session(self, archived_session_name: str, new_name: Optional[str] = None) -> OperationResult:
-    result: OperationResult = OperationResult(...)
+    archived_sessions_dir = self.config.get_archived_sessions_dir()
+    max_sessions = self.config.archive_max_sessions
     
-    # Path variables with explicit typing
-    archived_dir: Path = self.config.get_archived_session_directory(archived_session_name)
-    metadata_file: Path = archived_dir / ".archive-metadata.json"
-    active_target_dir: Path = self.config.get_active_sessions_dir() / target_name
-    active_sessions_dir: Path = self.config.get_active_sessions_dir()
-    final_active_dir: Path = self.config.get_active_sessions_dir() / target_name
-    
-    # String variables with validation
-    original_name: str  # Declared before conditional assignment
-    target_name: str = new_name if new_name else original_name
-    
-    # Collection and metadata variables
-    metadata: Dict[str, Any] = json.load(f)
-    files_in_archive: List[Path] = list(archived_dir.iterdir())
-    file_count: int = len(files_in_archive)
-```
-
-**Benefits Achieved**:
-- **IDE Support**: Enhanced code completion and error detection
-- **Code Clarity**: Explicit variable types improve readability
-- **Maintainability**: Type hints help future developers understand variable purposes
-- **Bug Prevention**: Early detection of type-related errors during development
-
-### 9. **IMPROVE: Documentation and Comments** ✅ COMPLETED
-**Priority**: MEDIUM - COMPLETED September 1, 2025
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py`
-**Lines**: 1-40 (module docstring), 17-48 (class docstring), 65-118 (method docstring), 28-62 (helper method docstring), 257-295 (atomic recovery docstring)
-
-**Implementation Completed**:
-Comprehensive documentation enhancement with professional-grade docstrings throughout the module:
-
-**Module-Level Documentation** (Lines 1-40):
-- Complete module overview with key components and security features
-- Usage examples with practical code samples
-- Architecture explanation of metadata-first recovery pattern
-
-**Class Documentation** (Lines 17-48):
-- Detailed class purpose and feature overview
-- Security capabilities and validation highlights  
-- Usage examples and attribute descriptions
-- Key features and operational guarantees
-
-**Method Documentation** (Lines 65-118):
-- Comprehensive parameter descriptions with examples
-- Complete return value documentation with data structure details
-- All possible exceptions with specific conditions
-- Usage examples and operational notes
-- Security considerations and validation details
-
-**Enhanced Helper Method Documentation**:
-- Security-focused documentation for `_extract_safe_original_name`
-- Detailed examples showing malicious input handling
-- Complete atomic recovery process documentation
-- Recovery marker format specifications
-
-**Benefits Achieved**:
-- **Developer Onboarding**: Complete context for new developers
-- **API Documentation**: Professional-grade method documentation
-- **Security Awareness**: Clear security considerations and protections
-- **Maintainability**: Comprehensive understanding of all operations
-- **Examples**: Practical usage patterns for common scenarios
-
-### 10. **ADD: Recovery System Health Check** ✅ COMPLETED
-**Priority**: LOW - COMPLETED September 1, 2025 (Already Implemented)
-**File**: `/home/jc/Dev/hypr-sessions/commands/recover.py`
-**Lines**: 423-495 (comprehensive health check system)
-
-**Implementation ALREADY COMPLETED**:
-The recovery health check system was already fully implemented as part of the atomic recovery system with **three comprehensive methods**:
-
-**1. `check_interrupted_recoveries() -> List[str]` (Lines 423-446)**:
-```python
-def check_interrupted_recoveries(self) -> List[str]:
-    """
-    Check for any interrupted recovery operations and return list of recovery markers.
-    This can be used for system health checks and cleanup operations.
-    """
-    active_sessions_dir = self.config.get_active_sessions_dir()
-    recovery_markers = []
+    # Create lock file for archive operations
+    lock_file_path = archived_sessions_dir / ".archive-cleanup.lock"
     
     try:
-        if not active_sessions_dir.exists():
-            return recovery_markers
+        with open(lock_file_path, 'w') as lock_file:
+            # Acquire exclusive lock
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             
-        for item in active_sessions_dir.iterdir():
-            if item.name.startswith('.recovery-in-progress-') and item.suffix == '.tmp':
-                recovery_markers.append(item.name)
-                self.debug_print(f"Found interrupted recovery marker: {item.name}")
-                
-    except Exception as e:
-        self.debug_print(f"Error checking for interrupted recoveries: {e}")
-    
-    return recovery_markers
-```
-
-**2. `cleanup_interrupted_recovery(recovery_marker_name: str) -> bool` (Lines 448-472)**:
-```python
-def cleanup_interrupted_recovery(self, recovery_marker_name: str) -> bool:
-    """
-    Clean up an interrupted recovery operation by removing stale recovery marker.
-    """
-    try:
-        active_sessions_dir = self.config.get_active_sessions_dir()
-        marker_path = active_sessions_dir / recovery_marker_name
-        
-        if marker_path.exists() and marker_path.suffix == '.tmp':
-            marker_path.unlink()
-            self.debug_print(f"Cleaned up interrupted recovery marker: {recovery_marker_name}")
-            return True
+            # Perform cleanup operations atomically
+            archived_sessions = []
+            for item in archived_sessions_dir.iterdir():
+                if item.is_dir() and not item.name.startswith('.'):
+                    # ... existing metadata parsing logic ...
+            
+            # Rest of cleanup logic remains the same
+            if len(archived_sessions) <= max_sessions:
+                return ""
+            
+            sessions_to_remove = archived_sessions[:len(archived_sessions) - max_sessions]
+            
+            cleanup_summary = []
+            for session_info in sessions_to_remove:
+                try:
+                    shutil.rmtree(session_info["path"])
+                    cleanup_summary.append(f"Removed {session_info['name']}")
+                except Exception as e:
+                    self.debug_print(f"Failed to remove {session_info['name']}: {e}")
+                    
+            return f"Archive cleanup: {', '.join(cleanup_summary)}"
+            
+    except (IOError, OSError) as e:
+        if e.errno == errno.EAGAIN or e.errno == errno.EACCES:
+            self.debug_print("Archive cleanup skipped - another process is cleaning up")
+            return "Archive cleanup skipped (concurrent operation)"
         else:
-            self.debug_print(f"Recovery marker not found or invalid: {recovery_marker_name}")
-            return False
+            raise e
+```
+
+**Benefits**:
+- Prevents concurrent cleanup operations
+- Ensures consistent archive state
+- Graceful handling of concurrent access
+
+### 3. **Missing Timeout on Subprocess Operations**  
+**Priority**: MEDIUM - Reliability  
+**Location**: `/home/jc/Dev/hypr-sessions/commands/restore.py` (subprocess.Popen calls)  
+**Severity**: Low-Medium
+
+**Problem**: 
+Process launches have no timeout, which could cause restore operations to hang indefinitely if applications fail to start properly.
+
+**Implementation Plan**:
+```python
+import subprocess
+import signal
+from contextlib import contextmanager
+
+@contextmanager
+def timeout_context(seconds):
+    """Context manager for subprocess timeouts"""
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"Operation timed out after {seconds} seconds")
+    
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+def _launch_window_command(self, command: str, timeout: int = 30) -> bool:
+    """Launch window command with timeout protection"""
+    try:
+        with timeout_context(timeout):
+            process = subprocess.Popen(
+                shlex.split(command),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                preexec_fn=os.setsid  # Create new process group
+            )
             
+            # Wait for process to start (brief check)
+            try:
+                return_code = process.wait(timeout=5)  # Quick startup check
+                if return_code != 0:
+                    stderr = process.stderr.read().decode() if process.stderr else ""
+                    self.debug_print(f"Command failed to start: {command}, error: {stderr}")
+                    return False
+            except subprocess.TimeoutExpired:
+                # Process is running - this is expected for GUI applications
+                pass
+                
+        return True
+        
+    except TimeoutError:
+        self.debug_print(f"Command timed out: {command}")
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        except:
+            pass
+        return False
     except Exception as e:
-        self.debug_print(f"Error cleaning up recovery marker {recovery_marker_name}: {e}")
+        self.debug_print(f"Failed to launch command: {command}, error: {e}")
         return False
 ```
 
-**3. `get_recovery_marker_info(recovery_marker_name: str) -> Optional[Dict[str, Any]]` (Lines 474-495)**:
+**Benefits**:
+- Prevents hanging restore operations
+- Better error reporting for failed applications
+- Improved user experience with timeout feedback
+
+## Medium Priority Issues (Code Quality)
+
+### 4. **Configuration Override Security**
+**Priority**: MEDIUM - Configuration Validation  
+**Location**: `/home/jc/Dev/hypr-sessions/commands/shared/config.py:52-62`  
+**Severity**: Low
+
+**Problem**: 
+Environment variable overrides don't validate bounds, allowing potentially harmful values.
+
+**Implementation Plan**:
 ```python
-def get_recovery_marker_info(self, recovery_marker_name: str) -> Optional[Dict[str, Any]]:
-    """
-    Get information from a recovery marker file.
+def _validate_and_set_env_overrides(self):
+    """Validate and apply environment variable overrides with bounds checking"""
     
-    Returns:
-        Dictionary with recovery information, or None if marker cannot be read
-    """
-    try:
-        active_sessions_dir = self.config.get_active_sessions_dir()
-        marker_path = active_sessions_dir / recovery_marker_name
-        
-        if marker_path.exists():
-            with open(marker_path, 'r') as f:
-                recovery_info = json.load(f)
-            return recovery_info
-        else:
-            return None
-            
-    except Exception as e:
-        self.debug_print(f"Error reading recovery marker {recovery_marker_name}: {e}")
-        return None
+    if "ARCHIVE_MAX_SESSIONS" in os.environ:
+        try:
+            max_sessions = int(os.environ["ARCHIVE_MAX_SESSIONS"])
+            if 1 <= max_sessions <= 1000:  # Reasonable bounds
+                self.archive_max_sessions = max_sessions
+            else:
+                print(f"Warning: ARCHIVE_MAX_SESSIONS value {max_sessions} out of range (1-1000), using default")
+        except ValueError:
+            print("Warning: Invalid ARCHIVE_MAX_SESSIONS value, using default")
+    
+    if "DELAY_BETWEEN_INSTRUCTIONS" in os.environ:
+        try:
+            delay = float(os.environ["DELAY_BETWEEN_INSTRUCTIONS"])
+            if 0.0 <= delay <= 10.0:  # Reasonable bounds
+                self.delay_between_instructions = delay
+            else:
+                print(f"Warning: DELAY_BETWEEN_INSTRUCTIONS value {delay} out of range (0.0-10.0), using default")
+        except ValueError:
+            print("Warning: Invalid DELAY_BETWEEN_INSTRUCTIONS value, using default")
 ```
 
-**Implementation Status**: **MORE COMPREHENSIVE THAN REQUESTED**
-- ✅ **Basic health check functionality** (requested)
-- ✅ **Marker cleanup functionality** (requested)
-- ✅ **BONUS: Recovery marker information retrieval** (beyond requirements)
-- ✅ **Comprehensive error handling** with debug logging
-- ✅ **Production-ready implementation** with validation and safety checks
+### 5. **Enhanced Error Granularity**
+**Priority**: MEDIUM - Error Handling Improvement  
+**Location**: Various command files  
 
-## Testing Requirements
+**Problem**: 
+Some operations could benefit from more specific error types for better user experience.
 
-### Security Testing
-- [ ] Test path traversal attempts: `../../../etc-passwd-20250830-123456`
-- [ ] Test invalid characters in archive names
-- [ ] Test malformed metadata files
-- [ ] Test metadata with invalid original_name values
+**Implementation Plan**:
+```python
+# Enhanced error handling in archive operations
+def archive_session(self, session_name: str) -> OperationResult:
+    try:
+        # ... operation code ...
+    except PermissionError as e:
+        result.add_error(f"Permission denied: Cannot archive session '{session_name}'. Check file permissions.")
+        return result
+    except FileNotFoundError as e:
+        result.add_error(f"Session not found: '{session_name}' does not exist in active sessions.")
+        return result
+    except OSError as e:
+        if e.errno == errno.ENOSPC:
+            result.add_error(f"Insufficient disk space to archive session '{session_name}'.")
+        elif e.errno == errno.ENAMETOOLONG:
+            result.add_error(f"Session name too long for filesystem: '{session_name}'.")
+        else:
+            result.add_error(f"File system error archiving session: {e}")
+        return result
+    except Exception as e:
+        result.add_error(f"Unexpected error archiving session '{session_name}': {e}")
+        return result
+```
 
-### Error Handling Testing  
-- [ ] Test recovery with missing archive directory
-- [ ] Test recovery with corrupted metadata
-- [ ] Test recovery with existing target session name
-- [ ] Test recovery with permission denied errors
-- [ ] Test recovery with disk full scenarios
+## Low Priority Issues (Polish & Enhancement)
 
-### Integration Testing
-- [ ] Test CLI argument validation
-- [ ] Test JSON output format consistency
-- [ ] Test debug output consistency with other operations
-- [ ] Test complete archive → recovery → archive cycle
+### 6. **Debug Logger Resource Management**
+**Priority**: LOW - Resource Management  
+**Location**: `/home/jc/Dev/hypr-sessions/fabric-ui/utils/debug_logger.py`  
 
-### Edge Case Testing
-- [ ] Test recovery of sessions with special characters in names
-- [ ] Test recovery with very long session names
-- [ ] Test recovery with empty session directories
-- [ ] Test concurrent recovery attempts
+**Implementation Plan**:
+```python
+import atexit
+from contextlib import contextmanager
+
+class DebugLogger:
+    def __init__(self):
+        self._file_handle = None
+        # Register cleanup on exit
+        atexit.register(self.cleanup)
+    
+    @contextmanager
+    def _file_context(self):
+        """Context manager for file operations"""
+        try:
+            if self._file_handle is None:
+                self._file_handle = open(self.log_file_path, 'a')
+            yield self._file_handle
+        except IOError as e:
+            # Fallback to console if file operations fail
+            yield None
+    
+    def cleanup(self):
+        """Clean up resources"""
+        if self._file_handle:
+            try:
+                self._file_handle.close()
+            except:
+                pass
+            self._file_handle = None
+```
+
+### 7. **System Health Check Command**
+**Priority**: LOW - Operational Enhancement  
+
+**Implementation Plan**:
+```python
+def health_check(self) -> OperationResult:
+    """Perform comprehensive system health checks"""
+    result = OperationResult("System Health Check")
+    
+    # Check directory permissions and accessibility
+    active_dir = self.config.get_active_sessions_dir()
+    archived_dir = self.config.get_archived_sessions_dir()
+    
+    for directory, name in [(active_dir, "active sessions"), (archived_dir, "archived sessions")]:
+        if not directory.exists():
+            result.add_warning(f"{name.title()} directory does not exist: {directory}")
+        elif not os.access(directory, os.R_OK | os.W_OK):
+            result.add_error(f"Insufficient permissions for {name} directory: {directory}")
+        else:
+            result.add_success(f"{name.title()} directory accessible")
+    
+    # Check for interrupted recovery operations
+    from .recover import SessionRecover
+    recover_manager = SessionRecover(self.config, debug_mode=self.debug_mode)
+    interrupted_recoveries = recover_manager.check_interrupted_recoveries()
+    
+    if interrupted_recoveries:
+        result.add_warning(f"Found {len(interrupted_recoveries)} interrupted recovery operations")
+        for marker in interrupted_recoveries:
+            result.add_warning(f"  - {marker}")
+    else:
+        result.add_success("No interrupted recovery operations found")
+    
+    # Validate configuration
+    config_issues = self._validate_configuration()
+    if config_issues:
+        for issue in config_issues:
+            result.add_warning(f"Configuration issue: {issue}")
+    else:
+        result.add_success("Configuration validation passed")
+    
+    return result
+
+def _validate_configuration(self) -> List[str]:
+    """Validate configuration settings"""
+    issues = []
+    
+    if self.archive_max_sessions < 1:
+        issues.append("archive_max_sessions must be positive")
+    if self.archive_max_sessions > 1000:
+        issues.append("archive_max_sessions seems excessive (>1000)")
+    if self.delay_between_instructions < 0:
+        issues.append("delay_between_instructions cannot be negative")
+        
+    return issues
+```
 
 ## Implementation Priority Order
 
-### Phase 1 (Security - IMMEDIATE) ✅ COMPLETED
-1. ✅ Fix path traversal vulnerability (COMPLETED 2025-08-31)
-2. ✅ Add metadata type validation (COMPLETED 2025-09-01)
-3. ✅ Fix CLI argument validation (COMPLETED 2025-08-31)
-4. ✅ Align error handling patterns (COMPLETED 2025-08-31)
+### Phase 1 (Security & Safety - Immediate)
+1. **CLI Input Sanitization Enhancement** - Strengthen CLI validation
+2. **Archive Cleanup Race Condition Fix** - Add file locking for concurrent access
+3. **Configuration Bounds Validation** - Validate environment variable overrides
 
-### Phase 2 (Robustness - Week 1) ✅ COMPLETED
-5. ✅ Implement metadata-first recovery pattern (COMPLETED 2025-08-31)
-6. Refactor backup restoration logic (OBSOLETE - replaced by atomic recovery)
-7. Add comprehensive error handling (OBSOLETE - integrated into atomic recovery)
+### Phase 2 (Reliability - Week 1)  
+4. **Subprocess Timeout Implementation** - Add timeout protection for application launches
+5. **Enhanced Error Granularity** - Improve error specificity for better UX
+6. **Debug Logger Resource Management** - Fix potential resource leaks
 
-### Phase 3 (Polish - Week 2) ✅ COMPLETED
-7. Fix operation initialization consistency (OBSOLETE - already consistent)
-8. ✅ Add internal variable type annotations (COMPLETED 2025-09-01)
-9. ✅ Improve documentation and comments (COMPLETED 2025-09-01)
-10. ✅ Add recovery health check system (COMPLETED 2025-09-01 - Already Implemented)
+### Phase 3 (Polish - Week 2)
+7. **System Health Check Command** - Add operational health monitoring
+8. **Archive Metadata Integrity** - Add checksums for verification (optional)
+9. **Performance Monitoring** - Add timing metrics for operations (optional)
 
 ## Success Criteria
 
-### Security ✅ COMPLETED
-- [x] No path traversal vulnerabilities (COMPLETED 2025-08-31)
-- [x] All inputs properly validated (COMPLETED 2025-08-31)
-- [x] Malformed metadata handled safely (COMPLETED 2025-09-01)
+### Security & Safety
+- [ ] CLI input validation prevents all malicious inputs
+- [ ] Archive cleanup operations are atomic and concurrent-safe
+- [ ] Configuration overrides are validated and bounded
+- [ ] All subprocess operations have timeout protection
 
-### Code Quality ✅ COMPLETED
-- [x] Consistent error handling patterns (COMPLETED 2025-08-31)
-- [x] Proper type annotations (COMPLETED 2025-09-01)
-- [x] Clear documentation (COMPLETED 2025-09-01)  
-- [x] Atomic recovery operations (COMPLETED 2025-08-31)
-- [x] Recovery marker system (COMPLETED 2025-08-31)
+### Code Quality  
+- [ ] Specific error types provide clear user guidance
+- [ ] Resource management prevents memory/file handle leaks
+- [ ] Error handling follows established patterns consistently
 
-### Integration ✅
-- [x] CLI validation matches other operations (COMPLETED 2025-08-31)
-- [x] JSON output format consistent (COMPLETED 2025-08-31)
-- [x] Debug patterns consistent (COMPLETED 2025-08-31)
+### Operational Excellence
+- [ ] Health check command provides comprehensive system status
+- [ ] All operations have appropriate timeout and error handling
+- [ ] Configuration validation prevents invalid states
 
-### Testing ✅
-- [ ] All security test cases pass
-- [ ] All error scenarios handled gracefully
-- [ ] Edge cases covered
-- [ ] Performance acceptable
-
-## Context for New Agent
+## Context for Implementation
 
 ### Architecture Understanding Required
-- **Config System**: Uses `SessionConfig` for all path operations
-- **Result System**: Uses `OperationResult` for structured responses
-- **Validation System**: Uses `SessionValidator` for input validation
-- **Error Patterns**: Established exception hierarchy and handling patterns
-- **Debug System**: Consistent debug logging with `debug_print()`
+- **Config System**: Uses `SessionConfig` for all path operations and validation
+- **Result System**: Uses `OperationResult` for structured responses with success/warning/error states
+- **Validation System**: Uses `SessionValidator` for input validation and security
+- **Error Patterns**: Established exception hierarchy with specific handling patterns
+- **Debug System**: Consistent debug logging with conditional output
 
-### Key Files to Understand
-- `/home/jc/Dev/hypr-sessions/commands/shared/validation.py` - Validation patterns
-- `/home/jc/Dev/hypr-sessions/commands/shared/operation_result.py` - Result system
-- `/home/jc/Dev/hypr-sessions/commands/delete.py` - Reference implementation for archiving
-- `/home/jc/Dev/hypr-sessions/commands/shared/config.py` - Path and configuration management
+### Key Implementation Principles
+1. **Avoid Over-Engineering**: Focus on practical improvements that solve real problems
+2. **Maintain Existing Patterns**: Use established patterns from the codebase
+3. **Security First**: Validate inputs rigorously and handle errors gracefully  
+4. **Operational Safety**: Ensure atomic operations and proper cleanup
+5. **User Experience**: Provide clear, actionable error messages
 
-### Testing Commands
-```bash
-# Basic functionality
-./hypr-sessions.py recover archived-session-20250830-123456
-./hypr-sessions.py recover archived-session-20250830-123456 new-name
+### Testing Strategy
+- **Security Testing**: Malicious input validation and boundary condition testing
+- **Concurrency Testing**: Multiple process access to archive operations
+- **Error Scenario Testing**: Permission errors, disk full, network issues
+- **Integration Testing**: CLI to backend consistency and JSON output validation
 
-# JSON output
-./hypr-sessions.py recover archived-session-20250830-123456 --json
-
-# Debug output  
-./hypr-sessions.py recover archived-session-20250830-123456 --debug
-
-# Security testing (should fail safely)
-./hypr-sessions.py recover "../../../etc-passwd-20250830-123456"
-```
-
-This document provides complete context and actionable implementation plans for bringing the Session Recovery functionality up to production quality standards.
+This document provides practical, actionable improvements focused on real issues that enhance the system's robustness, security, and maintainability without unnecessary complexity.

@@ -817,6 +817,30 @@ except InvalidSessionNameError as e:
 - **Operation-Specific**: Tailored validation for different operation types
 - **Early Failure**: Validates inputs before performing expensive operations
 
+### CLI Security Enhancement
+
+**Three-Layer Validation for Archive Recovery** (`hypr-sessions.py:357-379`):
+
+```python
+# Layer 1: Format validation - archived names must contain timestamp
+if not re.match(r'^.+-\d{8}-\d{6}$', args.session_name):
+    # Format validation error
+
+# Layer 2: Content validation - extract and validate base session name
+base_name = args.session_name.rsplit('-', 2)[0]  # Safe timestamp removal
+validate_session_name(base_name)  # Comprehensive security validation
+
+# Layer 3: New name validation if provided
+if args.new_name:
+    validate_session_name(args.new_name)
+```
+
+**Security Benefits**:
+- **Defense in Depth**: Multiple validation layers prevent malicious input
+- **Path Traversal Prevention**: Blocks `../../../etc-passwd-20250831-123456` style attacks
+- **Base Name Extraction**: Safe extraction using `rsplit('-', 2)[0]` handles hyphenated session names
+- **Consistent Security**: Reuses existing `SessionValidator` comprehensive validation logic
+
 ## Error Handling Architecture
 
 ### Structured Results System

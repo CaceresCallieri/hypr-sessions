@@ -354,23 +354,27 @@ def main() -> None:
             print("Archived session name is required for recover action")
             sys.exit(1)
         
-        # Validate archived session name format for security
+        # Three-layer validation for defense in depth
         try:
-            # Basic validation - archived names should contain timestamp
+            # Layer 1: Format validation - archived names must contain timestamp
             if not re.match(r'^.+-\d{8}-\d{6}$', args.session_name):
                 print("Error: Invalid archived session name format. Expected: session-name-YYYYMMDD-HHMMSS")
                 sys.exit(1)
-        except Exception:
-            print("Error: Invalid archived session name format")
-            sys.exit(1)
-        
-        # Validate new name if provided
-        if args.new_name:
-            try:
+            
+            # Layer 2: Content validation - extract and validate base session name
+            base_name = args.session_name.rsplit('-', 2)[0]  # Remove timestamp suffix safely
+            validate_session_name(base_name)  # Reuse comprehensive validation
+            
+            # Layer 3: New name validation if provided
+            if args.new_name:
                 validate_session_name(args.new_name)
-            except SessionValidationError as e:
-                print(f"Error: Invalid new session name: {e}")
-                sys.exit(1)
+                
+        except SessionValidationError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: Invalid session name format: {e}")
+            sys.exit(1)
         
         manager.recover_session(args.session_name, args.new_name)
 
