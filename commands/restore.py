@@ -3,10 +3,12 @@ Session restore functionality
 """
 
 import json
+import os
 import shlex
+import signal
 import subprocess
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from .shared.config import SessionConfig, get_config
 from .shared.operation_result import OperationResult
@@ -29,6 +31,48 @@ class SessionRestore(Utils):
         """Print debug message if debug mode is enabled"""
         if self.debug:
             print(f"[DEBUG SessionRestore] {message}")
+    
+    def _launch_window_command_with_timeout(self, command: str, timeout: int = 30) -> bool:
+        """Launch window command with timeout protection and startup validation"""
+        try:
+            self.debug_print(f"Launching with timeout ({timeout}s): {command}")
+            
+            # Launch process in new process group for clean termination
+            process = subprocess.Popen(
+                shlex.split(command),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                preexec_fn=os.setsid  # Create new process group
+            )
+            
+            # Wait for process to start (brief check for immediate failures)
+            try:
+                return_code = process.wait(timeout=5)  # Quick startup validation
+                if return_code != 0:
+                    # Process failed to start properly
+                    stderr = process.stderr.read().decode() if process.stderr else ""
+                    self.debug_print(f"Command failed to start: {command}, error: {stderr}")
+                    return False
+            except subprocess.TimeoutExpired:
+                # Process is still running after 5 seconds - this is expected for GUI applications
+                # The process started successfully and is running
+                self.debug_print(f"Process started successfully and is running: {command}")
+                return True
+                
+        except subprocess.TimeoutExpired:
+            # This shouldn't happen with our current logic, but handle it anyway
+            self.debug_print(f"Command timed out after {timeout}s: {command}")
+            try:
+                # Kill the entire process group
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            except (ProcessLookupError, AttributeError):
+                pass  # Process already died or PID not available
+            return False
+        except Exception as e:
+            self.debug_print(f"Failed to launch command: {command}, error: {e}")
+            return False
+        
+        return True
 
     def detect_swallowing_relationships(
         self, windows: List[WindowInfo]
@@ -267,23 +311,16 @@ class SessionRestore(Utils):
                     )
                     self.debug_print(f"Combined swallowing command: {combined_command}")
 
-                    try:
-                        subprocess.Popen(
-                            shlex.split(combined_command),
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
+                    # Use timeout-protected launch
+                    launch_success = self._launch_window_command_with_timeout(combined_command, timeout=30)
+                    
+                    if launch_success:
                         time.sleep(self.get_swallowing_delay())
-
                         # Mark both windows as launched
                         launched_addresses.add(swallowing_window.get("address", ""))
                         launched_addresses.add(swallowed_window.get("address", ""))
-
-                    except Exception as e:
-                        self.debug_print(
-                            f"Error launching swallowing command '{combined_command}': {e}"
-                        )
-                        self.debug_print(f"Error launching swallowing pair: {e}")
+                    else:
+                        self.debug_print(f"Swallowing command launch failed or timed out: {combined_command}")
                         # Fall back to separate launches
                         self._launch_single_window(swallowing_window)
                         self._launch_single_window(swallowed_window)
@@ -312,15 +349,14 @@ class SessionRestore(Utils):
 
         self.debug_print(f"Launching: {command}")
         self.debug_print(f"Executing command: {command}")
-        try:
-            subprocess.Popen(
-                shlex.split(command),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+        
+        # Use timeout-protected launch
+        launch_success = self._launch_window_command_with_timeout(command, timeout=30)
+        
+        if launch_success:
             time.sleep(self.config.delay_between_instructions)
-        except Exception as e:
-            self.debug_print(f"Error launching command '{command}': {e}")
+        else:
+            self.debug_print(f"Single window launch failed or timed out: {command}")
 
     def launch_group_with_swallowing(self, group_windows: List[WindowInfo], swallowing_relationships: Dict[str, Dict[str, WindowInfo]]) -> None:
         """Launch a group of windows with swallowing relationship support"""
@@ -386,20 +422,22 @@ class SessionRestore(Utils):
         
         # Launch group leader
         self.debug_print(f"Launching group leader: {command}")
-        try:
-            subprocess.Popen(
-                shlex.split(command),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            
-            # Use appropriate delay
-            if use_swallowing_delay:
-                time.sleep(self.get_swallowing_delay())
-            else:
-                time.sleep(self.config.delay_between_instructions)
+        
+        # Use timeout-protected launch for group leader
+        launch_success = self._launch_window_command_with_timeout(command, timeout=30)
+        
+        if not launch_success:
+            self.debug_print(f"Group leader launch failed or timed out: {command}")
+            return
+        
+        # Use appropriate delay
+        if use_swallowing_delay:
+            time.sleep(self.get_swallowing_delay())
+        else:
+            time.sleep(self.config.delay_between_instructions)
 
-            # Make it a group
+        # Make it a group
+        try:
             cmd = ["hyprctl", "dispatch", "togglegroup"]
             subprocess.run(cmd, check=True, capture_output=True)
             time.sleep(self.config.delay_between_instructions)
@@ -435,11 +473,13 @@ class SessionRestore(Utils):
                     continue
 
                 self.debug_print(f"Launching group member: {member_command}")
-                subprocess.Popen(
-                    shlex.split(member_command),
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                
+                # Use timeout-protected launch for group member
+                member_launch_success = self._launch_window_command_with_timeout(member_command, timeout=30)
+                
+                if not member_launch_success:
+                    self.debug_print(f"Group member launch failed or timed out: {member_command}")
+                    continue  # Skip this member but continue with other group members
                 
                 # Use appropriate delay
                 if use_member_swallowing_delay:

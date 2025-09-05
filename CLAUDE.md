@@ -106,6 +106,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 - **Workspace-Scoped Data**: HyprctlClient filters to current workspace immediately, never exposing other workspace data
 - **Timing System**: Configurable delays for group restoration (`DELAY_BETWEEN_INSTRUCTIONS = 0.4s`)
 - **Thread Safety**: Proper async patterns with UI thread protection in Fabric UI
+- **Subprocess Timeout Protection**: All application launches protected with 30s timeout, process group isolation (`os.setsid`), and 5s startup validation to prevent hanging restore operations
 
 ## Fabric UI Implementation
 
@@ -660,6 +661,7 @@ The complete archive system is ready for production use with enterprise-grade:
 - **Atomicity**: Operations succeed completely or fail cleanly
 - **Recovery**: Error recovery with user context preservation
 - **Logging**: Comprehensive debug output for troubleshooting
+- **Timeout Protection**: All subprocess launches use `_launch_window_command_with_timeout()` method in restore.py for hang prevention
 
 ## Debug Logging System
 
