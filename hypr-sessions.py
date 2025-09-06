@@ -6,6 +6,7 @@ Captures and restores workspace sessions in Hyprland
 
 import argparse
 import json
+import os
 import re
 import sys
 from typing import Optional
@@ -15,10 +16,12 @@ from commands.list import SessionList
 from commands.recover import SessionRecovery
 from commands.restore import SessionRestore
 from commands.save import SessionSaver
+from commands.shared.config import get_config
+from commands.shared.operation_result import OperationResult
 from commands.shared.utils import Utils
 from commands.shared.validation import (
     SessionValidationError, InvalidSessionNameError, SessionNotFoundError,
-    SessionAlreadyExistsError, validate_session_name
+    SessionAlreadyExistsError, validate_session_name, SessionValidator
 )
 
 
@@ -26,6 +29,7 @@ class HyprlandSessionManager:
     def __init__(self, debug: bool = False, json_output: bool = False) -> None:
         self.debug: bool = debug
         self.json_output: bool = json_output
+        self.config = get_config()
         self.saver: SessionSaver = SessionSaver(debug=debug)
         self.restorer: SessionRestore = SessionRestore(debug=debug)
         self.lister: SessionList = SessionList(debug=debug)
@@ -285,12 +289,111 @@ class HyprlandSessionManager:
                 print(f"Error: {e}")
             return False
 
+    def health_check(self) -> bool:
+        """Perform comprehensive system health checks"""
+        result = OperationResult(operation_name="System Health Check")
+        
+        # Directory accessibility validation
+        self._check_directory_health(result)
+        
+        # Configuration bounds validation
+        self._check_configuration_health(result)
+        
+        # Recovery system health
+        self._check_recovery_health(result)
+        
+        if self.json_output:
+            self._output_json_result(result)
+            sys.exit(0 if result.success else 1)
+        
+        # Normal output mode
+        if self.debug:
+            result.print_detailed_result()
+        else:
+            # Print summary for normal operation
+            if result.success:
+                print(f"✓ System health check passed")
+                if result.has_warnings:
+                    print(f"  ⚠ {result.warning_count} warnings found")
+                    for warning in result.warnings:
+                        print(f"    - {warning.message}")
+            else:
+                print(f"✗ System health check failed")
+                for error in result.errors:
+                    print(f"  Error: {error.message}")
+            
+            # Always show successes in health check for transparency
+            if result.has_successes:
+                print(f"\nHealthy components:")
+                for success in result.successes:
+                    print(f"  ✓ {success.message}")
+        
+        return result.success
+    
+    def _check_directory_health(self, result: OperationResult) -> None:
+        """Check directory permissions and accessibility"""
+        directories_to_check = [
+            (self.config.get_active_sessions_dir(), "active sessions"),
+            (self.config.get_archived_sessions_dir(), "archived sessions"),
+        ]
+        
+        for directory, name in directories_to_check:
+            try:
+                if not directory.exists():
+                    result.add_warning(f"{name.title()} directory does not exist: {directory}")
+                elif not os.access(directory, os.R_OK | os.W_OK):
+                    result.add_error(f"Insufficient permissions for {name} directory: {directory}")
+                else:
+                    result.add_success(f"{name.title()} directory accessible")
+            except Exception as e:
+                result.add_error(f"Error checking {name} directory: {e}")
+    
+    def _check_configuration_health(self, result: OperationResult) -> None:
+        """Validate configuration settings and bounds"""
+        try:
+            # Check archive configuration bounds
+            if self.config.archive_max_sessions < 1 or self.config.archive_max_sessions > 1000:
+                result.add_error(f"Archive max sessions out of range (1-1000): {self.config.archive_max_sessions}")
+            else:
+                result.add_success(f"Archive configuration valid (max: {self.config.archive_max_sessions})")
+            
+            # Check timing configuration bounds
+            if self.config.delay_between_instructions < 0.0 or self.config.delay_between_instructions > 10.0:
+                result.add_error(f"Delay between instructions out of range (0.0-10.0s): {self.config.delay_between_instructions}")
+            else:
+                result.add_success(f"Timing configuration valid (delay: {self.config.delay_between_instructions}s)")
+            
+            # Check browser timeout configuration bounds
+            if self.config.browser_tab_file_timeout < 1 or self.config.browser_tab_file_timeout > 120:
+                result.add_error(f"Browser tab file timeout out of range (1-120s): {self.config.browser_tab_file_timeout}")
+            else:
+                result.add_success(f"Browser timeout configuration valid ({self.config.browser_tab_file_timeout}s)")
+                
+        except Exception as e:
+            result.add_error(f"Error validating configuration: {e}")
+    
+    def _check_recovery_health(self, result: OperationResult) -> None:
+        """Check for interrupted recovery operations"""
+        try:
+            interrupted_recoveries = self.recoverer.check_interrupted_recoveries()
+            
+            if interrupted_recoveries:
+                result.add_warning(f"Found {len(interrupted_recoveries)} interrupted recovery operations")
+                if self.debug:
+                    for recovery in interrupted_recoveries:
+                        result.add_warning(f"Interrupted recovery marker: {recovery}")
+            else:
+                result.add_success("No interrupted recovery operations found")
+                
+        except Exception as e:
+            result.add_error(f"Error checking recovery system health: {e}")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hyprland Session Manager")
     parser.add_argument(
         "action",
-        choices=["save", "restore", "list", "delete", "recover"],
+        choices=["save", "restore", "list", "delete", "recover", "health"],
         help="Action to perform",
     )
     parser.add_argument(
@@ -377,6 +480,9 @@ def main() -> None:
             sys.exit(1)
         
         manager.recover_session(args.session_name, args.new_name)
+    
+    elif args.action == "health":
+        manager.health_check()
 
 
 if __name__ == "__main__":

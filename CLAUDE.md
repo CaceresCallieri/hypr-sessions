@@ -6,7 +6,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 
 ### Architecture
 
-- **CLI Interface**: `hypr-sessions.py` - Main entry point with commands: `save`, `restore`, `list`, `delete`, `recover`
+- **CLI Interface**: `hypr-sessions.py` - Main entry point with commands: `save`, `restore`, `list`, `delete`, `recover`, `health`
 - **Archive System**: Complete session archiving system with recovery capabilities instead of permanent deletion
 - **Modular Structure**: Specialized handlers for different application types (terminals, Neovide, browsers)
 - **Fabric UI**: Professional graphical interface using Fabric framework for desktop widgets
@@ -775,6 +775,11 @@ pip install git+https://github.com/Fabric-Development/fabric.git
 ./hypr-sessions.py restore work-session --json
 hyprctl dispatch workspace 4 && ./hypr-sessions.py restore work-session
 
+# System Health Check
+./hypr-sessions.py health           # Basic health check
+./hypr-sessions.py health --debug   # Detailed health check
+./hypr-sessions.py health --json    # JSON health check output
+
 # UI Testing
 cd fabric-ui && source venv/bin/activate && python session_manager.py
 
@@ -901,6 +906,32 @@ return result.with_data({"session_file": path})
 - **Rich Context**: Detailed operation feedback with structured messages and debugging context
 - **UI Integration**: Clean display formatting for debug vs normal modes
 - **Maintainability**: Centralized error classification reduces code duplication
+
+### System Health Check Command
+
+**Comprehensive Health Validation**: The health check command provides proactive system validation across multiple components.
+
+**Implementation Location**: `HyprlandSessionManager.health_check()` in `hypr-sessions.py` with three validation helper methods:
+
+- `_check_directory_health()`: Validates accessibility and permissions for active/archived session directories
+- `_check_configuration_health()`: Validates configuration bounds (archive limits: 1-1000, delays: 0.0-10.0s, timeouts: 1-120s)
+- `_check_recovery_health()`: Detects interrupted recovery operations using existing recovery marker system
+
+**Output Modes**:
+- **Normal**: Success/error summary with healthy components listed
+- **Debug**: Detailed validation results with full OperationResult output
+- **JSON**: Complete structured output for UI integration
+
+**Health Checks Performed**:
+- Directory accessibility (read/write permissions)
+- Configuration bounds validation (prevents crashes from malicious environment variables)
+- Recovery system health (detects interrupted operations requiring cleanup)
+
+**Benefits**:
+- **Proactive Problem Detection**: Identifies issues before they affect operations
+- **System Troubleshooting**: Single command provides comprehensive system overview
+- **Administrative Validation**: Quick system health assessment for deployments
+- **UI Integration**: JSON API support enables programmatic health monitoring
 
 ## Important Development Notes
 
