@@ -68,8 +68,11 @@ class SessionRestore(Utils):
             except (ProcessLookupError, AttributeError):
                 pass  # Process already died or PID not available
             return False
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            self.debug_print(f"Process error launching command: {command}, error: {e}")
+            return False
         except Exception as e:
-            self.debug_print(f"Failed to launch command: {command}, error: {e}")
+            self.debug_print(f"Unexpected error launching command: {command}, error: {e}")
             return False
         
         return True
@@ -191,9 +194,13 @@ class SessionRestore(Utils):
                 session_data = json.load(f)
             self.debug_print(f"Successfully loaded session data")
             result.add_success("Session data loaded successfully")
-        except Exception as e:
+        except (json.JSONDecodeError, FileNotFoundError, PermissionError, OSError) as e:
             self.debug_print(f"Error loading session data: {e}")
-            result.add_error(f"Failed to load session data: {e}")
+            result.add_json_error(e, f"load session '{session_name}'", str(session_file))
+            return result
+        except Exception as e:
+            self.debug_print(f"Unexpected error loading session data: {e}")
+            result.add_error(f"Unexpected error: Failed to load session '{session_name}'. {str(e)}")
             return result
 
         self.debug_print(f"Restoring session: {session_name}")
@@ -492,12 +499,13 @@ class SessionRestore(Utils):
             subprocess.run(cmd, check=True, capture_output=True)
             self.debug_print(f"Successfully created and locked group with {len(effective_group_windows)} windows")
 
-        except subprocess.CalledProcessError as e:
-            self.debug_print(f"Error creating group: {e}")
-            self.debug_print(f"Error creating group: {e}")
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError) as e:
+            self.debug_print(f"Process error creating group: {e}")
+            # Note: We don't add errors to result here as this is a non-critical operation
+            # Group creation failure doesn't prevent successful session restoration
         except Exception as e:
             self.debug_print(f"Unexpected error during group creation: {e}")
-            self.debug_print(f"Unexpected error during group creation: {e}")
+            # Note: We don't add errors to result here as this is a non-critical operation
 
     def launch_with_groups(
         self,

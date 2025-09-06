@@ -267,7 +267,15 @@ class SessionSaver(Utils):
                 "failed_windows": failed_windows
             }
             return result
+        except (PermissionError, FileNotFoundError, OSError, IOError) as e:
+            self.debug_print(f"Filesystem error saving session file: {e}")
+            result.add_filesystem_error(e, f"save session '{session_name}'", str(session_file))
+            return result
+        except json.JSONEncodeError as e:
+            self.debug_print(f"JSON encoding error saving session: {e}")
+            result.add_error(f"Session data encoding failed: Cannot save session '{session_name}' due to invalid data format. {str(e)}")
+            return result
         except Exception as e:
-            self.debug_print(f"Error saving session file: {e}")
-            result.add_error(f"Failed to save session file: {e}")
+            self.debug_print(f"Unexpected error saving session file: {e}")
+            result.add_error(f"Unexpected error: Failed to save session '{session_name}'. {str(e)}")
             return result

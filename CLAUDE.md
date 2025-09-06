@@ -854,6 +854,27 @@ if args.new_name:
 
 ## Error Handling Architecture
 
+### Enhanced Error Granularity System
+
+**Specific Error Classification**: The OperationResult system includes specialized error helper methods that provide actionable error messages based on exception types.
+
+```python
+# Enhanced error handling methods in operation_result.py
+result.add_filesystem_error(error, "archive session 'name'", "/path/to/session")
+result.add_json_error(error, "load session data", "/path/to/session.json") 
+result.add_subprocess_error(error, "hyprctl dispatch", "create window group")
+```
+
+**Error Type Coverage**:
+- **Filesystem Errors**: PermissionError, FileNotFoundError, ENOSPC (disk space), ENAMETOOLONG, EACCES, ENOTEMPTY, EROFS
+- **JSON Errors**: JSONDecodeError with line/column details, file access errors
+- **Subprocess Errors**: TimeoutExpired, CalledProcessError with stderr, missing commands
+
+**Context Preservation**: All enhanced errors include structured context for debugging:
+```python
+context = {"error_type": "PermissionError", "path": "/session/path", "operation": "archive session"}
+```
+
 ### Structured Results System
 
 ```python
@@ -874,10 +895,12 @@ return result.with_data({"session_file": path})
 
 ### Benefits
 
+- **Specific Error Messages**: Users receive actionable guidance like "Check file permissions" or "Free up disk space"
+- **Error Type Distinction**: Clear differentiation between permissions, disk space, filesystem limits, and other failure types
 - **Partial Success**: Operations can succeed with warnings
-- **Rich Context**: Detailed operation feedback with structured messages
+- **Rich Context**: Detailed operation feedback with structured messages and debugging context
 - **UI Integration**: Clean display formatting for debug vs normal modes
-- **Debugging**: Comprehensive logging without breaking user experience
+- **Maintainability**: Centralized error classification reduces code duplication
 
 ## Important Development Notes
 

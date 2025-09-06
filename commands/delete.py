@@ -105,8 +105,8 @@ class SessionArchive(Utils):
                 "archived_dir": str(archived_dir)
             }
             return result
-        except Exception as e:
-            self.debug_print(f"Error archiving session directory {session_dir}: {e}")
+        except (PermissionError, FileNotFoundError, OSError, IOError) as e:
+            self.debug_print(f"Filesystem error archiving session directory {session_dir}: {e}")
             # Clean up temporary metadata file if it exists
             if temp_metadata_file and temp_metadata_file.exists():
                 try:
@@ -115,7 +115,31 @@ class SessionArchive(Utils):
                 except Exception as cleanup_error:
                     self.debug_print(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
             
-            result.add_error(f"Failed to archive session directory: {e}")
+            result.add_filesystem_error(e, f"archive session '{session_name}'", str(session_dir))
+            return result
+        except json.JSONEncodeError as e:
+            self.debug_print(f"JSON encoding error creating metadata: {e}")
+            # Clean up temporary metadata file if it exists
+            if temp_metadata_file and temp_metadata_file.exists():
+                try:
+                    temp_metadata_file.unlink()
+                    self.debug_print(f"Cleaned up temporary metadata file: {temp_metadata_file}")
+                except Exception as cleanup_error:
+                    self.debug_print(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
+            
+            result.add_error(f"Archive metadata creation failed: Cannot create archive metadata for session '{session_name}'. {str(e)}")
+            return result
+        except Exception as e:
+            self.debug_print(f"Unexpected error archiving session directory {session_dir}: {e}")
+            # Clean up temporary metadata file if it exists
+            if temp_metadata_file and temp_metadata_file.exists():
+                try:
+                    temp_metadata_file.unlink()
+                    self.debug_print(f"Cleaned up temporary metadata file: {temp_metadata_file}")
+                except Exception as cleanup_error:
+                    self.debug_print(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
+            
+            result.add_error(f"Unexpected error: Failed to archive session '{session_name}'. {str(e)}")
             return result
 
     def _create_archive_metadata(self, original_name: str, archived_name: str, file_count: int) -> Dict[str, Any]:
@@ -148,7 +172,7 @@ class SessionArchive(Utils):
                     return self._perform_archive_cleanup_locked(archived_sessions_dir)
                     
             except (IOError, OSError) as e:
-                if e.errno == errno.EAGAIN or e.errno == errno.EACCES:
+                if hasattr(e, 'errno') and e.errno in (errno.EAGAIN, errno.EACCES):
                     # Another process is cleaning up - this is expected and safe
                     self.debug_print("Archive cleanup skipped - another process is cleaning up")
                     return "Archive cleanup skipped (concurrent operation)"

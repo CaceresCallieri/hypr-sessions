@@ -3,6 +3,9 @@ Structured operation results for better error handling and user feedback
 Provides rich information about operation outcomes including partial failures
 """
 
+import errno
+import json
+import subprocess
 from dataclasses import dataclass, field
 from typing import Any, List, Dict, Optional
 from enum import Enum
@@ -49,6 +52,135 @@ class OperationResult:
         """Add an error message and mark operation as failed"""
         self.messages.append(ResultMessage(ResultStatus.ERROR, message, context))
         self.success = False
+    
+    def add_filesystem_error(self, error: Exception, operation: str, path: str) -> None:
+        """Add filesystem error with specific guidance based on error type"""
+        context = {"error_type": type(error).__name__, "path": path, "operation": operation}
+        
+        if isinstance(error, PermissionError):
+            self.add_error(
+                f"Permission denied: Cannot {operation}. Check file permissions for '{path}'.",
+                context
+            )
+        elif isinstance(error, FileNotFoundError):
+            self.add_error(
+                f"File not found: Cannot {operation} because '{path}' does not exist.",
+                context
+            )
+        elif isinstance(error, FileExistsError):
+            self.add_error(
+                f"File already exists: Cannot {operation} because '{path}' already exists.",
+                context
+            )
+        elif isinstance(error, OSError) and hasattr(error, 'errno'):
+            if error.errno == errno.ENOSPC:
+                self.add_error(
+                    f"Insufficient disk space: Cannot {operation}. Free up disk space and try again.",
+                    context
+                )
+            elif error.errno == errno.ENAMETOOLONG:
+                self.add_error(
+                    f"Name too long: Cannot {operation} because the path name is too long for the filesystem.",
+                    context
+                )
+            elif error.errno == errno.EACCES:
+                self.add_error(
+                    f"Access denied: Cannot {operation}. Check directory permissions for '{path}'.",
+                    context
+                )
+            elif error.errno == errno.ENOTEMPTY:
+                self.add_error(
+                    f"Directory not empty: Cannot {operation} because '{path}' contains files.",
+                    context
+                )
+            elif error.errno == errno.EROFS:
+                self.add_error(
+                    f"Read-only filesystem: Cannot {operation} because '{path}' is on a read-only filesystem.",
+                    context
+                )
+            else:
+                self.add_error(
+                    f"Filesystem error: Cannot {operation}. {str(error)}",
+                    context
+                )
+        elif isinstance(error, IsADirectoryError):
+            self.add_error(
+                f"Path is a directory: Cannot {operation} because '{path}' is a directory, not a file.",
+                context
+            )
+        elif isinstance(error, NotADirectoryError):
+            self.add_error(
+                f"Path is not a directory: Cannot {operation} because '{path}' is not a directory.",
+                context
+            )
+        else:
+            # Fallback for other filesystem-related errors
+            self.add_error(
+                f"Filesystem error: Cannot {operation}. {str(error)}",
+                context
+            )
+    
+    def add_json_error(self, error: Exception, operation: str, file_path: str) -> None:
+        """Add JSON processing error with specific guidance"""
+        context = {"error_type": type(error).__name__, "file_path": file_path, "operation": operation}
+        
+        if isinstance(error, json.JSONDecodeError):
+            self.add_error(
+                f"Invalid JSON format: Cannot {operation} because '{file_path}' contains malformed JSON data. "
+                f"Error at line {error.lineno}, column {error.colno}: {error.msg}",
+                context
+            )
+        elif isinstance(error, FileNotFoundError):
+            self.add_error(
+                f"Session file not found: Cannot {operation} because '{file_path}' does not exist.",
+                context
+            )
+        elif isinstance(error, PermissionError):
+            self.add_error(
+                f"Permission denied: Cannot {operation} due to insufficient permissions for '{file_path}'.",
+                context
+            )
+        else:
+            self.add_error(
+                f"JSON processing error: Cannot {operation}. {str(error)}",
+                context
+            )
+    
+    def add_subprocess_error(self, error: Exception, command: str, operation: str) -> None:
+        """Add subprocess error with specific guidance"""
+        context = {"error_type": type(error).__name__, "command": command, "operation": operation}
+        
+        if isinstance(error, subprocess.TimeoutExpired):
+            timeout = getattr(error, 'timeout', 'unknown')
+            self.add_error(
+                f"Command timeout: {operation} failed because the command '{command}' "
+                f"took longer than {timeout} seconds to complete.",
+                context
+            )
+        elif isinstance(error, subprocess.CalledProcessError):
+            return_code = getattr(error, 'returncode', 'unknown')
+            stderr = getattr(error, 'stderr', b'').decode() if hasattr(error, 'stderr') and error.stderr else 'No error details available'
+            self.add_error(
+                f"Command failed: {operation} failed because '{command}' "
+                f"exited with code {return_code}. Error: {stderr.strip()}",
+                context
+            )
+        elif isinstance(error, FileNotFoundError):
+            self.add_error(
+                f"Command not found: {operation} failed because '{command.split()[0] if command else 'unknown'}' "
+                f"is not installed or not in PATH.",
+                context
+            )
+        elif isinstance(error, PermissionError):
+            self.add_error(
+                f"Permission denied: {operation} failed due to insufficient permissions to execute '{command}'.",
+                context
+            )
+        else:
+            self.add_error(
+                f"Process error: {operation} failed. {str(error)}",
+                context
+            )
     
     @property
     def errors(self) -> List[ResultMessage]:
