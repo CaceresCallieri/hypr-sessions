@@ -107,6 +107,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 - **Timing System**: Configurable delays for group restoration (`DELAY_BETWEEN_INSTRUCTIONS = 0.4s`)
 - **Thread Safety**: Proper async patterns with UI thread protection in Fabric UI
 - **Subprocess Timeout Protection**: All application launches protected with 30s timeout, process group isolation (`os.setsid`), and 5s startup validation to prevent hanging restore operations
+- **Configuration Security**: Environment variable overrides validated with bounds checking to prevent crashes and malicious values (archive limits: 1-1000, delays: 0.0-10.0s, timeouts: 1-120s)
 
 ## Fabric UI Implementation
 

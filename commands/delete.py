@@ -2,6 +2,8 @@
 Session archive functionality (formerly delete)
 """
 
+import errno
+import fcntl
 import json
 import shutil
 from datetime import datetime
@@ -127,56 +129,85 @@ class SessionArchive(Utils):
         }
 
     def _enforce_archive_limits(self) -> str:
-        """Enforce archive size limits and cleanup old archives"""
+        """Enforce archive size limits and cleanup old archives with concurrent access protection"""
         try:
             archived_sessions_dir = self.config.get_archived_sessions_dir()
             if not archived_sessions_dir.exists():
                 return ""
 
-            # Get all archived sessions
-            archived_sessions = []
-            for item in archived_sessions_dir.iterdir():
-                if item.is_dir():
-                    metadata_file = item / ".archive-metadata.json"
-                    if metadata_file.exists():
-                        try:
-                            with open(metadata_file, "r") as f:
-                                metadata = json.load(f)
-                            archived_sessions.append({
-                                "path": item,
-                                "timestamp": metadata.get("archive_timestamp", ""),
-                                "name": item.name
-                            })
-                        except Exception as e:
-                            self.debug_print(f"Error reading metadata for {item}: {e}")
-
-            # Sort by timestamp (oldest first for cleanup)
-            archived_sessions.sort(key=lambda x: x["timestamp"])
-
-            # Check if we exceed the limit
-            max_sessions = self.config.archive_max_sessions
-            if len(archived_sessions) <= max_sessions:
-                return ""
-
-            # Remove oldest sessions to get within limit
-            sessions_to_remove = archived_sessions[:len(archived_sessions) - max_sessions]
-            removed_count = 0
-
-            for session_info in sessions_to_remove:
-                try:
-                    shutil.rmtree(session_info["path"])
-                    removed_count += 1
-                    self.debug_print(f"Removed old archived session: {session_info['name']}")
-                except Exception as e:
-                    self.debug_print(f"Error removing archived session {session_info['name']}: {e}")
-
-            if removed_count > 0:
-                return f"removed {removed_count} old archived sessions"
-            return ""
-
+            # Create lock file for archive operations
+            lock_file_path = archived_sessions_dir / ".archive-cleanup.lock"
+            
+            try:
+                with open(lock_file_path, 'w') as lock_file:
+                    # Acquire exclusive lock (non-blocking)
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    self.debug_print("Acquired archive cleanup lock")
+                    
+                    # Perform cleanup operations atomically within the lock
+                    return self._perform_archive_cleanup_locked(archived_sessions_dir)
+                    
+            except (IOError, OSError) as e:
+                if e.errno == errno.EAGAIN or e.errno == errno.EACCES:
+                    # Another process is cleaning up - this is expected and safe
+                    self.debug_print("Archive cleanup skipped - another process is cleaning up")
+                    return "Archive cleanup skipped (concurrent operation)"
+                else:
+                    # Unexpected error - propagate it
+                    self.debug_print(f"Unexpected error acquiring archive lock: {e}")
+                    raise e
+                    
         except Exception as e:
             self.debug_print(f"Error enforcing archive limits: {e}")
             return ""
+
+    def _perform_archive_cleanup_locked(self, archived_sessions_dir: Path) -> str:
+        """Perform the actual cleanup operations while holding the lock"""
+        # Get all archived sessions
+        archived_sessions = []
+        for item in archived_sessions_dir.iterdir():
+            if item.is_dir() and not item.name.startswith('.'):
+                metadata_file = item / ".archive-metadata.json"
+                if metadata_file.exists():
+                    try:
+                        with open(metadata_file, "r") as f:
+                            metadata = json.load(f)
+                        archived_sessions.append({
+                            "path": item,
+                            "timestamp": metadata.get("archive_timestamp", ""),
+                            "name": item.name
+                        })
+                    except Exception as e:
+                        self.debug_print(f"Error reading metadata for {item}: {e}")
+
+        # Sort by timestamp (oldest first for cleanup)
+        archived_sessions.sort(key=lambda x: x["timestamp"])
+
+        # Check if we exceed the limit
+        max_sessions = self.config.archive_max_sessions
+        if len(archived_sessions) <= max_sessions:
+            self.debug_print(f"Archive count {len(archived_sessions)} within limit {max_sessions}")
+            return ""
+
+        # Remove oldest sessions to get within limit
+        sessions_to_remove = archived_sessions[:len(archived_sessions) - max_sessions]
+        removed_count = 0
+        cleanup_summary = []
+
+        self.debug_print(f"Need to remove {len(sessions_to_remove)} sessions to stay within limit of {max_sessions}")
+
+        for session_info in sessions_to_remove:
+            try:
+                shutil.rmtree(session_info["path"])
+                removed_count += 1
+                cleanup_summary.append(f"Removed {session_info['name']}")
+                self.debug_print(f"Removed old archived session: {session_info['name']}")
+            except Exception as e:
+                self.debug_print(f"Error removing archived session {session_info['name']}: {e}")
+
+        if removed_count > 0:
+            return f"removed {removed_count} old archived sessions"
+        return ""
 
     def delete_session(self, session_name: str) -> OperationResult:
         """Legacy method - redirects to archive_session for backward compatibility"""

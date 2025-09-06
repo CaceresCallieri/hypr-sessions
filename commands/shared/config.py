@@ -46,14 +46,26 @@ class SessionConfig:
     # Debug Configuration
     debug_enabled: bool = False
 
+    def _validate_env_numeric(self, env_var: str, current_value, min_val, max_val, value_type=int):
+        """Validate and set numeric environment variable with bounds checking"""
+        if env_var in os.environ:
+            try:
+                new_value = value_type(os.environ[env_var])
+                if min_val <= new_value <= max_val:
+                    return new_value
+                else:
+                    print(f"Warning: {env_var} value {new_value} out of range ({min_val}-{max_val}), using default {current_value}")
+                    return current_value
+            except ValueError:
+                print(f"Warning: Invalid {env_var} value '{os.environ[env_var]}', using default {current_value}")
+        return current_value
+
     def __post_init__(self) -> None:
         """Initialize default values and apply environment variable overrides"""
-        # Apply environment variable overrides for archive settings
-        if "ARCHIVE_MAX_SESSIONS" in os.environ:
-            try:
-                self.archive_max_sessions = int(os.environ["ARCHIVE_MAX_SESSIONS"])
-            except ValueError:
-                pass  # Keep default if invalid
+        # Apply environment variable overrides for archive settings with bounds validation
+        self.archive_max_sessions = self._validate_env_numeric(
+            "ARCHIVE_MAX_SESSIONS", self.archive_max_sessions, 1, 1000
+        )
         
         if "ARCHIVE_AUTO_CLEANUP" in os.environ:
             self.archive_auto_cleanup = os.environ["ARCHIVE_AUTO_CLEANUP"].lower() in ("true", "1", "yes")
@@ -88,6 +100,40 @@ class SessionConfig:
         # Perform automatic migration if needed
         self._ensure_folder_structure()
 
+    @staticmethod
+    def _safe_int_from_env(env_var: str, default_value: int, min_val: int, max_val: int) -> int:
+        """Safely parse integer environment variable with bounds checking"""
+        env_str = os.getenv(env_var)
+        if env_str is None:
+            return default_value
+        try:
+            value = int(env_str)
+            if min_val <= value <= max_val:
+                return value
+            else:
+                print(f"Warning: {env_var} value {value} out of range ({min_val}-{max_val}), using default {default_value}")
+                return default_value
+        except ValueError:
+            print(f"Warning: Invalid {env_var} value '{env_str}', using default {default_value}")
+            return default_value
+
+    @staticmethod
+    def _safe_float_from_env(env_var: str, default_value: float, min_val: float, max_val: float) -> float:
+        """Safely parse float environment variable with bounds checking"""
+        env_str = os.getenv(env_var)
+        if env_str is None:
+            return default_value
+        try:
+            value = float(env_str)
+            if min_val <= value <= max_val:
+                return value
+            else:
+                print(f"Warning: {env_var} value {value} out of range ({min_val:.1f}-{max_val:.1f}), using default {default_value}")
+                return default_value
+        except ValueError:
+            print(f"Warning: Invalid {env_var} value '{env_str}', using default {default_value}")
+            return default_value
+
     @classmethod
     def from_env(cls) -> "SessionConfig":
         """Create configuration from environment variables"""
@@ -105,8 +151,8 @@ class SessionConfig:
             # Archive configuration
             archive_enabled=os.getenv("HYPR_ARCHIVE_ENABLED", "true").lower()
             in ("true", "1", "yes"),
-            archive_max_sessions=int(
-                os.getenv("HYPR_ARCHIVE_MAX", str(defaults.archive_max_sessions))
+            archive_max_sessions=cls._safe_int_from_env(
+                "HYPR_ARCHIVE_MAX", defaults.archive_max_sessions, 1, 1000
             ),
             archive_auto_cleanup=os.getenv("HYPR_ARCHIVE_AUTO_CLEANUP", "true").lower()
             in ("true", "1", "yes"),
@@ -114,13 +160,11 @@ class SessionConfig:
                 "HYPR_ARCHIVE_CLEANUP_STRATEGY", defaults.archive_cleanup_strategy
             ),
             # Timing configuration
-            delay_between_instructions=float(
-                os.getenv("HYPR_DELAY", str(defaults.delay_between_instructions))
+            delay_between_instructions=cls._safe_float_from_env(
+                "HYPR_DELAY", defaults.delay_between_instructions, 0.0, 10.0
             ),
-            browser_tab_file_timeout=int(
-                os.getenv(
-                    "HYPR_BROWSER_TIMEOUT", str(defaults.browser_tab_file_timeout)
-                )
+            browser_tab_file_timeout=cls._safe_int_from_env(
+                "HYPR_BROWSER_TIMEOUT", defaults.browser_tab_file_timeout, 1, 120
             ),
             # Browser configuration
             browser_keyboard_shortcut=os.getenv(
