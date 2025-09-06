@@ -5,6 +5,7 @@ Comprehensive logging system for debugging UI interactions, state transitions,
 and performance issues. Designed for minimal overhead when disabled.
 """
 
+import atexit
 import time
 from datetime import datetime
 from pathlib import Path
@@ -68,6 +69,9 @@ class UIDebugLogger:
                     f.write(f"=== Hypr Sessions Manager UI Debug Log ===\n")
                     f.write(f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                     f.write(f"Log file: {self.log_file_path}\n\n")
+                
+                # Register automatic cleanup on application exit
+                atexit.register(self.flush_on_exit)
     
     def _write_log(self, component: str, level: str, message: str, details: Optional[Dict[str, Any]] = None):
         """Write log entry with structured format"""
@@ -119,8 +123,27 @@ class UIDebugLogger:
             self.log_buffer.clear()
     
     def flush_on_exit(self):
-        """Flush any remaining buffered logs on shutdown"""
-        self._flush_buffer()
+        """Flush any remaining buffered logs on shutdown with robust error handling"""
+        try:
+            self._flush_buffer()
+        except Exception as e:
+            # Ensure cleanup never crashes the application during shutdown
+            # Use print directly since this may be called during interpreter shutdown
+            try:
+                print(f"DEBUG LOGGER CLEANUP ERROR: {e}")
+            except:
+                # Even print might fail during shutdown - ignore silently
+                pass
+    
+    def __enter__(self):
+        """Context manager entry - returns self for 'with' statements"""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures cleanup on context exit"""
+        self.flush_on_exit()
+        # Return None (falsy) to allow exceptions to propagate
+        return None
     
     # Widget Pool Debug Methods
     

@@ -701,6 +701,14 @@ DEBUG_OUTPUT_TO_FILE: Final[bool] = False     # Optional file logging
 - **Component-Based**: Logical separation (FOCUS, STATE, NAVIGATION, BACKEND, etc.)
 - **Production Safe**: Graceful error handling with console fallback
 
+### Resource Management
+
+**Automatic Cleanup**: Debug logger uses `atexit.register()` for automatic buffer flushing on application termination, preventing data loss during unexpected exits or crashes.
+
+**Context Manager Support**: Optional `with` statement usage provides explicit cleanup control for specific debugging sessions.
+
+**Robust Error Handling**: Nested exception handling prevents cleanup failures from crashing applications during shutdown, even when file systems are unavailable.
+
 ### Usage
 
 Enable debug output to see real-time UI interactions, focus management, and state transitions. Switch to verbose mode for performance optimization and deep debugging of widget pooling systems.
