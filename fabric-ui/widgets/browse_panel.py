@@ -95,7 +95,6 @@ class BrowsePanelWidget(Box):
 
         # Archive mode state management (Phase 1, Task 1)
         self.is_archive_mode = False        # Mode toggle (False = active, True = archived)
-        self.archive_session_names = []     # Cached archived session names (strings)
 
         # Initialize with single update path
         self.update_display()
@@ -199,12 +198,8 @@ class BrowsePanelWidget(Box):
         """Load sessions based on current mode (active vs archive)"""
         if self.is_archive_mode:
             self.all_session_names = self.session_utils.get_archived_sessions()
-            # Update cache for archive mode
-            self.archive_session_names = self.all_session_names.copy()
         else:
             self.all_session_names = self.session_utils.get_available_sessions()
-            # Clear archive cache when in active mode
-            self.archive_session_names = []
 
     def _on_search_changed(self, entry):
         """Handle search input text changes - delegates to search manager"""

@@ -788,6 +788,50 @@ cd fabric-ui && source venv/bin/activate && python session_manager.py
 ./hypr-sessions.py list --json  # Test JSON API
 ```
 
+### Code Validation Guidelines
+
+**IMPORTANT for AI Agents**: Do NOT attempt to import or run fabric-ui components without the proper environment setup.
+
+**Safe Validation Methods**:
+- ✅ **Syntax Check**: `python -m py_compile fabric-ui/widgets/browse_panel.py`
+- ✅ **CLI Testing**: `./hypr-sessions.py --help` or `./hypr-sessions.py list --json`
+- ✅ **Pattern Validation**: Use `grep` to verify code changes took effect
+
+**Avoid These Common Mistakes**:
+- ❌ **Import Testing**: `from widgets.browse_panel import BrowsePanelWidget` (requires fabric environment)
+- ❌ **Widget Instantiation**: Creating GTK widgets outside the proper virtual environment
+- ❌ **Direct Module Loading**: Any attempt to load fabric-ui modules without venv activation
+
+**Why This Happens**: The fabric-ui components require:
+1. GTK3 system dependencies
+2. Python gobject bindings  
+3. Fabric framework from specific venv
+4. Proper DISPLAY/Wayland environment variables
+
+**Testing Pattern**: Always use `python -m py_compile` for syntax validation of UI changes, never attempt imports.
+
+## Code Quality Management
+
+### Structured TODO System
+
+**Code Review Integration**: Phase 2 Archive UI implementation established a comprehensive TODO system for managing code improvements with structured priority classification.
+
+**TODO Structure**:
+- **Priority Levels**: P1 (Critical), P2 (Should Complete), P3 (Can Address Later)
+- **Classification**: [x/[ ]][Priority][Type][Benefit:Level|Complexity:Level]task-description.md
+- **Dependencies**: Clear dependency tracking prevents conflicts between improvements
+- **Success Criteria**: Each TODO includes specific completion indicators and code examples
+
+**Key Improvements Completed**:
+- **Unused Code Elimination**: Removed `archive_session_names` cache system eliminating unnecessary complexity
+- **Method Simplification**: `_load_sessions_for_current_mode()` reduced to essential functionality only
+- **Testing Guidelines**: Established safe validation patterns preventing recurring fabric import errors
+
+**Architecture Insights**:
+- **Component Separation**: Browse panel successfully modularized into focused components
+- **Performance Optimization**: Widget pooling system achieves 95%+ reuse efficiency
+- **State Management**: Archive mode integration maintains existing functionality patterns
+
 ## Configuration Constants
 
 ### Timing Configuration
