@@ -208,7 +208,9 @@ class KeyboardEventHandler:
         Returns:
             True if shortcut was handled
         """
-        if keyval == Gdk.KEY_d:
+        if keyval == Gdk.KEY_a:
+            return self._handle_ctrl_a_toggle_archive()
+        elif keyval == Gdk.KEY_d:
             return self._handle_ctrl_d_delete()
         elif keyval == Gdk.KEY_l:
             return self._handle_ctrl_l_clear_search()
@@ -276,6 +278,48 @@ class KeyboardEventHandler:
             )
         
         self.browse_panel.clear_search()
+        return True
+
+    def _handle_ctrl_a_toggle_archive(self) -> bool:
+        """Handle Ctrl+A archive mode toggle
+        
+        Returns:
+            True if toggle operation was successful
+        """
+        # Debug log the toggle
+        if self.debug_logger:
+            current_mode = "archive" if self.browse_panel.is_archive_mode else "active"
+            target_mode = "active" if self.browse_panel.is_archive_mode else "archive"
+            self.debug_logger.debug_navigation_operation(
+                "archive_mode_toggle", f"{current_mode}_to_{target_mode}", None, "ctrl_a_shortcut"
+            )
+            # Enhanced action outcome logging
+            self.debug_logger.debug_action_outcome(
+                "Ctrl+A", "archive_mode_toggle", 
+                {"from_mode": current_mode, "to_mode": target_mode}
+            )
+            self.debug_logger.debug_event_flow(
+                "Ctrl+A", "KeyboardEventHandler", "_handle_ctrl_a_toggle_archive", 
+                f"toggle_to_{target_mode}_mode"
+            )
+        
+        # Preserve current search query before mode switch
+        current_search = self.browse_panel.search_manager.get_search_query()
+        
+        # Toggle archive mode state
+        self.browse_panel.is_archive_mode = not self.browse_panel.is_archive_mode
+        
+        # Trigger full UI update with new mode data
+        self.browse_panel.update_display()
+        
+        # Restore search query if it existed (after UI update completes)
+        if current_search:
+            # Set search query back and update display
+            if hasattr(self.browse_panel.search_manager, 'search_input') and self.browse_panel.search_manager.search_input:
+                self.browse_panel.search_manager.search_input.set_text(current_search)
+                # Manually trigger search update to refilter sessions in new mode
+                self.browse_panel._on_search_changed(self.browse_panel.search_manager.search_input)
+        
         return True
 
     def _handle_navigation_keys(self, keyval) -> bool:

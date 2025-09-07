@@ -387,7 +387,32 @@ class BrowsePanelWidget(Box):
                 self.search_manager.ensure_search_focus()
 
     def handle_key_press_event(self, widget, event):
-        """Handle keyboard events - delegates to keyboard handler"""
+        """Handle keyboard events with archive mode ESC handling before delegation"""
+        
+        # Handle ESC key in archive mode - return to active sessions
+        if event.keyval == Gdk.KEY_Escape and self.is_archive_mode:
+            # Return to active sessions mode
+            self.is_archive_mode = False
+            
+            # Clear search to provide clean active session view
+            self.search_manager.clear_search()
+            
+            # Reload active sessions (triggers full UI update)
+            self.update_display()
+            
+            # Debug logging
+            if hasattr(self, 'debug_logger') and self.debug_logger:
+                self.debug_logger.debug_navigation_operation(
+                    "escape_return_to_active", "archive_to_active", None, "esc_key"
+                )
+                self.debug_logger.debug_action_outcome(
+                    "Escape", "returned_to_active", 
+                    {"from_mode": "archive", "to_mode": "active", "search_cleared": True}
+                )
+            
+            return True  # Event handled, don't bubble up
+        
+        # Delegate to keyboard handler for all other key events
         return self.keyboard_handler.handle_key_press_event(widget, event)
 
     # Compatibility methods for existing operation classes
