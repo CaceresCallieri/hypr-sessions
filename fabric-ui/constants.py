@@ -21,6 +21,12 @@ RESTORING_STATE: Final[str] = "restoring"
 RESTORE_SUCCESS_STATE: Final[str] = "restore_success"
 RESTORE_ERROR_STATE: Final[str] = "restore_error"
 
+# Recovery Operation States (for archived session recovery)
+RECOVERY_CONFIRM_STATE: Final[str] = "recovery_confirm"
+RECOVERING_STATE: Final[str] = "recovering"
+RECOVERY_SUCCESS_STATE: Final[str] = "recovery_success"
+RECOVERY_ERROR_STATE: Final[str] = "recovery_error"
+
 # Debug Configuration
 # Controls comprehensive UI debug logging system
 DEBUG_MODE_ENABLED: Final[bool] = True  # Set to True for streamlined debug output
