@@ -181,9 +181,9 @@ class BrowsePanelWidget(Box):
         )
 
     def _refresh_session_data(self):
-        """Refresh session data and update filtered sessions"""
-        # Get current session data
-        self.all_session_names = self.session_utils.get_available_sessions()
+        """Refresh session data and update filtered sessions - supports both active and archive modes"""
+        # Load sessions based on current mode
+        self._load_sessions_for_current_mode()
 
         # Update filtered sessions using search manager
         self.filtered_sessions, suggested_selection = (
@@ -193,6 +193,17 @@ class BrowsePanelWidget(Box):
         # Set initial selection if needed
         if self.filtered_sessions and not self.selected_session_name:
             self.selected_session_name = suggested_selection
+
+    def _load_sessions_for_current_mode(self):
+        """Load sessions based on current mode (active vs archive)"""
+        if self.is_archive_mode:
+            self.all_session_names = self.session_utils.get_archived_sessions()
+            # Update cache for archive mode
+            self.archive_session_names = self.all_session_names.copy()
+        else:
+            self.all_session_names = self.session_utils.get_available_sessions()
+            # Clear archive cache when in active mode
+            self.archive_session_names = []
 
     def _on_search_changed(self, entry):
         """Handle search input text changes - delegates to search manager"""

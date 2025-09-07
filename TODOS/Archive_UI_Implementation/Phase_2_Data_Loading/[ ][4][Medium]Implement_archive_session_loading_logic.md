@@ -1,4 +1,4 @@
-# Implement Archive Session Loading Logic
+# [x] Implement Archive Session Loading Logic
 
 ## Context & Background
 - **Feature Goal**: Add archive mode toggle with Ctrl+A to browse archived sessions while maintaining all existing functionality (search, navigation, windowing)

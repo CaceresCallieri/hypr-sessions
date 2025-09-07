@@ -72,6 +72,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 - **Group Restoration**: Recreates Hyprland window groups with sequential launching and proper timing
 - **Input Validation**: Comprehensive validation with filesystem-safe names, existence checking, custom exceptions
 - **Structured Results**: OperationResult system with success/warning/error categorization and partial failure support
+- **Archive Mode Support**: UI implements mode-aware session loading via `_load_sessions_for_current_mode()` that switches between active/archived session data while maintaining all existing functionality (search, navigation, windowing)
 
 ### Application Support
 
