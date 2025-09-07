@@ -88,6 +88,10 @@ class BrowsePanelWidget(Box):
         self.selected_session_name = None
         self.state = BROWSING_STATE
 
+        # Archive mode state management (Phase 1, Task 1)
+        self.is_archive_mode = False        # Mode toggle (False = active, True = archived)
+        self.archive_session_names = []     # Cached archived session names (strings)
+
         # Initialize with single update path
         self.update_display()
 
