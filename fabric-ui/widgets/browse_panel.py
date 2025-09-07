@@ -20,6 +20,11 @@ from constants import (
     RESTORE_ERROR_STATE,
     RESTORE_SUCCESS_STATE,
     RESTORING_STATE,
+    # Archive recovery constants (for Phase 4+ implementation)
+    RECOVERY_CONFIRM_STATE,
+    RECOVERING_STATE,
+    RECOVERY_SUCCESS_STATE,
+    RECOVERY_ERROR_STATE,
 )
 from gi.repository import Gdk
 
