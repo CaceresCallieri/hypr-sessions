@@ -117,6 +117,25 @@ class BackendClient:
             BackendError: If delete operation fails
         """
         return self._run_command(['delete', session_name])
+    
+    def recover_session(self, archived_session_name: str, new_name: str = None) -> Dict[str, Any]:
+        """
+        Recover an archived session back to active status
+        
+        Args:
+            archived_session_name: Name of archived session (with timestamp suffix)
+            new_name: Optional new name for recovered session
+            
+        Returns:
+            Dict containing recovery result with success status and details
+            
+        Raises:
+            BackendError: If recovery operation fails
+        """
+        if new_name:
+            return self._run_command(['recover', archived_session_name, new_name])
+        else:
+            return self._run_command(['recover', archived_session_name])
 
 
 class BackendError(Exception):
