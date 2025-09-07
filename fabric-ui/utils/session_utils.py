@@ -3,6 +3,7 @@ Session utilities for Hypr Sessions Manager
 """
 
 from pathlib import Path
+from typing import List
 
 
 class SessionUtils:
@@ -59,7 +60,7 @@ class SessionUtils:
         return session_dir / "session.json"
     
     @staticmethod
-    def get_archived_sessions_directory():
+    def get_archived_sessions_directory() -> Path:
         """Get the archived sessions directory path"""
         home = Path.home()
         sessions_root = home / ".config" / "hypr-sessions"
@@ -67,17 +68,33 @@ class SessionUtils:
         return archived_dir
     
     @staticmethod
-    def get_archived_sessions():
+    def get_archived_sessions() -> List[str]:
         """Get list of archived session names with timestamps"""
-        archived_dir = SessionUtils.get_archived_sessions_directory()
-        if not archived_dir.exists():
-            return []
-        
-        sessions = []
-        for item in archived_dir.iterdir():
-            if item.is_dir() and not item.name.startswith('.'):
-                session_file = item / "session.json"
-                if session_file.exists():
-                    sessions.append(item.name)
-        
-        return sorted(sessions)
+        try:
+            archived_dir = SessionUtils.get_archived_sessions_directory()
+            if not archived_dir.exists():
+                return []
+            
+            sessions = []
+            for item in archived_dir.iterdir():
+                # Security validation - prevent path traversal attacks
+                if (item.is_dir() and 
+                    not item.name.startswith('.') and 
+                    not '..' in item.name and
+                    not item.name.startswith('/') and
+                    not item.name.startswith('\\') and
+                    # Additional security: prevent absolute paths and UNC paths
+                    not item.name.startswith('~') and
+                    not '\\' in item.name and
+                    # Prevent null bytes and other control characters
+                    not any(ord(c) < 32 for c in item.name)):
+                    try:
+                        session_file = item / "session.json"
+                        if session_file.exists():
+                            sessions.append(item.name)
+                    except (PermissionError, OSError):
+                        continue  # Skip inaccessible sessions gracefully
+            
+            return sorted(sessions)
+        except (PermissionError, OSError):
+            return []  # Graceful degradation on filesystem errors
