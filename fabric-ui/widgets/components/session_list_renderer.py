@@ -138,21 +138,28 @@ class SessionListRenderer:
         return widgets
 
     def create_sessions_header(self, all_session_count: int, filtered_count: int, 
-                             has_search_query: bool) -> Label:
+                             has_search_query: bool, is_archive_mode: bool = False) -> Label:
         """Create sessions header with count information
         
         Args:
             all_session_count: Total number of sessions
             filtered_count: Number of filtered sessions
             has_search_query: Whether search query is active
+            is_archive_mode: Whether in archive mode (for header text)
             
         Returns:
             Label widget with session count information
         """
-        if has_search_query:
-            header_text = f"Available Sessions ({filtered_count}/{all_session_count}):"
+        # Generate mode-aware header text
+        if is_archive_mode:
+            mode_text = "Archived Sessions"
         else:
-            header_text = f"Available Sessions ({all_session_count}):"
+            mode_text = "Available Sessions"
+        
+        if has_search_query:
+            header_text = f"{mode_text} ({filtered_count}/{all_session_count}):"
+        else:
+            header_text = f"{mode_text} ({all_session_count}):"
         
         sessions_header = Label(text=header_text, name="sessions-header")
         sessions_header.set_markup(f"<span weight='bold'>{header_text}</span>")

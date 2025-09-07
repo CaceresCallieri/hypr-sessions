@@ -152,6 +152,7 @@ class BrowsePanelWidget(Box):
             len(self.all_session_names),
             len(self.filtered_sessions),
             self.search_manager.has_search_query(),
+            self.is_archive_mode,
         )
 
         # Create session widgets container
@@ -243,6 +244,7 @@ class BrowsePanelWidget(Box):
                 len(self.all_session_names),
                 len(self.filtered_sessions),
                 self.search_manager.has_search_query(),
+                self.is_archive_mode,
             )
             header.set_markup(updated_header.get_text())
 
