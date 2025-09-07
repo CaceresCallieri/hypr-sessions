@@ -57,3 +57,27 @@ class SessionUtils:
         """Get the full path to a session.json file"""
         session_dir = SessionUtils.get_session_path(session_name)
         return session_dir / "session.json"
+    
+    @staticmethod
+    def get_archived_sessions_directory():
+        """Get the archived sessions directory path"""
+        home = Path.home()
+        sessions_root = home / ".config" / "hypr-sessions"
+        archived_dir = sessions_root / "archived"
+        return archived_dir
+    
+    @staticmethod
+    def get_archived_sessions():
+        """Get list of archived session names with timestamps"""
+        archived_dir = SessionUtils.get_archived_sessions_directory()
+        if not archived_dir.exists():
+            return []
+        
+        sessions = []
+        for item in archived_dir.iterdir():
+            if item.is_dir() and not item.name.startswith('.'):
+                session_file = item / "session.json"
+                if session_file.exists():
+                    sessions.append(item.name)
+        
+        return sorted(sessions)
