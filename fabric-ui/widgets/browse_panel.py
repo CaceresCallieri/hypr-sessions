@@ -41,7 +41,7 @@ from .components import (
 )
 
 # Import operation classes
-from .operations import DeleteOperation, RestoreOperation
+from .operations import DeleteOperation, RestoreOperation, RecoveryOperation
 
 
 class BrowsePanelWidget(Box):
@@ -77,6 +77,7 @@ class BrowsePanelWidget(Box):
         # Initialize operation handlers
         self.delete_operation = DeleteOperation(self, self.backend_client)
         self.restore_operation = RestoreOperation(self, self.backend_client)
+        self.recovery_operation = RecoveryOperation(self, self.backend_client)
 
         # Initialize modular components
         self.widget_pool = SessionWidgetPool(self.debug_logger)
@@ -124,6 +125,14 @@ class BrowsePanelWidget(Box):
             content = self.restore_operation.create_success_ui()
         elif self.state == RESTORE_ERROR_STATE:
             content = self.restore_operation.create_error_ui()
+        elif self.state == RECOVERY_CONFIRM_STATE:
+            content = self.recovery_operation.create_confirmation_ui()
+        elif self.state == RECOVERING_STATE:
+            content = self.recovery_operation.create_progress_ui()
+        elif self.state == RECOVERY_SUCCESS_STATE:
+            content = self.recovery_operation.create_success_ui()
+        elif self.state == RECOVERY_ERROR_STATE:
+            content = self.recovery_operation.create_error_ui()
         else:
             if self.debug_logger and self.debug_logger.enabled:
                 self.debug_logger.debug_state_transition(
@@ -352,10 +361,31 @@ class BrowsePanelWidget(Box):
         return session_name == self.selected_session_name
 
     def activate_selected_session(self):
-        """Activate (restore) the currently selected session"""
+        """Activate selected session - mode aware (restore vs recovery)"""
         selected_session = self.get_selected_session()
-        if selected_session and self.on_session_clicked:
-            self.on_session_clicked(selected_session)
+        if not selected_session:
+            return False
+        
+        if self.is_archive_mode:
+            # Archive mode: trigger recovery operation
+            self.recovery_operation.selected_session = selected_session
+            self.set_state(RECOVERY_CONFIRM_STATE)
+            
+            if self.debug_logger:
+                self.debug_logger.debug_navigation_operation(
+                    "recovery_trigger", selected_session, None, "enter_key_archive_mode"
+                )
+        else:
+            # Active mode: trigger restore operation (existing behavior)
+            self.restore_operation.selected_session = selected_session  
+            self.set_state(RESTORE_CONFIRM_STATE)
+            
+            if self.debug_logger:
+                self.debug_logger.debug_navigation_operation(
+                    "restore_trigger", selected_session, None, "enter_key_active_mode"
+                )
+        
+        return True
 
     def set_state(self, new_state):
         """Change the browse panel state and refresh content"""
@@ -373,6 +403,7 @@ class BrowsePanelWidget(Box):
             if new_state == BROWSING_STATE and old_state in [
                 RESTORE_CONFIRM_STATE,
                 DELETE_CONFIRM_STATE,
+                RECOVERY_CONFIRM_STATE,
             ]:
                 self.list_renderer.prepare_for_state_transition()
 
@@ -383,6 +414,7 @@ class BrowsePanelWidget(Box):
             if new_state == BROWSING_STATE and old_state in [
                 RESTORE_CONFIRM_STATE,
                 DELETE_CONFIRM_STATE,
+                RECOVERY_CONFIRM_STATE,
             ]:
                 self.search_manager.ensure_search_focus()
 
