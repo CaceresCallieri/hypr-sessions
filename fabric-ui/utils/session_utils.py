@@ -10,7 +10,7 @@ class SessionUtils:
     """Utility class for session directory operations"""
     
     @staticmethod
-    def get_sessions_directory():
+    def get_sessions_directory() -> Path:
         """Get the active sessions directory path (new structure)"""
         home = Path.home()
         sessions_root = home / ".config" / "hypr-sessions"
@@ -24,7 +24,7 @@ class SessionUtils:
         return sessions_root
     
     @staticmethod
-    def get_available_sessions():
+    def get_available_sessions() -> List[str]:
         """Get list of available session names"""
         sessions_dir = SessionUtils.get_sessions_directory()
         if not sessions_dir.exists():
@@ -40,7 +40,7 @@ class SessionUtils:
         return sorted(sessions)
     
     @staticmethod
-    def session_exists(session_name):
+    def session_exists(session_name: str) -> bool:
         """Check if a session exists"""
         sessions_dir = SessionUtils.get_sessions_directory()
         session_dir = sessions_dir / session_name
@@ -48,13 +48,13 @@ class SessionUtils:
         return session_dir.exists() and session_file.exists()
     
     @staticmethod
-    def get_session_path(session_name):
+    def get_session_path(session_name: str) -> Path:
         """Get the full path to a session directory"""
         sessions_dir = SessionUtils.get_sessions_directory()
         return sessions_dir / session_name
     
     @staticmethod
-    def get_session_file_path(session_name):
+    def get_session_file_path(session_name: str) -> Path:
         """Get the full path to a session.json file"""
         session_dir = SessionUtils.get_session_path(session_name)
         return session_dir / "session.json"
