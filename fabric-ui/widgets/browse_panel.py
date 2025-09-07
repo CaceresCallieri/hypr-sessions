@@ -82,7 +82,8 @@ class BrowsePanelWidget(Box):
         self.widget_pool = SessionWidgetPool(self.debug_logger)
         self.window_calculator = SessionWindowCalculator()
         self.list_renderer = SessionListRenderer(
-            self.widget_pool, self.window_calculator, self.debug_logger
+            self.widget_pool, self.window_calculator, self.debug_logger, 
+            parent_state_accessor=lambda: self
         )
         self.keyboard_handler = KeyboardEventHandler(self)
         self.search_manager = SessionSearchManager(self.debug_logger)
@@ -163,7 +164,7 @@ class BrowsePanelWidget(Box):
             len(self.all_session_names),
             len(self.filtered_sessions),
             self.search_manager.has_search_query(),
-            self.is_archive_mode,
+            # is_archive_mode omitted - component will access parent state directly
         )
 
     def _create_sessions_container(self):

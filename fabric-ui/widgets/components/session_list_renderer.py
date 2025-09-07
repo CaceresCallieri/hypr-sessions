@@ -22,17 +22,19 @@ class SessionListRenderer:
     """Handles creation and layout of session widgets"""
 
     def __init__(self, widget_pool: SessionWidgetPool, window_calculator: SessionWindowCalculator, 
-                 debug_logger=None):
+                 debug_logger=None, parent_state_accessor=None):
         """Initialize the session list renderer
         
         Args:
             widget_pool: Widget pool for button management
             window_calculator: Window calculator for visibility
             debug_logger: Optional debug logger
+            parent_state_accessor: Optional callable to access parent state (reduces parameter threading)
         """
         self.widget_pool = widget_pool
         self.window_calculator = window_calculator
         self.debug_logger = debug_logger
+        self.parent_state_accessor = parent_state_accessor
         
         # Track active session buttons for pool management
         self.active_session_buttons = []
@@ -138,18 +140,24 @@ class SessionListRenderer:
         return widgets
 
     def create_sessions_header(self, all_session_count: int, filtered_count: int, 
-                             has_search_query: bool, is_archive_mode: bool = False) -> Label:
+                             has_search_query: bool, is_archive_mode: bool = None) -> Label:
         """Create sessions header with count information
         
         Args:
             all_session_count: Total number of sessions
             filtered_count: Number of filtered sessions
             has_search_query: Whether search query is active
-            is_archive_mode: Whether in archive mode (for header text)
+            is_archive_mode: Whether in archive mode (optional - will use parent state if None)
             
         Returns:
             Label widget with session count information
         """
+        # Determine archive mode: use parameter if provided, otherwise access parent state
+        if is_archive_mode is None and self.parent_state_accessor:
+            is_archive_mode = self.parent_state_accessor().is_archive_mode
+        elif is_archive_mode is None:
+            is_archive_mode = False  # Safe fallback
+            
         # Generate mode-aware header text
         if is_archive_mode:
             mode_text = "Archived Sessions"
