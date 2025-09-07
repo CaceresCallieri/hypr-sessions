@@ -147,12 +147,7 @@ class BrowsePanelWidget(Box):
         search_input = self.search_manager.create_search_input(self._on_search_changed)
 
         # Create sessions header using list renderer
-        sessions_header = self.list_renderer.create_sessions_header(
-            len(self.all_session_names),
-            len(self.filtered_sessions),
-            self.search_manager.has_search_query(),
-            self.is_archive_mode,
-        )
+        sessions_header = self._create_current_header()
 
         # Create session widgets container
         sessions_container = self._create_sessions_container()
@@ -161,6 +156,15 @@ class BrowsePanelWidget(Box):
         shortcuts_hint = self.list_renderer.create_shortcuts_hint()
 
         return [search_input, sessions_header, sessions_container, shortcuts_hint]
+
+    def _create_current_header(self):
+        """Create header for current mode and state"""
+        return self.list_renderer.create_sessions_header(
+            len(self.all_session_names),
+            len(self.filtered_sessions),
+            self.search_manager.has_search_query(),
+            self.is_archive_mode,
+        )
 
     def _create_sessions_container(self):
         """Create session widgets container using components"""
@@ -235,12 +239,7 @@ class BrowsePanelWidget(Box):
         ):  # [search_input, header, sessions_container, shortcuts]
             # Update the header (index 1)
             header = current_children[1]
-            updated_header = self.list_renderer.create_sessions_header(
-                len(self.all_session_names),
-                len(self.filtered_sessions),
-                self.search_manager.has_search_query(),
-                self.is_archive_mode,
-            )
+            updated_header = self._create_current_header()
             header.set_markup(updated_header.get_text())
 
             # Update the sessions container (index 2)
