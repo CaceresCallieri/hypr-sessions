@@ -396,6 +396,32 @@ class BrowsePanelWidget(Box):
         
         return True
 
+    def toggle_archive_mode(self):
+        """Toggle between active and archive modes with search state preservation"""
+        # Preserve current search query
+        current_search = self.search_manager.get_search_query() if hasattr(self, 'search_manager') else ""
+        
+        # Toggle mode
+        self.is_archive_mode = not self.is_archive_mode
+        
+        # Update display with new mode data
+        self.update_display()
+        
+        # Restore search query if it existed
+        if current_search and hasattr(self.search_manager, 'search_input'):
+            try:
+                self.search_manager.search_input.set_text(current_search)
+                self._on_search_changed(self.search_manager.search_input)
+            except Exception as e:
+                # Graceful fallback if search restoration fails
+                if self.debug_logger:
+                    self.debug_logger.debug_event_routing("archive_toggle", "search_restoration_failed", str(e))
+        
+        # Debug logging
+        if self.debug_logger:
+            mode_change = "active_to_archive" if self.is_archive_mode else "archive_to_active"
+            self.debug_logger.debug_navigation_operation("toggle_archive_mode", mode_change, None, "ctrl_a_key")
+
     def set_state(self, new_state):
         """Change the browse panel state and refresh content"""
         if new_state != self.state:

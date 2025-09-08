@@ -40,20 +40,22 @@ The archive system adds **4 new states** (`RECOVERY_CONFIRM_STATE`, `RECOVERING_
 ## Code Examples
 
 **Current Redundant States**:
+
 ```python
 # In constants.py - TOO MANY STATES
 RESTORE_CONFIRM_STATE = "restore_confirm"
-RESTORING_STATE = "restoring" 
+RESTORING_STATE = "restoring"
 RESTORE_SUCCESS_STATE = "restore_success"
 RESTORE_ERROR_STATE = "restore_error"
 
 RECOVERY_CONFIRM_STATE = "recovery_confirm"    # DUPLICATE BEHAVIOR
-RECOVERING_STATE = "recovering"                # DUPLICATE BEHAVIOR  
+RECOVERING_STATE = "recovering"                # DUPLICATE BEHAVIOR
 RECOVERY_SUCCESS_STATE = "recovery_success"    # DUPLICATE BEHAVIOR
 RECOVERY_ERROR_STATE = "recovery_error"        # DUPLICATE BEHAVIOR
 ```
 
 **Proposed Unified Approach**:
+
 ```python
 # In constants.py - SIMPLIFIED
 OPERATION_CONFIRM_STATE = "operation_confirm"  # Replaces both confirm states
@@ -63,11 +65,12 @@ OPERATION_ERROR_STATE = "operation_error"       # Replaces both error states
 
 # OR even simpler - reuse existing restore states:
 # RESTORE_CONFIRM_STATE = "restore_confirm"  # Use for both restore and recovery
-# RESTORING_STATE = "restoring"              # Use for both operations  
+# RESTORING_STATE = "restoring"              # Use for both operations
 # etc.
 ```
 
 **Updated State Handling** (`browse_panel.py`):
+
 ```python
 def _get_operation_display_text(self):
     """Get display text based on current operation mode"""
@@ -79,7 +82,7 @@ def _get_operation_display_text(self):
         }
     else:
         return {
-            "action_verb": "Restore", 
+            "action_verb": "Restore",
             "progress_text": "Restoring session...",
             "success_text": "Session restored successfully",
         }
@@ -92,6 +95,7 @@ def _handle_operation_confirm_state(self):
 ```
 
 **State Transition Simplification**:
+
 ```python
 # Before: Mode-specific state transitions
 if self.is_archive_mode:
@@ -99,11 +103,12 @@ if self.is_archive_mode:
 else:
     self.set_state(RESTORE_CONFIRM_STATE)
 
-# After: Unified state transitions  
+# After: Unified state transitions
 self.set_state(RESTORE_CONFIRM_STATE)  # Same state, different display
 ```
 
 **Benefits**:
+
 - **50% fewer state constants** to maintain
 - **Unified state handling logic** eliminates duplicate code
 - **Mode-aware display** provides correct user messaging
@@ -113,3 +118,4 @@ self.set_state(RESTORE_CONFIRM_STATE)  # Same state, different display
 ## Reminder
 
 When implementation is finished, update the filename prefix from `[ ]` to `[x]`.
+
