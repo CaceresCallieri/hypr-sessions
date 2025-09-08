@@ -20,11 +20,7 @@ from constants import (
     RESTORE_ERROR_STATE,
     RESTORE_SUCCESS_STATE,
     RESTORING_STATE,
-    # Archive recovery constants (for Phase 4+ implementation)
-    RECOVERY_CONFIRM_STATE,
-    RECOVERING_STATE,
-    RECOVERY_SUCCESS_STATE,
-    RECOVERY_ERROR_STATE,
+    # Recovery states consolidated to use unified RESTORE_* states
 )
 from gi.repository import Gdk
 
@@ -117,28 +113,20 @@ class BrowsePanelWidget(Box):
         elif self.state == DELETE_ERROR_STATE:
             content = self.delete_operation.create_error_ui()
         elif self.state == RESTORE_CONFIRM_STATE:
+            # Set operation mode based on current browse panel mode
+            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_confirmation_ui()
         elif self.state == RESTORING_STATE:
+            # Set operation mode based on current browse panel mode
+            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_progress_ui()
         elif self.state == RESTORE_SUCCESS_STATE:
+            # Set operation mode based on current browse panel mode
+            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_success_ui()
         elif self.state == RESTORE_ERROR_STATE:
-            content = self.restore_operation.create_error_ui()
-        elif self.state == RECOVERY_CONFIRM_STATE:
-            # Ensure restore operation is in archive mode for recovery UI
-            self.restore_operation.is_archive_mode = True
-            content = self.restore_operation.create_confirmation_ui()
-        elif self.state == RECOVERING_STATE:
-            # Ensure restore operation is in archive mode for recovery UI
-            self.restore_operation.is_archive_mode = True
-            content = self.restore_operation.create_progress_ui()
-        elif self.state == RECOVERY_SUCCESS_STATE:
-            # Ensure restore operation is in archive mode for recovery UI
-            self.restore_operation.is_archive_mode = True
-            content = self.restore_operation.create_success_ui()
-        elif self.state == RECOVERY_ERROR_STATE:
-            # Ensure restore operation is in archive mode for recovery UI
-            self.restore_operation.is_archive_mode = True
+            # Set operation mode based on current browse panel mode
+            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_error_ui()
         else:
             if self.debug_logger and self.debug_logger.enabled:
@@ -377,21 +365,15 @@ class BrowsePanelWidget(Box):
         self.restore_operation.is_archive_mode = self.is_archive_mode
         self.restore_operation.selected_session = selected_session
         
-        if self.is_archive_mode:
-            # Archive mode: trigger recovery operation
-            self.set_state(RECOVERY_CONFIRM_STATE)
-            
-            if self.debug_logger:
-                self.debug_logger.debug_navigation_operation(
-                    "recovery_trigger", selected_session, None, "enter_key_archive_mode"
-                )
-        else:
-            # Active mode: trigger restore operation (existing behavior)
-            self.set_state(RESTORE_CONFIRM_STATE)
-            
-            if self.debug_logger:
-                self.debug_logger.debug_navigation_operation(
-                    "restore_trigger", selected_session, None, "enter_key_active_mode"
+        # Use unified RESTORE_CONFIRM_STATE for both archive and active modes
+        # The state handler will set the appropriate operation mode
+        self.set_state(RESTORE_CONFIRM_STATE)
+        
+        if self.debug_logger:
+            operation_type = "recovery_trigger" if self.is_archive_mode else "restore_trigger"
+            mode_context = "enter_key_archive_mode" if self.is_archive_mode else "enter_key_active_mode"
+            self.debug_logger.debug_navigation_operation(
+                operation_type, selected_session, None, mode_context
                 )
         
         return True
@@ -438,7 +420,6 @@ class BrowsePanelWidget(Box):
             if new_state == BROWSING_STATE and old_state in [
                 RESTORE_CONFIRM_STATE,
                 DELETE_CONFIRM_STATE,
-                RECOVERY_CONFIRM_STATE,
             ]:
                 self.list_renderer.prepare_for_state_transition()
 
@@ -449,7 +430,6 @@ class BrowsePanelWidget(Box):
             if new_state == BROWSING_STATE and old_state in [
                 RESTORE_CONFIRM_STATE,
                 DELETE_CONFIRM_STATE,
-                RECOVERY_CONFIRM_STATE,
             ]:
                 self.search_manager.ensure_search_focus()
 

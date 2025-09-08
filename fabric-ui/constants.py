@@ -21,11 +21,11 @@ RESTORING_STATE: Final[str] = "restoring"
 RESTORE_SUCCESS_STATE: Final[str] = "restore_success"
 RESTORE_ERROR_STATE: Final[str] = "restore_error"
 
-# Recovery Operation States (for archived session recovery)
-RECOVERY_CONFIRM_STATE: Final[str] = "recovery_confirm"
-RECOVERING_STATE: Final[str] = "recovering"
-RECOVERY_SUCCESS_STATE: Final[str] = "recovery_success"
-RECOVERY_ERROR_STATE: Final[str] = "recovery_error"
+# Recovery operations now use unified RESTORE_* states with mode-aware behavior
+# RECOVERY_CONFIRM_STATE consolidated to RESTORE_CONFIRM_STATE
+# RECOVERING_STATE consolidated to RESTORING_STATE
+# RECOVERY_SUCCESS_STATE consolidated to RESTORE_SUCCESS_STATE
+# RECOVERY_ERROR_STATE consolidated to RESTORE_ERROR_STATE
 
 # Debug Configuration
 # Controls comprehensive UI debug logging system

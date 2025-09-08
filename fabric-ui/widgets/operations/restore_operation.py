@@ -7,7 +7,7 @@ from .base_operation import BaseOperation
 
 from utils.path_setup import setup_fabric_ui_imports
 
-from constants import RESTORING_STATE, RECOVERING_STATE
+from constants import RESTORING_STATE
 
 
 class RestoreOperation(BaseOperation):
@@ -34,7 +34,7 @@ class RestoreOperation(BaseOperation):
                 "description": "Recover '{session_name}' from archive?\nSession will be restored to active sessions and can be used normally.",
                 "button_prefix": "recovery",
                 "success_description": "recovered from archive successfully",
-                "progress_state": RECOVERING_STATE,
+                "progress_state": RESTORING_STATE,  # Unified state for both restore and recovery
                 "operation_timeout": 45  # Recovery can involve file operations - moderate timeout
             }
         else:
