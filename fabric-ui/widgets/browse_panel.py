@@ -202,9 +202,12 @@ class BrowsePanelWidget(Box):
             self.search_manager.update_filtered_sessions(self.all_session_names)
         )
 
-        # Set initial selection if needed
-        if self.filtered_sessions and not self.selected_session_name:
-            self.selected_session_name = suggested_selection
+        # Set initial selection if needed or update invalid selection
+        if self.filtered_sessions:
+            if not self.selected_session_name or self.selected_session_name not in self.filtered_sessions:
+                self.selected_session_name = suggested_selection
+        else:
+            self.selected_session_name = None
 
     def _load_sessions_for_current_mode(self):
         """Load sessions based on current mode (active vs archive)"""
