@@ -648,12 +648,37 @@ The complete archive system is ready for production use with enterprise-grade:
 - **Excessive State Management**: Don't create new states when existing ones work with display text changes
 - **Complex Toggle Logic**: Encapsulate mode switching in focused methods rather than inline complexity
 
-**Preferred Patterns**:
+**Preferred Patterns for Future Development**:
 - **Mode-Aware Components**: Use boolean flags (`is_archive_mode`) instead of duplicate classes
 - **Event Delegation**: Route keyboard events to components with proper context rather than hardcoding at top level
 - **State Reuse**: Extend existing states with mode-aware display text rather than creating new state hierarchies
 - **Encapsulated Complexity**: Complex operations belong in focused methods, not scattered across handlers
 - **Initialization Order**: Set mode flags before calling parent constructors to avoid AttributeError during configuration validation
+- **Consistent Error Handling**: Always follow established OperationResult patterns rather than creating new error systems
+
+### Code Review Process & TODO System
+
+**Structured Code Quality Management**: The project uses a comprehensive TODO system for managing code improvements with structured priority classification.
+
+**TODO System Structure** (`TODOS/[Feature_Name]/Phase_[N]_[Phase_Title]/code-review/`):
+- **Format**: `[status][priority][type][benefit:level|complexity:level]task-name.md`
+- **Priority Levels**: P1 (Critical), P2 (Should Complete), P3 (Can Address Later)
+- **Types**: Bug, Enhancement, Polish, Refactor, Security
+- **Benefit/Complexity**: High/Medium/Low ratings for prioritization
+- **Dependencies**: Clear dependency tracking prevents conflicts between improvements
+- **Success Criteria**: Each TODO includes specific completion indicators and code examples
+
+**Key Code Review Findings Applied**:
+- **Error Handling Standardization**: Verified recovery operations use identical OperationResult patterns as restore operations
+- **Simplification Guidelines**: Avoid creating new classes when existing ones can be made mode-aware
+- **Performance Patterns**: Prefer boolean flags and display text changes over duplicate state management
+- **Testing Guidelines**: Established safe validation patterns preventing recurring fabric import errors
+
+**Benefits of Structured Review Process**:
+- **Systematic Quality Improvement**: Each phase receives comprehensive review with actionable items
+- **Priority-Based Implementation**: P1/P2/P3 classification ensures critical issues addressed first
+- **Documentation Integration**: Review findings integrated into project knowledge base
+- **Pattern Establishment**: Creates templates for future code quality initiatives
 
 ## Development Guidelines
 
