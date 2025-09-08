@@ -41,7 +41,7 @@ from .components import (
 )
 
 # Import operation classes
-from .operations import DeleteOperation, RestoreOperation, RecoveryOperation
+from .operations import DeleteOperation, RestoreOperation
 
 
 class BrowsePanelWidget(Box):
@@ -77,7 +77,6 @@ class BrowsePanelWidget(Box):
         # Initialize operation handlers
         self.delete_operation = DeleteOperation(self, self.backend_client)
         self.restore_operation = RestoreOperation(self, self.backend_client)
-        self.recovery_operation = RecoveryOperation(self, self.backend_client)
 
         # Initialize modular components
         self.widget_pool = SessionWidgetPool(self.debug_logger)
@@ -126,13 +125,21 @@ class BrowsePanelWidget(Box):
         elif self.state == RESTORE_ERROR_STATE:
             content = self.restore_operation.create_error_ui()
         elif self.state == RECOVERY_CONFIRM_STATE:
-            content = self.recovery_operation.create_confirmation_ui()
+            # Ensure restore operation is in archive mode for recovery UI
+            self.restore_operation.is_archive_mode = True
+            content = self.restore_operation.create_confirmation_ui()
         elif self.state == RECOVERING_STATE:
-            content = self.recovery_operation.create_progress_ui()
+            # Ensure restore operation is in archive mode for recovery UI
+            self.restore_operation.is_archive_mode = True
+            content = self.restore_operation.create_progress_ui()
         elif self.state == RECOVERY_SUCCESS_STATE:
-            content = self.recovery_operation.create_success_ui()
+            # Ensure restore operation is in archive mode for recovery UI
+            self.restore_operation.is_archive_mode = True
+            content = self.restore_operation.create_success_ui()
         elif self.state == RECOVERY_ERROR_STATE:
-            content = self.recovery_operation.create_error_ui()
+            # Ensure restore operation is in archive mode for recovery UI
+            self.restore_operation.is_archive_mode = True
+            content = self.restore_operation.create_error_ui()
         else:
             if self.debug_logger and self.debug_logger.enabled:
                 self.debug_logger.debug_state_transition(
@@ -366,9 +373,12 @@ class BrowsePanelWidget(Box):
         if not selected_session:
             return False
         
+        # Set mode on the unified operation and configure it
+        self.restore_operation.is_archive_mode = self.is_archive_mode
+        self.restore_operation.selected_session = selected_session
+        
         if self.is_archive_mode:
             # Archive mode: trigger recovery operation
-            self.recovery_operation.selected_session = selected_session
             self.set_state(RECOVERY_CONFIRM_STATE)
             
             if self.debug_logger:
@@ -377,7 +387,6 @@ class BrowsePanelWidget(Box):
                 )
         else:
             # Active mode: trigger restore operation (existing behavior)
-            self.restore_operation.selected_session = selected_session  
             self.set_state(RESTORE_CONFIRM_STATE)
             
             if self.debug_logger:

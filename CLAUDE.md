@@ -653,6 +653,7 @@ The complete archive system is ready for production use with enterprise-grade:
 - **Event Delegation**: Route keyboard events to components with proper context rather than hardcoding at top level
 - **State Reuse**: Extend existing states with mode-aware display text rather than creating new state hierarchies
 - **Encapsulated Complexity**: Complex operations belong in focused methods, not scattered across handlers
+- **Initialization Order**: Set mode flags before calling parent constructors to avoid AttributeError during configuration validation
 
 ## Development Guidelines
 
