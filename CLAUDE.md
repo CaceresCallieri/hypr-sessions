@@ -639,6 +639,21 @@ The complete archive system is ready for production use with enterprise-grade:
 4. **Professional Code Quality**: Complete type annotations and documentation
 5. **Production Operational Safety**: Comprehensive error handling and logging
 
+### Critical Architecture Lessons
+
+**Over-Engineering Warning**: Archive system phases 2-5 initially suffered from enterprise-grade patterns applied to simple functionality, creating 40% unnecessary complexity. Key issues identified:
+
+- **Competing Event Handlers**: Multiple handlers for same events cause functional bugs - always delegate to single authoritative source
+- **Duplicate Operation Classes**: Avoid creating separate classes for nearly identical behavior - use mode flags instead  
+- **Excessive State Management**: Don't create new states when existing ones work with display text changes
+- **Complex Toggle Logic**: Encapsulate mode switching in focused methods rather than inline complexity
+
+**Preferred Patterns**:
+- **Mode-Aware Components**: Use boolean flags (`is_archive_mode`) instead of duplicate classes
+- **Event Delegation**: Route keyboard events to components with proper context rather than hardcoding at top level
+- **State Reuse**: Extend existing states with mode-aware display text rather than creating new state hierarchies
+- **Encapsulated Complexity**: Complex operations belong in focused methods, not scattered across handlers
+
 ## Development Guidelines
 
 ### Code Quality Standards

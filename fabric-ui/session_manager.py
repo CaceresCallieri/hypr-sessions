@@ -334,9 +334,8 @@ class SessionManagerWidget(WaylandWindow):
         elif not self.toggle_switch.is_save_mode:  # Browse mode
             # Session actions (navigation handled by browse panel)
             if keyval in [Gdk.KEY_Return, Gdk.KEY_KP_Enter]:
-                # Trigger restore confirmation instead of direct activation
-                self._initiate_session_action("restore")
-                return True
+                # Delegate to browse panel's mode-aware logic (restore vs recovery)
+                return self.browse_panel.activate_selected_session()
             # Note: Arrow keys handled by browse panel to prevent focus loss
             # Note: Delete functionality moved to browse panel GTK event handling
 
@@ -393,19 +392,6 @@ class SessionManagerWidget(WaylandWindow):
             and getattr(self.browse_panel, "state", BROWSING_STATE) == BROWSING_STATE
         )
 
-    def _initiate_session_action(self, action_type):
-        """Helper method to initiate session actions (restore/delete) with consistent logic"""
-        selected_session = self.browse_panel.get_selected_session()
-        if selected_session:
-            print(f"DEBUG: Initiating {action_type} for session: {selected_session}")
-            if action_type == "restore":
-                self.browse_panel.restore_operation.selected_session = selected_session
-                self.browse_panel.set_state(RESTORE_CONFIRM_STATE)
-            elif action_type == "delete":
-                self.browse_panel.delete_operation.selected_session = selected_session
-                self.browse_panel.set_state(DELETE_CONFIRM_STATE)
-        else:
-            print(f"DEBUG: No session selected for {action_type}")
 
 
 def main():
