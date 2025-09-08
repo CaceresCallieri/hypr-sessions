@@ -93,6 +93,9 @@ class BrowsePanelWidget(Box):
         # Archive mode state management (Phase 1, Task 1)
         self.is_archive_mode = False        # Mode toggle (False = active, True = archived)
 
+        # Initialize visual styling for initial mode
+        self._update_mode_styling()
+
         # Initialize with single update path
         self.update_display()
 
@@ -386,6 +389,9 @@ class BrowsePanelWidget(Box):
         # Toggle mode
         self.is_archive_mode = not self.is_archive_mode
         
+        # Update visual styling for mode distinction
+        self._update_mode_styling()
+        
         # Update display with new mode data
         self.update_display()
         
@@ -403,6 +409,17 @@ class BrowsePanelWidget(Box):
         if self.debug_logger:
             mode_change = "active_to_archive" if self.is_archive_mode else "archive_to_active"
             self.debug_logger.debug_navigation_operation("toggle_archive_mode", mode_change, None, "ctrl_a_key")
+
+    def _update_mode_styling(self):
+        """Update CSS classes based on current mode for visual distinction"""
+        style_context = self.get_style_context()
+        
+        if self.is_archive_mode:
+            style_context.add_class("archive-mode")
+            style_context.remove_class("active-mode")
+        else:
+            style_context.add_class("active-mode") 
+            style_context.remove_class("archive-mode")
 
     def set_state(self, new_state):
         """Change the browse panel state and refresh content"""
@@ -440,6 +457,9 @@ class BrowsePanelWidget(Box):
         if event.keyval == Gdk.KEY_Escape and self.is_archive_mode:
             # Return to active sessions mode
             self.is_archive_mode = False
+            
+            # Update visual styling for mode distinction
+            self._update_mode_styling()
             
             # Clear search to provide clean active session view
             self.search_manager.clear_search()

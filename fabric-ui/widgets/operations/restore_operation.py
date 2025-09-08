@@ -31,9 +31,9 @@ class RestoreOperation(BaseOperation):
             return {
                 "color": "#a6e3a1",  # Green theme for positive action (same as restore)
                 "action_verb": "Recover", 
-                "description": "Recover '{session_name}' from archive?\nSession will be restored to active sessions and can be used normally.",
+                "description": "Recover '{session_name}' from archive?\n\nThis will restore the session to your active sessions list where it can be used normally. The session will be removed from the archive.",
                 "button_prefix": "recovery",
-                "success_description": "recovered from archive successfully",
+                "success_description": "recovered successfully and is now available in active sessions",
                 "progress_state": RESTORING_STATE,  # Unified state for both restore and recovery
                 "operation_timeout": 45  # Recovery can involve file operations - moderate timeout
             }
