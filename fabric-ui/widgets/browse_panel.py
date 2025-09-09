@@ -70,9 +70,12 @@ class BrowsePanelWidget(Box):
                 )
             self.backend_client = None
 
-        # Initialize operation handlers
+        # Archive mode state management (Phase 1, Task 1) - initialize before operations
+        self.is_archive_mode = False        # Mode toggle (False = active, True = archived)
+
+        # Initialize operation handlers with correct archive mode
         self.delete_operation = DeleteOperation(self, self.backend_client)
-        self.restore_operation = RestoreOperation(self, self.backend_client)
+        self.restore_operation = RestoreOperation(self, self.backend_client, self.is_archive_mode)
 
         # Initialize modular components
         self.widget_pool = SessionWidgetPool(self.debug_logger)
@@ -89,9 +92,6 @@ class BrowsePanelWidget(Box):
         self.filtered_sessions = []
         self.selected_session_name = None
         self.state = BROWSING_STATE
-
-        # Archive mode state management (Phase 1, Task 1)
-        self.is_archive_mode = False        # Mode toggle (False = active, True = archived)
 
         # Initialize visual styling for initial mode
         self._update_mode_styling()
@@ -116,20 +116,12 @@ class BrowsePanelWidget(Box):
         elif self.state == DELETE_ERROR_STATE:
             content = self.delete_operation.create_error_ui()
         elif self.state == RESTORE_CONFIRM_STATE:
-            # Set operation mode based on current browse panel mode
-            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_confirmation_ui()
         elif self.state == RESTORING_STATE:
-            # Set operation mode based on current browse panel mode
-            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_progress_ui()
         elif self.state == RESTORE_SUCCESS_STATE:
-            # Set operation mode based on current browse panel mode
-            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_success_ui()
         elif self.state == RESTORE_ERROR_STATE:
-            # Set operation mode based on current browse panel mode
-            self.restore_operation.is_archive_mode = self.is_archive_mode
             content = self.restore_operation.create_error_ui()
         else:
             if self.debug_logger and self.debug_logger.enabled:
@@ -367,8 +359,7 @@ class BrowsePanelWidget(Box):
         if not selected_session:
             return False
         
-        # Set mode on the unified operation and configure it
-        self.restore_operation.is_archive_mode = self.is_archive_mode
+        # Configure the operation
         self.restore_operation.selected_session = selected_session
         
         # Use unified RESTORE_CONFIRM_STATE for both archive and active modes
@@ -391,6 +382,9 @@ class BrowsePanelWidget(Box):
         
         # Toggle mode
         self.is_archive_mode = not self.is_archive_mode
+        
+        # Update RestoreOperation mode to match browse panel mode
+        self.restore_operation.is_archive_mode = self.is_archive_mode
         
         # Update visual styling for mode distinction
         self._update_mode_styling()
@@ -456,10 +450,13 @@ class BrowsePanelWidget(Box):
     def handle_key_press_event(self, widget, event):
         """Handle keyboard events with archive mode ESC handling before delegation"""
         
-        # Handle ESC key in archive mode - return to active sessions
-        if event.keyval == Gdk.KEY_Escape and self.is_archive_mode:
+        # Handle ESC key in archive mode - only return to active sessions from browsing state
+        if event.keyval == Gdk.KEY_Escape and self.is_archive_mode and self.state == BROWSING_STATE:
             # Return to active sessions mode
             self.is_archive_mode = False
+            
+            # Update RestoreOperation mode to match browse panel mode
+            self.restore_operation.is_archive_mode = self.is_archive_mode
             
             # Update visual styling for mode distinction
             self._update_mode_styling()
