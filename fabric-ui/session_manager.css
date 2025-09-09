@@ -292,7 +292,9 @@ label {
 #delete-retry-button,
 #delete-back-button,
 #restore-retry-button,
-#restore-back-button {
+#restore-back-button,
+#recovery-retry-button,
+#recovery-back-button {
 	background-color: alpha(@primary_white, 0.8);
 	background-image: linear-gradient(
 		to bottom,
@@ -311,7 +313,9 @@ label {
 #delete-retry-button label,
 #delete-back-button label,
 #restore-retry-button label,
-#restore-back-button label {
+#restore-back-button label,
+#recovery-retry-button label,
+#recovery-back-button label {
 	color: @warm_dark;
 }
 
@@ -319,7 +323,9 @@ label {
 #delete-retry-button:hover,
 #delete-back-button:hover,
 #restore-retry-button:hover,
-#restore-back-button:hover {
+#restore-back-button:hover,
+#recovery-retry-button:hover,
+#recovery-back-button:hover {
 	background-color: alpha(@primary_white, 0.9);
 	background-image: linear-gradient(
 		to bottom,
@@ -333,7 +339,9 @@ label {
 #delete-retry-button:active,
 #delete-back-button:active,
 #restore-retry-button:active,
-#restore-back-button:active {
+#restore-back-button:active,
+#recovery-retry-button:active,
+#recovery-back-button:active {
 	background-color: alpha(@secondary_white, 1);
 	background-image: linear-gradient(
 		to bottom,
@@ -390,7 +398,9 @@ label {
 #delete-retry-button,
 #delete-back-button,
 #restore-retry-button,
-#restore-back-button {
+#restore-back-button,
+#recovery-retry-button,
+#recovery-back-button {
 	padding: 14px 22px;
 	min-width: 180px;
 	margin: 8px;
@@ -406,7 +416,9 @@ label {
 #delete-cancel-button,
 #delete-confirm-button,
 #restore-cancel-button,
-#restore-confirm-button {
+#restore-confirm-button,
+#recovery-cancel-button,
+#recovery-confirm-button {
 	border-radius: 12px;
 	padding: 12px 20px;
 	font-weight: bold;
@@ -416,7 +428,8 @@ label {
 
 /* Cancel buttons (neutral styling) */
 #delete-cancel-button,
-#restore-cancel-button {
+#restore-cancel-button,
+#recovery-cancel-button {
 	background-color: alpha(@primary_white, 0.15);
 	background-image: linear-gradient(
 		to bottom,
@@ -429,12 +442,14 @@ label {
 }
 
 #delete-cancel-button label,
-#restore-cancel-button label {
+#restore-cancel-button label,
+#recovery-cancel-button label {
 	color: @primary_white;
 }
 
 #delete-cancel-button:hover,
-#restore-cancel-button:hover {
+#restore-cancel-button:hover,
+#recovery-cancel-button:hover {
 	background-color: alpha(@primary_white, 0.25);
 	background-image: linear-gradient(
 		to bottom,
@@ -467,8 +482,9 @@ label {
 	border-color: alpha(@error_color, 0.8);
 }
 
-/* Restore confirm button (positive action - white theme) */
-#restore-confirm-button {
+/* Restore and Recovery confirm buttons (positive action - white theme) */
+#restore-confirm-button,
+#recovery-confirm-button {
 	background-color: alpha(@primary_white, 0.8);
 	background-image: linear-gradient(
 		to bottom,
@@ -480,11 +496,13 @@ label {
 	min-width: 140px;
 }
 
-#restore-confirm-button label {
+#restore-confirm-button label,
+#recovery-confirm-button label {
 	color: @warm_dark;
 }
 
-#restore-confirm-button:hover {
+#restore-confirm-button:hover,
+#recovery-confirm-button:hover {
 	background-color: alpha(@primary_white, 0.9);
 	background-image: linear-gradient(
 		to bottom,
