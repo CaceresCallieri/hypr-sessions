@@ -948,6 +948,16 @@ if args.new_name:
 
 ### Enhanced Error Granularity System
 
+**Specific Exception Handling Patterns**: All production code uses targeted exception handling instead of generic `except Exception` patterns, providing users with actionable error messages and developers with precise error categorization.
+
+**Exception Handler Categories**:
+- **Filesystem Operations**: `except (OSError, PermissionError)` for file access, permissions, and disk space issues
+- **JSON Operations**: `except json.JSONDecodeError` with line numbers and parsing context
+- **Subprocess Operations**: `except (subprocess.TimeoutExpired, subprocess.CalledProcessError)` for command failures
+- **Network Operations**: `except (ConnectionError, TimeoutError)` for browser communication
+- **Data Validation**: `except (ValueError, TypeError)` for invalid input data
+- **UI Operations**: `except (AttributeError, ImportError)` for GTK component errors
+
 **Specific Error Classification**: The OperationResult system includes specialized error helper methods that provide actionable error messages based on exception types.
 
 ```python

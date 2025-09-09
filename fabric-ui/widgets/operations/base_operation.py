@@ -303,6 +303,20 @@ class BaseOperation(ABC):
                 )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
 
+            except subprocess.CalledProcessError as e:
+                # Backend command failed
+                error_msg = f"Command failed: {e.stderr.decode() if e.stderr else str(e)}"
+                print(
+                    f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}"
+                )
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
+            except ConnectionError as e:
+                # Connection to backend failed
+                error_msg = f"Connection error: {e}"
+                print(
+                    f"{self.get_operation_config()['action_verb']} operation connection failed: {error_msg}"
+                )
+                GLib.idle_add(self._handle_error_async, session_name, error_msg)
             except Exception as e:
                 # Unexpected error - log more details for debugging
                 error_msg = f"Unexpected error: {e}"
@@ -388,8 +402,10 @@ class BaseOperation(ABC):
         """
         try:
             config = self.get_operation_config()
-        except Exception as e:
+        except (AttributeError, NotImplementedError) as e:
             raise ValueError(f"Failed to get operation configuration: {e}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error getting operation configuration: {e}")
 
         if not isinstance(config, dict):
             raise ValueError(f"Configuration must be a dictionary, got {type(config)}")

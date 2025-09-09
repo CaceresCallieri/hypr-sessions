@@ -95,8 +95,11 @@ class SessionSaver(Utils):
             
             result.add_success(f"Found {len(workspace_clients)} windows in current workspace")
             
+        except (OSError, PermissionError) as e:
+            result.add_error(f"System access error: Cannot access window information: {e}")
+            return result
         except Exception as e:
-            result.add_error(f"Failed to get window information: {e}")
+            result.add_error(f"Unexpected error getting window information: {e}")
             return result
 
         # Process groups - build group mapping
@@ -165,8 +168,10 @@ class SessionSaver(Utils):
                                 result.add_success(f"Captured working directory for {client_class}")
                             else:
                                 result.add_warning(f"Could not capture working directory for {client_class} (PID: {pid})")
+                        except (OSError, PermissionError) as e:
+                            result.add_warning(f"File system error: Cannot access working directory for {client_class}: {e}")
                         except Exception as e:
-                            result.add_warning(f"Failed to get working directory for {client_class}: {e}")
+                            result.add_warning(f"Unexpected error getting working directory for {client_class}: {e}")
                         
                         # Detect running program in the terminal
                         try:
@@ -178,8 +183,10 @@ class SessionSaver(Utils):
                                 result.add_success(f"Captured running program '{running_program['name']}' for {client_class}")
                             else:
                                 self.debug_print("No running program detected (likely just shell)")
+                        except (OSError, PermissionError) as e:
+                            result.add_warning(f"Process access error: Cannot detect running program for {client_class}: {e}")
                         except Exception as e:
-                            result.add_warning(f"Failed to detect running program for {client_class}: {e}")
+                            result.add_warning(f"Unexpected error detecting running program for {client_class}: {e}")
 
                 # For Neovide windows, capture session information
                 if self.neovide_handler.is_neovide_window(window_data):
@@ -202,8 +209,12 @@ class SessionSaver(Utils):
                         else:
                             self.debug_print(f"Failed to get Neovide session info for PID {pid}")
                             result.add_warning(f"Could not get Neovide session info for {client_class}")
+                    except (OSError, PermissionError) as e:
+                        result.add_warning(f"File system error: Cannot capture Neovide session for {client_class}: {e}")
+                    except (ConnectionError, TimeoutError) as e:
+                        result.add_warning(f"Neovide connection error: Cannot capture session for {client_class}: {e}")
                     except Exception as e:
-                        result.add_warning(f"Failed to capture Neovide session for {client_class}: {e}")
+                        result.add_warning(f"Unexpected error capturing Neovide session for {client_class}: {e}")
 
                 # For browser windows, capture tab information
                 if self.browser_handler.is_browser_window(window_data):
@@ -220,8 +231,12 @@ class SessionSaver(Utils):
                         else:
                             self.debug_print(f"Failed to get browser session info for PID {pid}")
                             result.add_warning(f"Could not capture browser session for {browser_type}")
+                    except (OSError, PermissionError) as e:
+                        result.add_warning(f"File system error: Cannot capture browser session for {browser_type}: {e}")
+                    except (ConnectionError, TimeoutError) as e:
+                        result.add_warning(f"Browser communication error: Cannot capture session for {browser_type}: {e}")
                     except Exception as e:
-                        result.add_warning(f"Failed to capture browser session for {browser_type}: {e}")
+                        result.add_warning(f"Unexpected error capturing browser session for {browser_type}: {e}")
 
                 # Try to determine launch command based on class
                 try:
@@ -229,16 +244,27 @@ class SessionSaver(Utils):
                     window_data["launch_command"] = launch_command
                     self.debug_print(f"Generated launch command: {launch_command}")
                     result.add_success(f"Generated launch command for {client_class}")
+                except ValueError as e:
+                    result.add_warning(f"Invalid data for launch command generation for {client_class}: {e}")
+                    window_data["launch_command"] = client_class  # Fallback to class name
                 except Exception as e:
-                    result.add_warning(f"Failed to generate launch command for {client_class}: {e}")
+                    result.add_warning(f"Unexpected error generating launch command for {client_class}: {e}")
                     window_data["launch_command"] = client_class  # Fallback to class name
 
                 session_data["windows"].append(window_data)
                 captured_windows += 1
                 
+            except (OSError, PermissionError) as e:
+                self.debug_print(f"File system error processing window {client_class} (PID: {client_pid}): {e}")
+                result.add_error(f"System access error: Cannot process window {client_class}: {e}")
+                failed_windows += 1
+            except ValueError as e:
+                self.debug_print(f"Invalid data processing window {client_class} (PID: {client_pid}): {e}")
+                result.add_error(f"Data validation error: Cannot process window {client_class}: {e}")
+                failed_windows += 1
             except Exception as e:
-                self.debug_print(f"Failed to process window {client_class} (PID: {client_pid}): {e}")
-                result.add_error(f"Failed to process window {client_class}: {e}")
+                self.debug_print(f"Unexpected error processing window {client_class} (PID: {client_pid}): {e}")
+                result.add_error(f"Unexpected error processing window {client_class}: {e}")
                 failed_windows += 1
 
         # Add summary information
@@ -274,6 +300,10 @@ class SessionSaver(Utils):
         except json.JSONEncodeError as e:
             self.debug_print(f"JSON encoding error saving session: {e}")
             result.add_error(f"Session data encoding failed: Cannot save session '{session_name}' due to invalid data format. {str(e)}")
+            return result
+        except (OSError, PermissionError) as e:
+            self.debug_print(f"File system error saving session file: {e}")
+            result.add_error(f"File system error: Cannot save session '{session_name}': {e}")
             return result
         except Exception as e:
             self.debug_print(f"Unexpected error saving session file: {e}")

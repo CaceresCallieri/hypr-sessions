@@ -345,8 +345,10 @@ class HyprlandSessionManager:
                     result.add_error(f"Insufficient permissions for {name} directory: {directory}")
                 else:
                     result.add_success(f"{name.title()} directory accessible")
+            except (OSError, PermissionError) as e:
+                result.add_error(f"File system error checking {name} directory: {e}")
             except Exception as e:
-                result.add_error(f"Error checking {name} directory: {e}")
+                result.add_error(f"Unexpected error checking {name} directory: {e}")
     
     def _check_configuration_health(self, result: OperationResult) -> None:
         """Validate configuration settings and bounds"""
@@ -369,8 +371,10 @@ class HyprlandSessionManager:
             else:
                 result.add_success(f"Browser timeout configuration valid ({self.config.browser_tab_file_timeout}s)")
                 
+        except ValueError as e:
+            result.add_error(f"Configuration validation error: {e}")
         except Exception as e:
-            result.add_error(f"Error validating configuration: {e}")
+            result.add_error(f"Unexpected error validating configuration: {e}")
     
     def _check_recovery_health(self, result: OperationResult) -> None:
         """Check for interrupted recovery operations"""
@@ -385,8 +389,10 @@ class HyprlandSessionManager:
             else:
                 result.add_success("No interrupted recovery operations found")
                 
+        except (OSError, PermissionError) as e:
+            result.add_error(f"File system error checking recovery system health: {e}")
         except Exception as e:
-            result.add_error(f"Error checking recovery system health: {e}")
+            result.add_error(f"Unexpected error checking recovery system health: {e}")
 
 
 def main() -> None:
@@ -475,8 +481,11 @@ def main() -> None:
         except SessionValidationError as e:
             print(f"Error: {e}")
             sys.exit(1)
-        except Exception as e:
+        except ValueError as e:
             print(f"Error: Invalid session name format: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: Unexpected session name validation error: {e}")
             sys.exit(1)
         
         manager.recover_session(args.session_name, args.new_name)

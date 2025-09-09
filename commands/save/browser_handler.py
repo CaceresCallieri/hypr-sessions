@@ -76,8 +76,14 @@ class BrowserHandler:
             self.debug_print(f"Browser session info: {session_data}")
             return session_data
 
+        except subprocess.TimeoutExpired as e:
+            self.debug_print(f"Timeout getting browser session info: {e}")
+            return None
+        except subprocess.CalledProcessError as e:
+            self.debug_print(f"Command failed getting browser session info: {e}")
+            return None
         except Exception as e:
-            self.debug_print(f"Error getting browser session info: {e}")
+            self.debug_print(f"Unexpected error getting browser session info: {e}")
             return None
 
     def create_basic_session_data(self, window_data):
@@ -112,8 +118,10 @@ class BrowserHandler:
             pattern = os.path.join(downloads_dir, "hypr-session-tabs-*.json")
             initial_files = set(glob.glob(pattern))
             self.debug_print(f"Initial tab files: {len(initial_files)}")
+        except (OSError, PermissionError) as e:
+            self.debug_print(f"File system error getting initial file list: {e}")
         except Exception as e:
-            self.debug_print(f"Error getting initial file list: {e}")
+            self.debug_print(f"Unexpected error getting initial file list: {e}")
 
         # Wait for new file to appear  
         poll_interval = self.config.browser_tab_file_poll_interval
@@ -140,11 +148,17 @@ class BrowserHandler:
                                     f"File has content ({len(content)} chars)"
                                 )
                                 return newest_file
+                    except (OSError, PermissionError) as e:
+                        self.debug_print(f"File system error reading file: {e}")
+                    except json.JSONDecodeError as e:
+                        self.debug_print(f"JSON decode error reading file: {e}")
                     except Exception as e:
-                        self.debug_print(f"Error reading file: {e}")
+                        self.debug_print(f"Unexpected error reading file: {e}")
 
+            except (OSError, PermissionError) as e:
+                self.debug_print(f"File system error checking for new files: {e}")
             except Exception as e:
-                self.debug_print(f"Error checking for new files: {e}")
+                self.debug_print(f"Unexpected error checking for new files: {e}")
 
             time.sleep(poll_interval)
 
@@ -175,8 +189,14 @@ class BrowserHandler:
                 "tab_count": len(tabs),
             }
 
+        except (OSError, PermissionError) as e:
+            self.debug_print(f"File system error loading keyboard shortcut tab file: {e}")
+            return None
+        except json.JSONDecodeError as e:
+            self.debug_print(f"JSON decode error loading keyboard shortcut tab file: {e}")
+            return None
         except Exception as e:
-            self.debug_print(f"Error loading keyboard shortcut tab file: {e}")
+            self.debug_print(f"Unexpected error loading keyboard shortcut tab file: {e}")
             return None
 
     def capture_tabs_via_keyboard_shortcut(self, window_data):
@@ -236,8 +256,14 @@ class BrowserHandler:
 
             return None
 
+        except (OSError, PermissionError) as e:
+            self.debug_print(f"File system error in keyboard shortcut tab capture: {e}")
+            return None
+        except subprocess.TimeoutExpired as e:
+            self.debug_print(f"Timeout in keyboard shortcut tab capture: {e}")
+            return None
         except Exception as e:
-            self.debug_print(f"Error in keyboard shortcut tab capture: {e}")
+            self.debug_print(f"Unexpected error in keyboard shortcut tab capture: {e}")
             return None
 
     def get_enhanced_browser_session_info(self, window_data, session_name):

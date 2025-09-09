@@ -129,6 +129,18 @@ class SessionArchive(Utils):
             
             result.add_error(f"Archive metadata creation failed: Cannot create archive metadata for session '{session_name}'. {str(e)}")
             return result
+        except ValueError as e:
+            self.debug_print(f"Data validation error archiving session directory {session_dir}: {e}")
+            # Clean up temporary metadata file if it exists
+            if temp_metadata_file and temp_metadata_file.exists():
+                try:
+                    temp_metadata_file.unlink()
+                    self.debug_print(f"Cleaned up temporary metadata file: {temp_metadata_file}")
+                except (OSError, PermissionError) as cleanup_error:
+                    self.debug_print(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
+            
+            result.add_error(f"Data validation error: Failed to archive session '{session_name}'. {str(e)}")
+            return result
         except Exception as e:
             self.debug_print(f"Unexpected error archiving session directory {session_dir}: {e}")
             # Clean up temporary metadata file if it exists
@@ -181,8 +193,11 @@ class SessionArchive(Utils):
                     self.debug_print(f"Unexpected error acquiring archive lock: {e}")
                     raise e
                     
+        except (OSError, PermissionError) as e:
+            self.debug_print(f"File system error enforcing archive limits: {e}")
+            return ""
         except Exception as e:
-            self.debug_print(f"Error enforcing archive limits: {e}")
+            self.debug_print(f"Unexpected error enforcing archive limits: {e}")
             return ""
 
     def _perform_archive_cleanup_locked(self, archived_sessions_dir: Path) -> str:
@@ -201,8 +216,12 @@ class SessionArchive(Utils):
                             "timestamp": metadata.get("archive_timestamp", ""),
                             "name": item.name
                         })
+                    except (OSError, PermissionError) as e:
+                        self.debug_print(f"File system error reading metadata for {item}: {e}")
+                    except json.JSONDecodeError as e:
+                        self.debug_print(f"JSON decode error reading metadata for {item}: {e}")
                     except Exception as e:
-                        self.debug_print(f"Error reading metadata for {item}: {e}")
+                        self.debug_print(f"Unexpected error reading metadata for {item}: {e}")
 
         # Sort by timestamp (oldest first for cleanup)
         archived_sessions.sort(key=lambda x: x["timestamp"])
@@ -226,8 +245,10 @@ class SessionArchive(Utils):
                 removed_count += 1
                 cleanup_summary.append(f"Removed {session_info['name']}")
                 self.debug_print(f"Removed old archived session: {session_info['name']}")
+            except (OSError, PermissionError) as e:
+                self.debug_print(f"File system error removing archived session {session_info['name']}: {e}")
             except Exception as e:
-                self.debug_print(f"Error removing archived session {session_info['name']}: {e}")
+                self.debug_print(f"Unexpected error removing archived session {session_info['name']}: {e}")
 
         if removed_count > 0:
             return f"removed {removed_count} old archived sessions"

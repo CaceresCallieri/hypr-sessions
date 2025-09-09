@@ -71,6 +71,9 @@ class SessionRestore(Utils):
         except (FileNotFoundError, PermissionError, OSError) as e:
             self.debug_print(f"Process error launching command: {command}, error: {e}")
             return False
+        except subprocess.TimeoutExpired as e:
+            self.debug_print(f"Timeout launching command: {command}, error: {e}")
+            return False
         except Exception as e:
             self.debug_print(f"Unexpected error launching command: {command}, error: {e}")
             return False
@@ -198,6 +201,10 @@ class SessionRestore(Utils):
             self.debug_print(f"Error loading session data: {e}")
             result.add_json_error(e, f"load session '{session_name}'", str(session_file))
             return result
+        except (OSError, PermissionError) as e:
+            self.debug_print(f"File system error loading session data: {e}")
+            result.add_error(f"File system error: Cannot load session '{session_name}': {e}")
+            return result
         except Exception as e:
             self.debug_print(f"Unexpected error loading session data: {e}")
             result.add_error(f"Unexpected error: Failed to load session '{session_name}'. {str(e)}")
@@ -248,9 +255,17 @@ class SessionRestore(Utils):
             else:
                 result.add_success("Applications launched successfully")
                 
+        except (OSError, PermissionError) as e:
+            self.debug_print(f"System access error during launch: {e}")
+            result.add_error(f"System access error: Cannot launch applications: {e}")
+            return result
+        except subprocess.TimeoutExpired as e:
+            self.debug_print(f"Timeout during launch: {e}")
+            result.add_error(f"Application launch timeout: {e}")
+            return result
         except Exception as e:
-            self.debug_print(f"Error during launch: {e}")
-            result.add_error(f"Failed to launch applications: {e}")
+            self.debug_print(f"Unexpected error during launch: {e}")
+            result.add_error(f"Unexpected error launching applications: {e}")
             return result
 
         self.debug_print(f"Session restoration completed")
@@ -503,6 +518,9 @@ class SessionRestore(Utils):
             self.debug_print(f"Process error creating group: {e}")
             # Note: We don't add errors to result here as this is a non-critical operation
             # Group creation failure doesn't prevent successful session restoration
+        except subprocess.TimeoutExpired as e:
+            self.debug_print(f"Timeout during group creation: {e}")
+            # Note: We don't add errors to result here as this is a non-critical operation
         except Exception as e:
             self.debug_print(f"Unexpected error during group creation: {e}")
             # Note: We don't add errors to result here as this is a non-critical operation

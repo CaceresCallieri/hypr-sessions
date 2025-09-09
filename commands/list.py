@@ -98,8 +98,11 @@ class SessionList(Utils):
             # Find session directories (exclude hidden dirs and zen-browser-backups)
             session_dirs = [d for d in active_sessions_dir.iterdir() 
                            if d.is_dir() and not d.name.startswith('.') and d.name != 'zen-browser-backups']
+        except (OSError, PermissionError) as e:
+            result.add_error(f"File system error: Cannot scan active sessions directory: {e}")
+            return result
         except Exception as e:
-            result.add_error(f"Failed to scan active sessions directory: {e}")
+            result.add_error(f"Unexpected error scanning active sessions directory: {e}")
             return result
         
         self.debug_print(f"Found {len(session_dirs)} active session directories")
@@ -143,8 +146,24 @@ class SessionList(Utils):
                     valid_sessions += 1
                     result.add_success(f"Processed active session '{session_name}': {window_count} windows")
 
+                except (OSError, PermissionError) as e:
+                    self.debug_print(f"File system error reading active session file {session_file}: {e}")
+                    
+                    sessions_data.append({
+                        "name": session_name,
+                        "valid": False,
+                        "error": f"File access error: {e}"
+                    })
+                except json.JSONDecodeError as e:
+                    self.debug_print(f"JSON decode error reading active session file {session_file}: {e}")
+                    
+                    sessions_data.append({
+                        "name": session_name,
+                        "valid": False,
+                        "error": f"JSON decode error: line {e.lineno}"
+                    })
                 except Exception as e:
-                    self.debug_print(f"Error reading active session file {session_file}: {e}")
+                    self.debug_print(f"Unexpected error reading active session file {session_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -192,8 +211,11 @@ class SessionList(Utils):
             # Find archived session directories (exclude hidden files)
             session_dirs = [d for d in archived_sessions_dir.iterdir() 
                            if d.is_dir() and not d.name.startswith('.')]
+        except (OSError, PermissionError) as e:
+            result.add_error(f"File system error: Cannot scan archived sessions directory: {e}")
+            return result
         except Exception as e:
-            result.add_error(f"Failed to scan archived sessions directory: {e}")
+            result.add_error(f"Unexpected error scanning archived sessions directory: {e}")
             return result
         
         self.debug_print(f"Found {len(session_dirs)} archived session directories")
@@ -240,8 +262,24 @@ class SessionList(Utils):
                     valid_sessions += 1
                     result.add_success(f"Processed archived session '{session_name}': {file_count} files")
 
+                except (OSError, PermissionError) as e:
+                    self.debug_print(f"File system error reading archive metadata file {metadata_file}: {e}")
+                    
+                    sessions_data.append({
+                        "name": session_name,
+                        "valid": False,
+                        "error": f"File access error: {e}"
+                    })
+                except json.JSONDecodeError as e:
+                    self.debug_print(f"JSON decode error reading archive metadata file {metadata_file}: {e}")
+                    
+                    sessions_data.append({
+                        "name": session_name,
+                        "valid": False,
+                        "error": f"JSON decode error: line {e.lineno}"
+                    })
                 except Exception as e:
-                    self.debug_print(f"Error reading archive metadata file {metadata_file}: {e}")
+                    self.debug_print(f"Unexpected error reading archive metadata file {metadata_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,

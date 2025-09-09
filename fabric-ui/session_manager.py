@@ -156,6 +156,11 @@ class SessionManagerWidget(WaylandWindow):
                 {"keyboard_mode": "exclusive"}
             )
 
+        except ImportError as e:
+            self.debug_logger.debug_focus_operation(
+                "layer_shell_setup", "window", False, 
+                {"error": str(e), "fallback": "default_behavior", "type": "import_error"}
+            )
         except Exception as e:
             self.debug_logger.debug_focus_operation(
                 "layer_shell_setup", "window", False, 
@@ -172,6 +177,11 @@ class SessionManagerWidget(WaylandWindow):
                     "startup_focus", "search_input", True,
                     {"mode": "browse", "timing": "delayed_setup"}
                 )
+        except AttributeError as e:
+            self.debug_logger.debug_focus_operation(
+                "startup_focus", "search_input", False,
+                {"error": str(e), "mode": "browse", "type": "attribute_error"}
+            )
         except Exception as e:
             self.debug_logger.debug_focus_operation(
                 "startup_focus", "search_input", False,
@@ -189,6 +199,11 @@ class SessionManagerWidget(WaylandWindow):
                     "manual_focus", "search_input", True,
                     {"realized": True, "trigger": "browse_mode_switch"}
                 )
+        except AttributeError as e:
+            self.debug_logger.debug_focus_operation(
+                "manual_focus", "search_input", False,
+                {"error": str(e), "trigger": "browse_mode_switch", "type": "attribute_error"}
+            )
         except Exception as e:
             self.debug_logger.debug_focus_operation(
                 "manual_focus", "search_input", False,
