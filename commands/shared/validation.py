@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
+from .path_cache import path_cache
+
 
 # Custom Exception Classes
 class SessionError(Exception):
@@ -120,7 +122,7 @@ class SessionValidator:
         Raises:
             SessionNotFoundError: If session doesn't exist
         """
-        if not session_path.exists():
+        if not path_cache.exists(session_path):
             raise SessionNotFoundError(f"Session '{session_name}' not found")
         
         if not session_path.is_dir():
@@ -129,7 +131,7 @@ class SessionValidator:
             )
         
         session_file = session_path / "session.json"
-        if not session_file.exists():
+        if not path_cache.exists(session_file):
             raise SessionValidationError(
                 f"Session '{session_name}' exists but is missing session.json file"
             )
@@ -146,7 +148,7 @@ class SessionValidator:
         Raises:
             SessionAlreadyExistsError: If session already exists
         """
-        if session_path.exists():
+        if path_cache.exists(session_path):
             raise SessionAlreadyExistsError(
                 f"Session '{session_name}' already exists. Use a different name or delete the existing session first."
             )
@@ -162,7 +164,7 @@ class SessionValidator:
         Raises:
             SessionValidationError: If directory is not writable
         """
-        if not directory_path.exists():
+        if not path_cache.exists(directory_path):
             try:
                 directory_path.mkdir(parents=True, exist_ok=True)
             except (OSError, PermissionError) as e:

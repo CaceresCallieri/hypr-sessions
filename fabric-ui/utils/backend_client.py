@@ -4,9 +4,14 @@ Handles communication with the CLI backend using subprocess calls
 """
 
 import json
+import sys
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+# Add the commands directory to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "commands"))
+from shared.path_cache import path_cache
 
 
 class BackendClient:
@@ -15,7 +20,7 @@ class BackendClient:
     def __init__(self):
         # Path to the CLI script (one directory up from fabric-ui)
         self.cli_path = Path(__file__).parent.parent.parent / "hypr-sessions.py"
-        if not self.cli_path.exists():
+        if not path_cache.exists(self.cli_path):
             raise FileNotFoundError(f"CLI script not found at {self.cli_path}")
     
     def _run_command(self, command_args: list) -> Dict[str, Any]:

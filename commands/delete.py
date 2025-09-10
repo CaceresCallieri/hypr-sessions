@@ -14,6 +14,7 @@ from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
 from .shared.utils import Utils
 from .shared.validation import SessionValidator, SessionNotFoundError, SessionValidationError
+from .shared.path_cache import path_cache
 
 
 class SessionArchive(Utils):
@@ -78,6 +79,14 @@ class SessionArchive(Utils):
             # Now perform the irreversible operation: move session directory
             self.debugger.debug(f"Moving session to archive: {archived_dir}")
             shutil.move(str(session_dir), str(archived_dir))
+            
+            # Invalidate cache for both source and destination paths
+            path_cache.invalidate(session_dir)  # Original location (now gone)
+            path_cache.invalidate(archived_dir)  # New archived location
+            path_cache.invalidate(session_dir.parent)  # Active sessions directory
+            path_cache.invalidate(archived_dir.parent)  # Archived sessions directory
+            self.debugger.debug(f"Cache invalidated for archive operation: {session_dir} -> {archived_dir}")
+            
             self.debugger.debug(f"Successfully moved session directory to archive")
             
             # Move metadata to final location (atomic rename)
@@ -104,7 +113,7 @@ class SessionArchive(Utils):
         except (PermissionError, FileNotFoundError, OSError, IOError) as e:
             self.debugger.debug(f"Filesystem error archiving session directory {session_dir}: {e}")
             # Clean up temporary metadata file if it exists
-            if temp_metadata_file and temp_metadata_file.exists():
+            if temp_metadata_file and path_cache.exists(temp_metadata_file):
                 try:
                     temp_metadata_file.unlink()
                     self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
@@ -116,7 +125,7 @@ class SessionArchive(Utils):
         except json.JSONEncodeError as e:
             self.debugger.debug(f"JSON encoding error creating metadata: {e}")
             # Clean up temporary metadata file if it exists
-            if temp_metadata_file and temp_metadata_file.exists():
+            if temp_metadata_file and path_cache.exists(temp_metadata_file):
                 try:
                     temp_metadata_file.unlink()
                     self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
@@ -128,7 +137,7 @@ class SessionArchive(Utils):
         except ValueError as e:
             self.debugger.debug(f"Data validation error archiving session directory {session_dir}: {e}")
             # Clean up temporary metadata file if it exists
-            if temp_metadata_file and temp_metadata_file.exists():
+            if temp_metadata_file and path_cache.exists(temp_metadata_file):
                 try:
                     temp_metadata_file.unlink()
                     self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
@@ -140,7 +149,7 @@ class SessionArchive(Utils):
         except Exception as e:
             self.debugger.debug(f"Unexpected error archiving session directory {session_dir}: {e}")
             # Clean up temporary metadata file if it exists
-            if temp_metadata_file and temp_metadata_file.exists():
+            if temp_metadata_file and path_cache.exists(temp_metadata_file):
                 try:
                     temp_metadata_file.unlink()
                     self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
@@ -164,7 +173,7 @@ class SessionArchive(Utils):
         """Enforce archive size limits and cleanup old archives with concurrent access protection"""
         try:
             archived_sessions_dir = self.config.get_archived_sessions_dir()
-            if not archived_sessions_dir.exists():
+            if not path_cache.exists(archived_sessions_dir):
                 return ""
 
             # Create lock file for archive operations
@@ -203,7 +212,7 @@ class SessionArchive(Utils):
         for item in archived_sessions_dir.iterdir():
             if item.is_dir() and not item.name.startswith('.'):
                 metadata_file = item / ".archive-metadata.json"
-                if metadata_file.exists():
+                if path_cache.exists(metadata_file):
                     try:
                         with open(metadata_file, "r") as f:
                             metadata = json.load(f)

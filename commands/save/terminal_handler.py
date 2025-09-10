@@ -7,6 +7,7 @@ from typing import Set, List, Optional
 
 from ..shared.debug import CommandDebugger
 from ..shared.session_types import RunningProgram
+from ..shared.path_cache import path_cache
 
 
 class TerminalHandler:
@@ -33,7 +34,7 @@ class TerminalHandler:
         try:
             # First try the process itself
             cwd_path = Path(f"/proc/{pid}/cwd")
-            if cwd_path.exists():
+            if path_cache.exists(cwd_path):
                 terminal_cwd = str(cwd_path.resolve())
                 # If it's not the home directory, use it
                 if terminal_cwd != str(Path.home()):
@@ -44,7 +45,7 @@ class TerminalHandler:
             for child_pid in children:
                 try:
                     child_cwd_path = Path(f"/proc/{child_pid}/cwd")
-                    if child_cwd_path.exists():
+                    if child_path_cache.exists(cwd_path):
                         child_cwd = str(child_cwd_path.resolve())
                         # Use child's working directory if it's different from home
                         if child_cwd != str(Path.home()):
@@ -68,7 +69,7 @@ class TerminalHandler:
             for proc_dir in proc_dirs:
                 try:
                     stat_file = proc_dir / "stat"
-                    if stat_file.exists():
+                    if path_cache.exists(stat_file):
                         with open(stat_file, "r") as f:
                             stat_line = f.read().strip()
                             # Handle process names with spaces by finding the last ')' 
@@ -111,7 +112,7 @@ class TerminalHandler:
         try:
             # Read command line
             cmdline_path = Path(f"/proc/{pid}/cmdline")
-            if not cmdline_path.exists():
+            if not path_cache.exists(cmdline_path):
                 return None
                 
             with open(cmdline_path, "rb") as f:

@@ -10,6 +10,7 @@ from .shared.config import get_config, SessionConfig
 from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
 from .shared.utils import Utils
+from .shared.path_cache import path_cache
 
 
 class SessionList(Utils):
@@ -118,7 +119,7 @@ class SessionList(Utils):
             
             self.debugger.debug(f"Processing active session directory: {session_dir}")
             
-            if session_file.exists():
+            if path_cache.exists(session_file):
                 try:
                     with open(session_file, "r") as f:
                         session_data = json.load(f)
@@ -198,7 +199,7 @@ class SessionList(Utils):
         archived_sessions_dir = self.config.get_archived_sessions_dir()
         self.debugger.debug(f"Searching for archived session directories in: {archived_sessions_dir}")
         
-        if not archived_sessions_dir.exists():
+        if not path_cache.exists(archived_sessions_dir):
             self.debugger.debug("Archived sessions directory does not exist")
             result.data = {"sessions": [], "session_count": 0}
             return result
@@ -231,7 +232,7 @@ class SessionList(Utils):
             
             self.debugger.debug(f"Processing archived session directory: {session_dir}")
             
-            if metadata_file.exists():
+            if path_cache.exists(metadata_file):
                 try:
                     with open(metadata_file, "r") as f:
                         metadata = json.load(f)

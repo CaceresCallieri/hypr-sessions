@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from ..shared.debug import CommandDebugger
+from ..shared.path_cache import path_cache
 
 
 class NeovideHandler:
@@ -27,7 +28,7 @@ class NeovideHandler:
     def _get_working_directory(self, pid):
         """Get working directory for a process PID"""
         cwd_path = Path(f"/proc/{pid}/cwd")
-        if cwd_path.exists():
+        if path_cache.exists(cwd_path):
             working_dir = str(cwd_path.resolve())
             self.debugger.debug(f"Working directory for PID {pid}: {working_dir}")
             return working_dir
@@ -118,11 +119,11 @@ class NeovideHandler:
             # Wait for session file to be created
             max_wait = 3  # seconds
             wait_time = 0.1
-            while not session_file.exists() and max_wait > 0:
+            while not path_cache.exists(session_file) and max_wait > 0:
                 time.sleep(wait_time)
                 max_wait -= wait_time
             
-            if session_file.exists():
+            if path_cache.exists(session_file):
                 self.debugger.debug(f"Successfully captured session: {session_file}")
                 return str(session_file)
             else:

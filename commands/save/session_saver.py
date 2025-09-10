@@ -17,6 +17,7 @@ from .launch_commands import LaunchCommandGenerator
 from .terminal_handler import TerminalHandler
 from .neovide_handler import NeovideHandler
 from .browser_handler import BrowserHandler
+from ..shared.path_cache import path_cache
 
 
 class SessionSaver(Utils):
@@ -46,9 +47,9 @@ class SessionSaver(Utils):
             
             # Check if session already exists
             session_path = self.config.get_active_session_directory(session_name)
-            if session_path.exists():
+            if path_cache.exists(session_path):
                 session_file = session_path / "session.json"
-                if session_file.exists():
+                if path_cache.exists(session_file):
                     raise SessionAlreadyExistsError(
                         f"Session '{session_name}' already exists. "
                         f"Delete it first or use a different name."
@@ -280,6 +281,12 @@ class SessionSaver(Utils):
         try:
             with open(session_file, "w") as f:
                 json.dump(session_data, f, indent=2)
+            
+            # Invalidate cache for the newly created session file and its directory
+            path_cache.invalidate(session_file)
+            path_cache.invalidate(session_file.parent)  # Session directory
+            self.debugger.debug(f"Cache invalidated for new session: {session_file}")
+            
             result.add_success(f"Session saved to {session_file}")
             result.data = {
                 "session_file": str(session_file),

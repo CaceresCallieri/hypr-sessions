@@ -2,8 +2,13 @@
 Session utilities for Hypr Sessions Manager
 """
 
+import sys
 from pathlib import Path
 from typing import List
+
+# Add the commands directory to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "commands"))
+from shared.path_cache import path_cache
 
 
 class SessionUtils:
@@ -22,7 +27,7 @@ class SessionUtils:
             List of valid session names (directory names) sorted alphabetically
         """
         try:
-            if not directory.exists():
+            if not path_cache.exists(directory):
                 return []
             
             sessions = []
@@ -51,7 +56,7 @@ class SessionUtils:
                 # Check for session.json file
                 try:
                     session_file = item / "session.json"
-                    if session_file.exists():
+                    if path_cache.exists(session_file):
                         sessions.append(item.name)
                 except (PermissionError, OSError):
                     continue  # Skip inaccessible sessions gracefully
@@ -68,7 +73,7 @@ class SessionUtils:
         
         # Check if new structure exists
         active_dir = sessions_root / "sessions"
-        if active_dir.exists():
+        if path_cache.exists(active_dir):
             return active_dir
         
         # Fallback to old structure for compatibility
@@ -88,7 +93,7 @@ class SessionUtils:
         sessions_dir = SessionUtils.get_sessions_directory()
         session_dir = sessions_dir / session_name
         session_file = session_dir / "session.json"
-        return session_dir.exists() and session_file.exists()
+        return path_cache.exists(session_dir) and path_cache.exists(session_file)
     
     @staticmethod
     def get_session_path(session_name: str) -> Path:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, Set, Optional
 
 from .session_types import TimeoutSeconds
+from .path_cache import path_cache
 
 
 @dataclass
@@ -248,7 +249,7 @@ class SessionConfig:
         archived_dir = self.sessions_dir / "archived"
         
         # If both directories exist, assume migration is already done
-        if active_dir.exists() and archived_dir.exists():
+        if path_cache.exists(active_dir) and path_cache.exists(archived_dir):
             return False
         
         # Check for session directories in the root sessions_dir (old structure)
@@ -295,7 +296,7 @@ class SessionConfig:
     
     def is_using_legacy_structure(self) -> bool:
         """Check if we're still using the legacy flat structure"""
-        return not (self.sessions_dir / "sessions").exists()
+        return not path_cache.exists(self.sessions_dir / "sessions")
 
 
 # Global configuration instance

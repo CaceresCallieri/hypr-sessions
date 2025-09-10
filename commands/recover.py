@@ -49,6 +49,7 @@ from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
 from .shared.utils import Utils
 from .shared.validation import SessionValidator, SessionNotFoundError, SessionValidationError, SessionAlreadyExistsError
+from .shared.path_cache import path_cache
 
 
 class SessionRecovery(Utils):
@@ -177,13 +178,13 @@ class SessionRecovery(Utils):
             
             # Check if archived session exists
             archived_dir: Path = self.config.get_archived_session_directory(archived_session_name)
-            if not archived_dir.exists():
+            if not path_cache.exists(archived_dir):
                 raise SessionNotFoundError(f"Archived session '{archived_session_name}' not found")
             
             # Read archive metadata to get original name
             metadata_file: Path = archived_dir / ".archive-metadata.json"
             original_name: str
-            if not metadata_file.exists():
+            if not path_cache.exists(metadata_file):
                 result.add_warning("Archive metadata missing, will extract from archive name")
                 original_name = self._extract_original_name(archived_session_name)
             else:
@@ -234,7 +235,7 @@ class SessionRecovery(Utils):
             
             # Check if target name already exists in active sessions (without creating it)
             active_target_dir: Path = self.config.get_active_sessions_dir() / target_name
-            if active_target_dir.exists():
+            if path_cache.exists(active_target_dir):
                 raise SessionAlreadyExistsError(f"Active session '{target_name}' already exists")
             
             result.add_success("Target session name is available")
@@ -348,23 +349,33 @@ class SessionRecovery(Utils):
             # Step 2: Perform atomic directory move (atomic on same filesystem)
             self.debugger.debug(f"Moving archive to active: {archived_dir} -> {final_active_dir}")
             shutil.move(str(archived_dir), str(final_active_dir))
+            
+            # Invalidate cache for both source and destination paths
+            path_cache.invalidate(archived_dir)  # Original archive location (now gone)
+            path_cache.invalidate(final_active_dir)  # New active location
+            path_cache.invalidate(archived_dir.parent)  # Archived sessions directory
+            path_cache.invalidate(final_active_dir.parent)  # Active sessions directory
+            self.debugger.debug(f"Cache invalidated for recovery operation: {archived_dir} -> {final_active_dir}")
+            
             self.debugger.debug(f"Successfully moved session to active directory")
             
             # Step 3: Clean up archive metadata from recovered session
             archive_metadata_in_recovered = final_active_dir / ".archive-metadata.json"
-            if archive_metadata_in_recovered.exists():
+            if path_cache.exists(archive_metadata_in_recovered):
                 archive_metadata_in_recovered.unlink()
+                path_cache.invalidate(archive_metadata_in_recovered)  # File was deleted
                 self.debugger.debug("Removed archive metadata from recovered session")
             
             # Step 4: Remove recovery marker (indicates successful completion)
             recovery_marker.unlink()
+            path_cache.invalidate(recovery_marker)  # Marker file was deleted
             self.debugger.debug("Recovery completed successfully, removed recovery marker")
             
         except (OSError, PermissionError, shutil.Error) as e:
             # File system error during atomic recovery
             self.debugger.debug(f"File system error during recovery: {e}, attempting rollback")
             
-            if final_active_dir.exists() and not archived_dir.exists():
+            if path_cache.exists(final_active_dir) and not path_cache.exists(archived_dir):
                 try:
                     self.debugger.debug("Rolling back: moving recovered session back to archive")
                     shutil.move(str(final_active_dir), str(archived_dir))
@@ -374,7 +385,7 @@ class SessionRecovery(Utils):
                     # Note: Recovery marker will still exist to indicate failed state
             
             # Clean up recovery marker (whether rollback succeeded or failed)
-            if recovery_marker.exists():
+            if path_cache.exists(recovery_marker):
                 try:
                     recovery_marker.unlink()
                     self.debugger.debug("Cleaned up recovery marker after failure")
@@ -387,7 +398,7 @@ class SessionRecovery(Utils):
             # Automatic rollback: If final_active_dir exists, move it back to archived location
             self.debugger.debug(f"Unexpected error during recovery: {e}, attempting rollback")
             
-            if final_active_dir.exists() and not archived_dir.exists():
+            if path_cache.exists(final_active_dir) and not path_cache.exists(archived_dir):
                 try:
                     self.debugger.debug("Rolling back: moving recovered session back to archive")
                     shutil.move(str(final_active_dir), str(archived_dir))
@@ -397,7 +408,7 @@ class SessionRecovery(Utils):
                     # Note: Recovery marker will still exist to indicate failed state
             
             # Clean up recovery marker (whether rollback succeeded or failed)
-            if recovery_marker.exists():
+            if path_cache.exists(recovery_marker):
                 try:
                     recovery_marker.unlink()
                     self.debugger.debug("Cleaned up recovery marker after failure")
@@ -419,7 +430,7 @@ class SessionRecovery(Utils):
         recovery_markers = []
         
         try:
-            if not active_sessions_dir.exists():
+            if not path_cache.exists(active_sessions_dir):
                 return recovery_markers
                 
             for item in active_sessions_dir.iterdir():
@@ -448,7 +459,7 @@ class SessionRecovery(Utils):
             active_sessions_dir = self.config.get_active_sessions_dir()
             marker_path = active_sessions_dir / recovery_marker_name
             
-            if marker_path.exists() and marker_path.suffix == '.tmp':
+            if path_cache.exists(marker_path) and marker_path.suffix == '.tmp':
                 marker_path.unlink()
                 self.debugger.debug(f"Cleaned up interrupted recovery marker: {recovery_marker_name}")
                 return True
@@ -477,7 +488,7 @@ class SessionRecovery(Utils):
             active_sessions_dir = self.config.get_active_sessions_dir()
             marker_path = active_sessions_dir / recovery_marker_name
             
-            if marker_path.exists():
+            if path_cache.exists(marker_path):
                 with open(marker_path, 'r') as f:
                     recovery_info = json.load(f)
                 return recovery_info
@@ -499,18 +510,18 @@ class SessionRecovery(Utils):
                                   metadata_file: Path, result: OperationResult) -> None:
         """Attempt to restore archive from backup after recovery failure"""
         
-        if not temp_metadata_file or not temp_metadata_file.exists():
+        if not temp_metadata_file or not path_cache.exists(temp_metadata_file):
             self.debugger.debug("No backup available for restoration")
             return
         
         try:
             # Case 1: Archive directory was moved but recovery failed
-            if not archived_dir.exists() and final_active_dir.exists():
+            if not path_cache.exists(archived_dir) and final_active_dir.exists():
                 self.debugger.debug("Restoring archive directory from recovered location")
                 shutil.move(str(final_active_dir), str(archived_dir))
                 
                 # Restore metadata
-                if metadata_file.exists():
+                if path_cache.exists(metadata_file):
                     metadata_file.unlink()
                 shutil.move(str(temp_metadata_file), str(metadata_file))
                 
@@ -527,7 +538,7 @@ class SessionRecovery(Utils):
             result.add_warning("Recovery failed and backup restoration also failed")
             # Try to at least cleanup temp file
             try:
-                if temp_metadata_file.exists():
+                if path_cache.exists(temp_metadata_file):
                     temp_metadata_file.unlink()
             except:
                 pass  # Best effort cleanup

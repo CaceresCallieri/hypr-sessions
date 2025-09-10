@@ -60,6 +60,11 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 ├── browser_extension/            # Browser integration
 │   ├── manifest.json             # Extension configuration
 │   └── background.js             # Tab capture logic (140 lines)
+├── tests/                        # Test suite for path caching and performance validation
+│   ├── unit/                     # Direct component testing (cache functionality)
+│   ├── performance/              # Performance benchmarks and measurements
+│   ├── integration/              # End-to-end testing and debugging tools
+│   └── README.md                 # Test documentation and usage guide
 └── experiments/                  # Research and investigation scripts
 ```
 
@@ -109,6 +114,7 @@ A Python-based session manager for Hyprland that saves and restores workspace se
 - **Thread Safety**: Proper async patterns with UI thread protection in Fabric UI
 - **Subprocess Timeout Protection**: All application launches protected with 30s timeout, process group isolation (`os.setsid`), and 5s startup validation to prevent hanging restore operations
 - **Configuration Security**: Environment variable overrides validated with bounds checking to prevent crashes and malicious values (archive limits: 1-1000, delays: 0.0-10.0s, timeouts: 1-120s)
+- **Path Operation Caching**: Thread-safe filesystem cache system reducing repeated `.exists()` calls in validation, recovery, and UI operations with TTL-based expiration and automatic invalidation
 
 ## Fabric UI Implementation
 
@@ -690,6 +696,26 @@ The complete archive system is ready for production use with enterprise-grade:
 - **DRY Principle**: Extract common logic, avoid code duplication
 - **Documentation**: Clear docstrings, inline comments for complex logic
 - **Testing**: Debug modes for troubleshooting, comprehensive error reporting
+
+### Testing Guidelines
+
+The project includes a comprehensive test suite in the `tests/` directory for path caching and performance validation:
+
+**Test Organization**:
+- `tests/unit/` - Direct component testing (cache hit/miss behavior, invalidation)
+- `tests/performance/` - Performance benchmarks and timing measurements  
+- `tests/integration/` - End-to-end testing and debugging tools
+
+**Path Cache Testing**:
+- **Basic functionality**: `python tests/unit/test_cache_direct.py`
+- **Performance analysis**: `python tests/performance/test_path_cache_performance.py`  
+- **Debug cache behavior**: `python tests/integration/debug_path_cache.py`
+
+**Usage Guidelines**:
+- Run unit tests after path cache modifications
+- Use performance tests during optimization work
+- Use debug tools when investigating cache issues
+- Refer to `tests/README.md` for detailed usage instructions
 
 ### UI Development Best Practices
 
