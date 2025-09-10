@@ -594,11 +594,11 @@ export ARCHIVE_AUTO_CLEANUP=true         # Automatic cleanup when limit exceeded
 - Validates new session names using existing `SessionValidator`
 - Blocks path traversal attempts like `../../../etc-passwd-20250831-123456`
 
-**2. Secure Name Extraction Method** (`commands/recover.py:27-62`):
-- New `_extract_safe_original_name()` method with mandatory validation
+**2. Simplified Name Extraction Method** (`commands/recover.py:92-112`):
+- Streamlined `_extract_original_name()` method with essential validation
+- Correctly handles archive format `session-name-YYYYMMDD-HHMMSS` by removing timestamp suffix
 - All extracted names validated through `SessionValidator.validate_session_name()`
 - Safe fallback to `"recovered-session"` when extraction fails
-- Comprehensive error handling with detailed debug logging
 
 **3. Enhanced Metadata Validation** (`commands/recover.py:67-84`):
 - Validates JSON structure is a dictionary with type checking
@@ -999,7 +999,7 @@ if args.new_name:
 **Security Benefits**:
 - **Defense in Depth**: Multiple validation layers prevent malicious input
 - **Path Traversal Prevention**: Blocks `../../../etc-passwd-20250831-123456` style attacks
-- **Base Name Extraction**: Safe extraction using `rsplit('-', 2)[0]` handles hyphenated session names
+- **Archive Name Parsing**: Correctly extracts original names from archive format using `'-'.join(parts[:-2])` pattern
 - **Consistent Security**: Reuses existing `SessionValidator` comprehensive validation logic
 
 ## Error Handling Architecture

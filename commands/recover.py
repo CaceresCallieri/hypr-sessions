@@ -89,73 +89,27 @@ class SessionRecovery(Utils):
         self.debugger = CommandDebugger("SessionRecovery", debug)
         self.config: SessionConfig = get_config()
     
-    def _extract_safe_original_name(self, archived_session_name: str, result: OperationResult) -> str:
-        """
-        Safely extract original session name from archived session name with comprehensive validation.
+    def _extract_original_name(self, archived_session_name: str) -> str:
+        """Extract original session name from archived name with essential validation"""
+        if not archived_session_name or not isinstance(archived_session_name, str):
+            return "recovered-session"
         
-        This method implements secure name extraction with defense-in-depth validation
-        to prevent path traversal attacks and ensure only valid session names are recovered.
-        When extraction fails validation, it uses a safe fallback name that's guaranteed
-        to be valid.
+        # Split archive name: "session-name-20250831-123456" → ["session-name", "20250831", "123456"]
+        parts = archived_session_name.split('-')
+        if len(parts) < 3:
+            return "recovered-session"
         
-        Args:
-            archived_session_name: The archived session name with timestamp suffix.
-                                  Expected format: "session-name-YYYYMMDD-HHMMSS"
-                                  Example: "work-session-20250831-143022"
-            result: OperationResult instance to add warning messages for tracking
-                   extraction failures and fallback usage
-            
-        Returns:
-            str: Validated original session name if extraction succeeds, or 
-                 "recovered-session" as safe fallback if extraction/validation fails.
-                 The returned name is guaranteed to pass SessionValidator checks.
-                 
-        Security:
-            - Prevents path traversal attacks by validating extracted names
-            - Uses SessionValidator.validate_session_name() for comprehensive checking
-            - Provides safe fallback that cannot be exploited
-            - Logs all failures for security monitoring
-            
-        Examples:
-            # Successful extraction
-            name = self._extract_safe_original_name("work-session-20250831-143022", result)
-            # Returns: "work-session"
-            
-            # Malicious name blocked
-            name = self._extract_safe_original_name("../../../etc-passwd-20250831-143022", result)
-            # Returns: "recovered-session" (safe fallback)
-        """
+        # Extract original name by removing timestamp suffix (last 2 parts)
+        original_name = '-'.join(parts[:-2])
+        
+        # Validate extracted name using existing validator
         try:
-            # Attempt to extract original name using standard archive format
-            if '-' in archived_session_name:
-                potential_original = archived_session_name.split('-')[0]
-            else:
-                potential_original = archived_session_name
-            
-            # Validate the extracted name using SessionValidator
-            SessionValidator.validate_session_name(potential_original)
-            
-            self.debugger.debug(f"Successfully extracted safe original name: {potential_original}")
-            return potential_original
-            
-        except SessionValidationError as e:
-            # If extracted name is invalid, use safe fallback
-            self.debugger.debug(f"Extracted name '{potential_original}' is invalid: {e}")
-            result.add_warning(f"Cannot determine safe original name from archive name '{archived_session_name}': {e}")
-            result.add_warning("Using safe fallback name 'recovered-session'")
-            return "recovered-session"
-        except (ValueError, TypeError) as e:
-            # Handle data validation errors during extraction
-            self.debugger.debug(f"Data validation error during name extraction: {e}")
-            result.add_warning(f"Invalid archive name format '{archived_session_name}': {e}")
-            result.add_warning("Using safe fallback name 'recovered-session'")
-            return "recovered-session"
-        except Exception as e:
-            # Handle any unexpected errors during extraction
-            self.debugger.debug(f"Unexpected error during name extraction: {e}")
-            result.add_warning(f"Error extracting original name from '{archived_session_name}': {e}")
-            result.add_warning("Using safe fallback name 'recovered-session'")
-            return "recovered-session"
+            SessionValidator.validate_session_name(original_name)
+            self.debugger.debug(f"Successfully extracted original name: {original_name}")
+            return original_name
+        except (InvalidSessionNameError, SessionValidationError):
+            self.debugger.debug(f"Extracted name '{original_name}' failed validation, using fallback")
+            return "recovered-session"  # Safe fallback
     
     def recover_session(self, archived_session_name: str, new_name: Optional[str] = None) -> OperationResult:
         """
@@ -231,7 +185,7 @@ class SessionRecovery(Utils):
             original_name: str
             if not metadata_file.exists():
                 result.add_warning("Archive metadata missing, will extract from archive name")
-                original_name = self._extract_safe_original_name(archived_session_name, result)
+                original_name = self._extract_original_name(archived_session_name)
             else:
                 try:
                     with open(metadata_file, "r") as f:
@@ -245,7 +199,7 @@ class SessionRecovery(Utils):
                     original_name = str(metadata.get("original_name", archived_session_name))
                     if not original_name.strip():
                         result.add_warning("Archive metadata contains empty original name")
-                        original_name = self._extract_safe_original_name(archived_session_name, result)
+                        original_name = self._extract_original_name(archived_session_name)
                     else:
                         # Validate extracted name from metadata
                         try:
@@ -254,19 +208,19 @@ class SessionRecovery(Utils):
                             result.add_success("Archive metadata read successfully")
                         except SessionValidationError:
                             result.add_warning(f"Archive metadata contains invalid original name: {original_name}")
-                            original_name = self._extract_safe_original_name(archived_session_name, result)
+                            original_name = self._extract_original_name(archived_session_name)
                 except (json.JSONDecodeError, ValueError) as e:
                     self.debugger.debug(f"Error reading metadata: {e}")
                     result.add_warning(f"Could not read archive metadata: {e}")
-                    original_name = self._extract_safe_original_name(archived_session_name, result)
+                    original_name = self._extract_original_name(archived_session_name)
                 except (OSError, PermissionError) as e:
                     self.debugger.debug(f"File system error reading metadata: {e}")
                     result.add_warning(f"Cannot access archive metadata: {e}")
-                    original_name = self._extract_safe_original_name(archived_session_name, result)
+                    original_name = self._extract_original_name(archived_session_name)
                 except Exception as e:
                     self.debugger.debug(f"Unexpected error reading metadata: {e}")
                     result.add_warning(f"Unexpected error reading archive metadata: {e}")
-                    original_name = self._extract_safe_original_name(archived_session_name, result)
+                    original_name = self._extract_original_name(archived_session_name)
             
             # Determine target name (use new_name if provided, otherwise original_name)
             target_name: str = new_name if new_name else original_name
