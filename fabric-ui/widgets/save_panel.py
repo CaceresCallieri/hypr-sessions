@@ -43,7 +43,13 @@ class SavePanelWidget(Box):
         try:
             self.backend_client = BackendClient()
         except FileNotFoundError as e:
-            print(f"Warning: Backend client unavailable: {e}")
+            if hasattr(self, 'debug_logger') and self.debug_logger and self.debug_logger.enabled:
+                self.debug_logger.debug_operation_state(
+                    "backend_unavailable",
+                    "save_panel_init",
+                    None,
+                    {"error": str(e), "warning": "backend_client_unavailable"}
+                )
             self.backend_client = None
 
         # State management
@@ -162,7 +168,13 @@ class SavePanelWidget(Box):
         """Common save logic used by both button click and Enter key"""
         # Prevent multiple concurrent saves
         if self.save_in_progress:
-            print("Save already in progress, ignoring request")
+            if hasattr(self, 'debug_logger') and self.debug_logger and self.debug_logger.enabled:
+                self.debug_logger.debug_operation_state(
+                    "save_already_in_progress",
+                    "save_session",
+                    session_name,
+                    {"ignored": True}
+                )
             return
             
         session_name = self.session_name_entry.get_text().strip()
@@ -265,14 +277,26 @@ class SavePanelWidget(Box):
     def set_state(self, new_state):
         """Change the UI state and refresh content"""
         if new_state != self.state:
-            print(f"SavePanel: {self.state} → {new_state}")  # Debug logging
+            if hasattr(self, 'debug_logger') and self.debug_logger and self.debug_logger.enabled:
+                self.debug_logger.debug_state_transition(
+                    "save_panel_state_change",
+                    self.state,
+                    new_state,
+                    {"component": "save_panel"}
+                )
             self.state = new_state
             self._create_content()
             self.show_all()
 
     def _handle_save_timeout(self):
         """Handle save operation timeout"""
-        print("Save operation timed out")
+        if hasattr(self, 'debug_logger') and self.debug_logger and self.debug_logger.enabled:
+            self.debug_logger.debug_operation_state(
+                "save_timeout",
+                "save_session",
+                self.saving_session_name,
+                {"timeout_reason": "ui_timeout_reached"}
+            )
         self._cleanup_operation()
         self.set_state("error")
         if self.on_save_error:
@@ -374,7 +398,13 @@ class SavePanelWidget(Box):
                         "cancel_save_operation"
                     )
                 
-                print("Cancelling save operation...")
+                if hasattr(self, 'debug_logger') and self.debug_logger and self.debug_logger.enabled:
+                    self.debug_logger.debug_operation_state(
+                        "save_operation_cancelled_by_user",
+                        "save_session",
+                        self.saving_session_name,
+                        {"method": "escape_key", "state": "saving"}
+                    )
                 self.save_in_progress = False
                 self.set_state("input")
                 return True
@@ -405,7 +435,13 @@ class SavePanelWidget(Box):
     def cancel_save_operation(self):
         """Manually cancel an ongoing save operation"""
         if self.state == "saving" and self.save_in_progress:
-            print("Manually cancelling save operation")
+            if hasattr(self, 'debug_logger') and self.debug_logger and self.debug_logger.enabled:
+                self.debug_logger.debug_operation_state(
+                    "save_operation_cancelled_manually",
+                    "save_session", 
+                    self.saving_session_name,
+                    {"method": "direct_call", "cleanup": True}
+                )
             self.save_in_progress = False
             self.set_state("input")
 

@@ -212,19 +212,33 @@ class BaseOperation(ABC):
         """Trigger the operation for the selected session"""
         # Prevent multiple concurrent operations
         if self.operation_in_progress:
-            print(
-                f"{self.get_operation_config()['action_verb']} already in progress, ignoring request"
-            )
+            if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                self.panel.debug_logger.debug_operation_state(
+                    "operation_already_in_progress",
+                    self.get_operation_config()['action_verb'],
+                    self.selected_session,
+                    {"ignored": True}
+                )
             return
 
         if not self.selected_session:
-            print(
-                f"No session selected for {self.get_operation_config()['action_verb'].lower()}"
-            )
+            if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                self.panel.debug_logger.debug_operation_state(
+                    "no_session_selected",
+                    self.get_operation_config()['action_verb'].lower(),
+                    None,
+                    {"reason": "operation_cancelled"}
+                )
             return
 
         if not self.backend_client:
-            print("Backend client unavailable")
+            if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                self.panel.debug_logger.debug_operation_state(
+                    "backend_unavailable",
+                    self.get_operation_config()['action_verb'],
+                    self.selected_session,
+                    {"error": "backend_client_unavailable"}
+                )
             return
 
         # Mark operation as in progress
@@ -266,63 +280,99 @@ class BaseOperation(ABC):
             except BackendError as e:
                 # Backend-specific error with clear context
                 error_msg = f"Backend error: {e}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {"error": error_msg, "error_type": "backend_error"}
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
 
             except FileNotFoundError as e:
                 # File system error - likely missing session files
                 error_msg = f"Session files not found: {e}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {"error": error_msg, "error_type": "backend_error"}
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
 
             except PermissionError as e:
                 # Permission error - filesystem access issues
                 error_msg = f"Permission denied: {e}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {"error": error_msg, "error_type": "backend_error"}
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
 
             except ConnectionError as e:
                 # Network or IPC connection issues
                 error_msg = f"Connection failed: {e}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {"error": error_msg, "error_type": "backend_error"}
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
 
             except TimeoutError as e:
                 # Operation-specific timeout (different from our UI timeout)
                 error_msg = f"Operation timed out: {e}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {"error": error_msg, "error_type": "backend_error"}
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
 
             except subprocess.CalledProcessError as e:
                 # Backend command failed
                 error_msg = f"Command failed: {e.stderr.decode() if e.stderr else str(e)}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation failed: {error_msg}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {"error": error_msg, "error_type": "backend_error"}
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
             except ConnectionError as e:
                 # Connection to backend failed
                 error_msg = f"Connection error: {e}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation connection failed: {error_msg}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_connection_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {"error": error_msg, "error_type": "connection_error"}
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
             except Exception as e:
                 # Unexpected error - log more details for debugging
                 error_msg = f"Unexpected error: {e}"
-                print(
-                    f"{self.get_operation_config()['action_verb']} operation failed with unexpected error: {type(e).__name__}: {e}"
-                )
+                if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+                    self.panel.debug_logger.debug_operation_state(
+                        "operation_unexpected_error",
+                        self.get_operation_config()['action_verb'],
+                        session_name,
+                        {
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "unexpected": True
+                        }
+                    )
                 GLib.idle_add(self._handle_error_async, session_name, error_msg)
 
         # Start the operation in a background thread
@@ -365,7 +415,13 @@ class BaseOperation(ABC):
 
     def _handle_timeout(self):
         """Handle operation timeout"""
-        print(f"{self.get_operation_config()['action_verb']} operation timed out")
+        if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+            self.panel.debug_logger.debug_operation_state(
+                "operation_timeout",
+                self.get_operation_config()['action_verb'],
+                self.selected_session,
+                {"timeout_reason": "ui_timeout_reached"}
+            )
         self._cleanup_operation()
         self.panel.set_state(f"{self.get_operation_config()['button_prefix']}_error")
         return False  # Don't repeat timeout
@@ -449,9 +505,13 @@ class BaseOperation(ABC):
 
     def _handle_cancel_button(self, *args):
         """Handle cancel button click - returns to browsing state"""
-        print(
-            f"DEBUG: Cancelled {self.get_operation_config()['action_verb'].lower()} for session: {self.selected_session}"
-        )
+        if hasattr(self.panel, 'debug_logger') and self.panel.debug_logger and self.panel.debug_logger.enabled:
+            self.panel.debug_logger.debug_operation_state(
+                "operation_cancelled", 
+                self.get_operation_config()['action_verb'].lower(), 
+                self.selected_session,
+                {"state_transition": "return_to_browsing"}
+            )
         self.selected_session = None
         self.panel.set_state(BROWSING_STATE)
 
