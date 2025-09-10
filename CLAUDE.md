@@ -1195,6 +1195,17 @@ border: 2px solid alpha(#ffffff, 0.3);
 - **Text Light**: #ffffff (general UI text)
 - **Error**: #ff6b7a (status messages)
 
+#### Design System Variables
+
+**Dimensional Variables**: Professional 4px base unit spacing system using GTK3 `@define-color` variables for consistent theming and maintainability.
+
+- **Spacing System**: `@spacing_tiny` (4px) through `@spacing_massive` (40px) following 4px base increments
+- **Border Radius**: `@radius_small` (12px), `@radius_medium` (16px), `@radius_large` (18px), `@radius_xlarge` (24px)
+- **Transition Timing**: `@transition_fast` (0.3s), `@transition_normal` (0.4s)
+- **Opacity Levels**: `@opacity_minimal` (0.01) through `@opacity_max` (0.9) for consistent transparency
+
+**Benefits**: Single-location theming adjustments, consistent design rhythm, professional design token pattern, and easy maintenance for future UI modifications.
+
 #### GTK3 CSS Variables Support
 
 **CSS Variables Implementation**: GTK3 uses native `@define-color` directive, not web CSS custom properties
