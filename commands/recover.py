@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from .shared.config import get_config, SessionConfig
+from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
 from .shared.utils import Utils
 from .shared.validation import SessionValidator, SessionNotFoundError, SessionValidationError, SessionAlreadyExistsError
@@ -85,13 +86,8 @@ class SessionRecovery(Utils):
     """
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
-        self.debug: bool = debug
+        self.debugger = CommandDebugger("SessionRecovery", debug)
         self.config: SessionConfig = get_config()
-    
-    def debug_print(self, message: str) -> None:
-        """Print debug message if debug mode is enabled"""
-        if self.debug:
-            print(f"[DEBUG SessionRecovery] {message}")
     
     def _extract_safe_original_name(self, archived_session_name: str, result: OperationResult) -> str:
         """
@@ -139,24 +135,24 @@ class SessionRecovery(Utils):
             # Validate the extracted name using SessionValidator
             SessionValidator.validate_session_name(potential_original)
             
-            self.debug_print(f"Successfully extracted safe original name: {potential_original}")
+            self.debugger.debug(f"Successfully extracted safe original name: {potential_original}")
             return potential_original
             
         except SessionValidationError as e:
             # If extracted name is invalid, use safe fallback
-            self.debug_print(f"Extracted name '{potential_original}' is invalid: {e}")
+            self.debugger.debug(f"Extracted name '{potential_original}' is invalid: {e}")
             result.add_warning(f"Cannot determine safe original name from archive name '{archived_session_name}': {e}")
             result.add_warning("Using safe fallback name 'recovered-session'")
             return "recovered-session"
         except (ValueError, TypeError) as e:
             # Handle data validation errors during extraction
-            self.debug_print(f"Data validation error during name extraction: {e}")
+            self.debugger.debug(f"Data validation error during name extraction: {e}")
             result.add_warning(f"Invalid archive name format '{archived_session_name}': {e}")
             result.add_warning("Using safe fallback name 'recovered-session'")
             return "recovered-session"
         except Exception as e:
             # Handle any unexpected errors during extraction
-            self.debug_print(f"Unexpected error during name extraction: {e}")
+            self.debugger.debug(f"Unexpected error during name extraction: {e}")
             result.add_warning(f"Error extracting original name from '{archived_session_name}': {e}")
             result.add_warning("Using safe fallback name 'recovered-session'")
             return "recovered-session"
@@ -223,7 +219,7 @@ class SessionRecovery(Utils):
             SessionValidator.validate_session_name(archived_session_name)
             result.add_success("Archived session name validated")
             
-            self.debug_print(f"Attempting to recover archived session: {archived_session_name}")
+            self.debugger.debug(f"Attempting to recover archived session: {archived_session_name}")
             
             # Check if archived session exists
             archived_dir: Path = self.config.get_archived_session_directory(archived_session_name)
@@ -254,21 +250,21 @@ class SessionRecovery(Utils):
                         # Validate extracted name from metadata
                         try:
                             SessionValidator.validate_session_name(original_name)
-                            self.debug_print(f"Found valid original name in metadata: {original_name}")
+                            self.debugger.debug(f"Found valid original name in metadata: {original_name}")
                             result.add_success("Archive metadata read successfully")
                         except SessionValidationError:
                             result.add_warning(f"Archive metadata contains invalid original name: {original_name}")
                             original_name = self._extract_safe_original_name(archived_session_name, result)
                 except (json.JSONDecodeError, ValueError) as e:
-                    self.debug_print(f"Error reading metadata: {e}")
+                    self.debugger.debug(f"Error reading metadata: {e}")
                     result.add_warning(f"Could not read archive metadata: {e}")
                     original_name = self._extract_safe_original_name(archived_session_name, result)
                 except (OSError, PermissionError) as e:
-                    self.debug_print(f"File system error reading metadata: {e}")
+                    self.debugger.debug(f"File system error reading metadata: {e}")
                     result.add_warning(f"Cannot access archive metadata: {e}")
                     original_name = self._extract_safe_original_name(archived_session_name, result)
                 except Exception as e:
-                    self.debug_print(f"Unexpected error reading metadata: {e}")
+                    self.debugger.debug(f"Unexpected error reading metadata: {e}")
                     result.add_warning(f"Unexpected error reading archive metadata: {e}")
                     original_name = self._extract_safe_original_name(archived_session_name, result)
             
@@ -280,7 +276,7 @@ class SessionRecovery(Utils):
                 SessionValidator.validate_session_name(new_name)
                 result.add_success("New session name validated")
             
-            self.debug_print(f"Target recovery name: {target_name}")
+            self.debugger.debug(f"Target recovery name: {target_name}")
             
             # Check if target name already exists in active sessions (without creating it)
             active_target_dir: Path = self.config.get_active_sessions_dir() / target_name
@@ -294,7 +290,7 @@ class SessionRecovery(Utils):
             active_sessions_dir.mkdir(parents=True, exist_ok=True)
             
         except (SessionValidationError, SessionNotFoundError, SessionAlreadyExistsError) as e:
-            self.debug_print(f"Validation error: {e}")
+            self.debugger.debug(f"Validation error: {e}")
             result.add_error(str(e))
             return result
         
@@ -305,7 +301,7 @@ class SessionRecovery(Utils):
             files_in_archive: List[Path] = list(archived_dir.iterdir())
             file_count: int = len(files_in_archive)
             
-            self.debug_print(f"Recovering {file_count} files from archive using atomic recovery")
+            self.debugger.debug(f"Recovering {file_count} files from archive using atomic recovery")
             
             # Perform atomic recovery with metadata-first pattern
             self._perform_atomic_recovery(archived_dir, final_active_dir, target_name, file_count)
@@ -323,15 +319,15 @@ class SessionRecovery(Utils):
             return result
             
         except (OSError, PermissionError, shutil.Error) as e:
-            self.debug_print(f"File system error during atomic recovery: {e}")
+            self.debugger.debug(f"File system error during atomic recovery: {e}")
             result.add_error(f"Failed to recover session due to file system error: {e}")
             return result
         except ValueError as e:
-            self.debug_print(f"Data validation error during atomic recovery: {e}")
+            self.debugger.debug(f"Data validation error during atomic recovery: {e}")
             result.add_error(f"Invalid data during recovery: {e}")
             return result
         except Exception as e:
-            self.debug_print(f"Unexpected error during atomic recovery: {e}")
+            self.debugger.debug(f"Unexpected error during atomic recovery: {e}")
             result.add_error(f"Unexpected error during recovery: {e}")
             return result
     
@@ -391,68 +387,68 @@ class SessionRecovery(Utils):
         
         try:
             # Write recovery marker with operation details
-            self.debug_print(f"Creating recovery marker: {recovery_marker}")
+            self.debugger.debug(f"Creating recovery marker: {recovery_marker}")
             with open(recovery_marker, "w") as f:
                 json.dump(recovery_info, f, indent=2)
             
             # Step 2: Perform atomic directory move (atomic on same filesystem)
-            self.debug_print(f"Moving archive to active: {archived_dir} -> {final_active_dir}")
+            self.debugger.debug(f"Moving archive to active: {archived_dir} -> {final_active_dir}")
             shutil.move(str(archived_dir), str(final_active_dir))
-            self.debug_print(f"Successfully moved session to active directory")
+            self.debugger.debug(f"Successfully moved session to active directory")
             
             # Step 3: Clean up archive metadata from recovered session
             archive_metadata_in_recovered = final_active_dir / ".archive-metadata.json"
             if archive_metadata_in_recovered.exists():
                 archive_metadata_in_recovered.unlink()
-                self.debug_print("Removed archive metadata from recovered session")
+                self.debugger.debug("Removed archive metadata from recovered session")
             
             # Step 4: Remove recovery marker (indicates successful completion)
             recovery_marker.unlink()
-            self.debug_print("Recovery completed successfully, removed recovery marker")
+            self.debugger.debug("Recovery completed successfully, removed recovery marker")
             
         except (OSError, PermissionError, shutil.Error) as e:
             # File system error during atomic recovery
-            self.debug_print(f"File system error during recovery: {e}, attempting rollback")
+            self.debugger.debug(f"File system error during recovery: {e}, attempting rollback")
             
             if final_active_dir.exists() and not archived_dir.exists():
                 try:
-                    self.debug_print("Rolling back: moving recovered session back to archive")
+                    self.debugger.debug("Rolling back: moving recovered session back to archive")
                     shutil.move(str(final_active_dir), str(archived_dir))
-                    self.debug_print("Successfully rolled back partial recovery")
+                    self.debugger.debug("Successfully rolled back partial recovery")
                 except (OSError, PermissionError, shutil.Error) as rollback_error:
-                    self.debug_print(f"WARNING: Rollback failed: {rollback_error}")
+                    self.debugger.debug(f"WARNING: Rollback failed: {rollback_error}")
                     # Note: Recovery marker will still exist to indicate failed state
             
             # Clean up recovery marker (whether rollback succeeded or failed)
             if recovery_marker.exists():
                 try:
                     recovery_marker.unlink()
-                    self.debug_print("Cleaned up recovery marker after failure")
+                    self.debugger.debug("Cleaned up recovery marker after failure")
                 except (OSError, PermissionError) as marker_cleanup_error:
-                    self.debug_print(f"WARNING: Could not clean up recovery marker: {marker_cleanup_error}")
+                    self.debugger.debug(f"WARNING: Could not clean up recovery marker: {marker_cleanup_error}")
             
             # Re-raise original exception to let caller handle it
             raise e
         except Exception as e:
             # Automatic rollback: If final_active_dir exists, move it back to archived location
-            self.debug_print(f"Unexpected error during recovery: {e}, attempting rollback")
+            self.debugger.debug(f"Unexpected error during recovery: {e}, attempting rollback")
             
             if final_active_dir.exists() and not archived_dir.exists():
                 try:
-                    self.debug_print("Rolling back: moving recovered session back to archive")
+                    self.debugger.debug("Rolling back: moving recovered session back to archive")
                     shutil.move(str(final_active_dir), str(archived_dir))
-                    self.debug_print("Successfully rolled back partial recovery")
+                    self.debugger.debug("Successfully rolled back partial recovery")
                 except Exception as rollback_error:
-                    self.debug_print(f"WARNING: Rollback failed: {rollback_error}")
+                    self.debugger.debug(f"WARNING: Rollback failed: {rollback_error}")
                     # Note: Recovery marker will still exist to indicate failed state
             
             # Clean up recovery marker (whether rollback succeeded or failed)
             if recovery_marker.exists():
                 try:
                     recovery_marker.unlink()
-                    self.debug_print("Cleaned up recovery marker after failure")
+                    self.debugger.debug("Cleaned up recovery marker after failure")
                 except (OSError, PermissionError) as marker_cleanup_error:
-                    self.debug_print(f"WARNING: Could not clean up recovery marker: {marker_cleanup_error}")
+                    self.debugger.debug(f"WARNING: Could not clean up recovery marker: {marker_cleanup_error}")
             
             # Re-raise original exception to let caller handle it
             raise e
@@ -475,12 +471,12 @@ class SessionRecovery(Utils):
             for item in active_sessions_dir.iterdir():
                 if item.name.startswith('.recovery-in-progress-') and item.suffix == '.tmp':
                     recovery_markers.append(item.name)
-                    self.debug_print(f"Found interrupted recovery marker: {item.name}")
+                    self.debugger.debug(f"Found interrupted recovery marker: {item.name}")
                     
         except (OSError, PermissionError) as e:
-            self.debug_print(f"File system error checking for interrupted recoveries: {e}")
+            self.debugger.debug(f"File system error checking for interrupted recoveries: {e}")
         except Exception as e:
-            self.debug_print(f"Unexpected error checking for interrupted recoveries: {e}")
+            self.debugger.debug(f"Unexpected error checking for interrupted recoveries: {e}")
         
         return recovery_markers
     
@@ -500,17 +496,17 @@ class SessionRecovery(Utils):
             
             if marker_path.exists() and marker_path.suffix == '.tmp':
                 marker_path.unlink()
-                self.debug_print(f"Cleaned up interrupted recovery marker: {recovery_marker_name}")
+                self.debugger.debug(f"Cleaned up interrupted recovery marker: {recovery_marker_name}")
                 return True
             else:
-                self.debug_print(f"Recovery marker not found or invalid: {recovery_marker_name}")
+                self.debugger.debug(f"Recovery marker not found or invalid: {recovery_marker_name}")
                 return False
                 
         except (OSError, PermissionError) as e:
-            self.debug_print(f"File system error cleaning up recovery marker {recovery_marker_name}: {e}")
+            self.debugger.debug(f"File system error cleaning up recovery marker {recovery_marker_name}: {e}")
             return False
         except Exception as e:
-            self.debug_print(f"Unexpected error cleaning up recovery marker {recovery_marker_name}: {e}")
+            self.debugger.debug(f"Unexpected error cleaning up recovery marker {recovery_marker_name}: {e}")
             return False
     
     def get_recovery_marker_info(self, recovery_marker_name: str) -> Optional[Dict[str, Any]]:
@@ -535,13 +531,13 @@ class SessionRecovery(Utils):
                 return None
                 
         except (OSError, PermissionError) as e:
-            self.debug_print(f"File system error reading recovery marker {recovery_marker_name}: {e}")
+            self.debugger.debug(f"File system error reading recovery marker {recovery_marker_name}: {e}")
             return None
         except json.JSONDecodeError as e:
-            self.debug_print(f"JSON decode error reading recovery marker {recovery_marker_name}: {e}")
+            self.debugger.debug(f"JSON decode error reading recovery marker {recovery_marker_name}: {e}")
             return None
         except Exception as e:
-            self.debug_print(f"Unexpected error reading recovery marker {recovery_marker_name}: {e}")
+            self.debugger.debug(f"Unexpected error reading recovery marker {recovery_marker_name}: {e}")
             return None
     
     def _attempt_backup_restoration(self, temp_metadata_file: Optional[Path], 
@@ -550,13 +546,13 @@ class SessionRecovery(Utils):
         """Attempt to restore archive from backup after recovery failure"""
         
         if not temp_metadata_file or not temp_metadata_file.exists():
-            self.debug_print("No backup available for restoration")
+            self.debugger.debug("No backup available for restoration")
             return
         
         try:
             # Case 1: Archive directory was moved but recovery failed
             if not archived_dir.exists() and final_active_dir.exists():
-                self.debug_print("Restoring archive directory from recovered location")
+                self.debugger.debug("Restoring archive directory from recovered location")
                 shutil.move(str(final_active_dir), str(archived_dir))
                 
                 # Restore metadata
@@ -564,16 +560,16 @@ class SessionRecovery(Utils):
                     metadata_file.unlink()
                 shutil.move(str(temp_metadata_file), str(metadata_file))
                 
-                self.debug_print("Successfully restored archive from backup")
+                self.debugger.debug("Successfully restored archive from backup")
                 result.add_warning("Recovery failed, session restored to archive")
                 return
             
             # Case 2: Just cleanup temp metadata
             temp_metadata_file.unlink()
-            self.debug_print("Cleaned up temporary metadata file")
+            self.debugger.debug("Cleaned up temporary metadata file")
             
         except (OSError, PermissionError) as restore_error:
-            self.debug_print(f"Warning: Could not restore from backup: {restore_error}")
+            self.debugger.debug(f"Warning: Could not restore from backup: {restore_error}")
             result.add_warning("Recovery failed and backup restoration also failed")
             # Try to at least cleanup temp file
             try:

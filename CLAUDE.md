@@ -780,6 +780,35 @@ DEBUG_OUTPUT_TO_FILE: Final[bool] = False     # Optional file logging
 
 Enable debug output to see real-time UI interactions, focus management, and state transitions. Switch to verbose mode for performance optimization and deep debugging of widget pooling systems.
 
+### Consolidated Command Debug Infrastructure
+
+**Centralized Debug System**: All command components use a shared `CommandDebugger` utility for consistent debug output and reduced code duplication.
+
+**Implementation Pattern**:
+```python
+from commands.shared.debug import CommandDebugger
+
+class MyCommand:
+    def __init__(self, debug: bool = False):
+        self.debugger = CommandDebugger("MyCommand", debug)
+    
+    def some_operation(self):
+        self.debugger.debug("Starting operation")
+        self.debugger.debug_operation("save_session", "session=test")
+        self.debugger.debug_file_operation("write", "/path/to/file", success=True)
+```
+
+**Key Features**:
+- **Consistent Format**: `[DEBUG ComponentName timestamp] message` across all command components
+- **Timestamp Tracking**: Elapsed time since component initialization for performance analysis
+- **Stderr Output**: Debug messages sent to stderr for proper separation from regular output
+- **Specialized Methods**: `debug_operation()`, `debug_file_operation()`, `debug_session_operation()`, `debug_error()`
+- **Zero-Cost Design**: Early returns when debugging disabled prevent performance overhead
+
+**Files Using CommandDebugger**:
+- All main command files: `list.py`, `delete.py`, `restore.py`, `recover.py`
+- All save module components: `session_saver.py`, `browser_handler.py`, `terminal_handler.py`, `neovide_handler.py`, `hyprctl_client.py`
+
 ### Debug Logging Guidelines for AI Agents
 
 **CRITICAL RULE**: Never use raw `print()` statements in this project. All debug output must use the structured debug logging system.
@@ -789,7 +818,12 @@ Enable debug output to see real-time UI interactions, focus management, and stat
 # ❌ NEVER DO THIS - Raw print statements
 print(f"DEBUG: Some debug information")
 
-# ✅ ALWAYS DO THIS - Use the debug logger
+# ✅ COMMAND COMPONENTS - Use CommandDebugger
+from commands.shared.debug import CommandDebugger
+self.debugger = CommandDebugger("ComponentName", debug_enabled)
+self.debugger.debug("operation description")
+
+# ✅ UI COMPONENTS - Use the debug logger
 if self.debug_logger:
     self.debug_logger.debug_operation_state("operation_name", "state_description", 
                                           session_name, {"context": "details"})

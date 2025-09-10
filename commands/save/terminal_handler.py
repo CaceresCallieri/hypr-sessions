@@ -5,17 +5,13 @@ Terminal-specific functionality for working directory capture
 from pathlib import Path
 from typing import Set, List, Optional
 
+from ..shared.debug import CommandDebugger
 from ..shared.session_types import RunningProgram
 
 
 class TerminalHandler:
     def __init__(self, debug: bool = False) -> None:
-        self.debug = debug
-    
-    def debug_print(self, message: str) -> None:
-        """Print debug message if debug mode is enabled"""
-        if self.debug:
-            print(f"[DEBUG TerminalHandler] {message}")
+        self.debugger = CommandDebugger("TerminalHandler", debug)
     
     def is_terminal_app(self, class_name: str) -> bool:
         """Check if the application is a terminal emulator (currently only Ghostty supported)"""
@@ -95,19 +91,19 @@ class TerminalHandler:
         """Detect running program in terminal by analyzing process tree"""
         try:
             children = self.get_child_processes(terminal_pid)
-            self.debug_print(f"Found {len(children)} child processes: {children}")
+            self.debugger.debug(f"Found {len(children)} child processes: {children}")
             
             for child_pid in children:
                 program_info = self._analyze_process(child_pid)
                 if program_info:
-                    self.debug_print(f"Detected running program: {program_info}")
+                    self.debugger.debug(f"Detected running program: {program_info}")
                     return program_info
             
-            self.debug_print("No interesting programs detected")
+            self.debugger.debug("No interesting programs detected")
             return None
             
         except (OSError, PermissionError) as e:
-            self.debug_print(f"Error detecting running program: {e}")
+            self.debugger.debug(f"Error detecting running program: {e}")
             return None
 
     def _analyze_process(self, pid):
@@ -135,22 +131,22 @@ class TerminalHandler:
                 return None
                 
             program_name = Path(args[0]).name
-            self.debug_print(f"Process {pid}: {program_name} with args {args}")
+            self.debugger.debug(f"Process {pid}: {program_name} with args {args}")
             
             # Skip the hypr-sessions save command itself to avoid capturing it
             if (program_name == "python" and len(args) >= 2 and 
                 "hypr-sessions.py" in args[1] and "save" in args):
-                self.debug_print("Skipping hypr-sessions save command")
+                self.debugger.debug("Skipping hypr-sessions save command")
                 return None
             
             # Skip neovide programs since they're handled by dedicated neovide session management
             if program_name == "neovide":
-                self.debug_print("Skipping neovide program (handled separately)")
+                self.debugger.debug("Skipping neovide program (handled separately)")
                 return None
             
             # Skip embedded nvim processes (these are children of GUI editors like neovide)
             if program_name == "nvim" and "--embed" in args:
-                self.debug_print("Skipping embedded nvim (child of GUI editor)")
+                self.debugger.debug("Skipping embedded nvim (child of GUI editor)")
                 return None
             
             # Skip shell processes unless they're running specific commands
@@ -167,7 +163,7 @@ class TerminalHandler:
                     }
                 # For shells without -c, look at their children recursively
                 children = self.get_child_processes(pid)
-                self.debug_print(f"Shell {pid} has {len(children)} children: {children}")
+                self.debugger.debug(f"Shell {pid} has {len(children)} children: {children}")
                 
                 for child_pid in children:
                     child_result = self._analyze_process(child_pid)
@@ -176,11 +172,11 @@ class TerminalHandler:
                 
                 # If no direct children found interesting programs, look deeper
                 # This handles cases like: shell -> npm -> node processes
-                self.debug_print("Looking deeper into process tree...")
+                self.debugger.debug("Looking deeper into process tree...")
                 for child_pid in children:
                     grandchildren = self.get_child_processes(child_pid)
                     if grandchildren:
-                        self.debug_print(f"Child {child_pid} has grandchildren: {grandchildren}")
+                        self.debugger.debug(f"Child {child_pid} has grandchildren: {grandchildren}")
                     for grandchild_pid in grandchildren:
                         grandchild_result = self._analyze_process(grandchild_pid)
                         if grandchild_result:
@@ -212,5 +208,5 @@ class TerminalHandler:
                 }
             
         except (OSError, PermissionError, UnicodeDecodeError) as e:
-            self.debug_print(f"Error analyzing process {pid}: {e}")
+            self.debugger.debug(f"Error analyzing process {pid}: {e}")
             return None

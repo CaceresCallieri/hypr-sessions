@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 from .shared.config import get_config, SessionConfig
+from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
 from .shared.utils import Utils
 
@@ -14,13 +15,8 @@ from .shared.utils import Utils
 class SessionList(Utils):
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
-        self.debug: bool = debug
+        self.debugger = CommandDebugger("SessionList", debug)
         self.config: SessionConfig = get_config()
-    
-    def debug_print(self, message: str) -> None:
-        """Print debug message if debug mode is enabled"""
-        if self.debug:
-            print(f"[DEBUG SessionList] {message}")
     
     def list_sessions(self, archived: bool = False, show_all: bool = False) -> OperationResult:
         """List sessions based on requested type (active, archived, or all)"""
@@ -92,7 +88,7 @@ class SessionList(Utils):
         result = OperationResult(operation_name="List active sessions")
         
         active_sessions_dir = self.config.get_active_sessions_dir()
-        self.debug_print(f"Searching for active session directories in: {active_sessions_dir}")
+        self.debugger.debug(f"Searching for active session directories in: {active_sessions_dir}")
         
         try:
             # Find session directories (exclude hidden dirs and zen-browser-backups)
@@ -105,7 +101,7 @@ class SessionList(Utils):
             result.add_error(f"Unexpected error scanning active sessions directory: {e}")
             return result
         
-        self.debug_print(f"Found {len(session_dirs)} active session directories")
+        self.debugger.debug(f"Found {len(session_dirs)} active session directories")
         result.add_success(f"Found {len(session_dirs)} active session directories")
 
         if not session_dirs:
@@ -120,7 +116,7 @@ class SessionList(Utils):
             session_name = session_dir.name
             session_file = session_dir / "session.json"
             
-            self.debug_print(f"Processing active session directory: {session_dir}")
+            self.debugger.debug(f"Processing active session directory: {session_dir}")
             
             if session_file.exists():
                 try:
@@ -134,7 +130,7 @@ class SessionList(Utils):
                     all_files = list(session_dir.iterdir())
                     file_count = len(all_files)
                     
-                    self.debug_print(f"Active session '{session_name}': {window_count} windows, {file_count} files, saved {timestamp}")
+                    self.debugger.debug(f"Active session '{session_name}': {window_count} windows, {file_count} files, saved {timestamp}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -147,7 +143,7 @@ class SessionList(Utils):
                     result.add_success(f"Processed active session '{session_name}': {window_count} windows")
 
                 except (OSError, PermissionError) as e:
-                    self.debug_print(f"File system error reading active session file {session_file}: {e}")
+                    self.debugger.debug(f"File system error reading active session file {session_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -155,7 +151,7 @@ class SessionList(Utils):
                         "error": f"File access error: {e}"
                     })
                 except json.JSONDecodeError as e:
-                    self.debug_print(f"JSON decode error reading active session file {session_file}: {e}")
+                    self.debugger.debug(f"JSON decode error reading active session file {session_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -163,7 +159,7 @@ class SessionList(Utils):
                         "error": f"JSON decode error: line {e.lineno}"
                     })
                 except Exception as e:
-                    self.debug_print(f"Unexpected error reading active session file {session_file}: {e}")
+                    self.debugger.debug(f"Unexpected error reading active session file {session_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -173,7 +169,7 @@ class SessionList(Utils):
                     invalid_sessions += 1
                     result.add_warning(f"Failed to read active session '{session_name}': {e}")
             else:
-                self.debug_print(f"Active session directory {session_dir} missing session.json")
+                self.debugger.debug(f"Active session directory {session_dir} missing session.json")
                 
                 sessions_data.append({
                     "name": session_name,
@@ -200,10 +196,10 @@ class SessionList(Utils):
         result = OperationResult(operation_name="List archived sessions")
         
         archived_sessions_dir = self.config.get_archived_sessions_dir()
-        self.debug_print(f"Searching for archived session directories in: {archived_sessions_dir}")
+        self.debugger.debug(f"Searching for archived session directories in: {archived_sessions_dir}")
         
         if not archived_sessions_dir.exists():
-            self.debug_print("Archived sessions directory does not exist")
+            self.debugger.debug("Archived sessions directory does not exist")
             result.data = {"sessions": [], "session_count": 0}
             return result
         
@@ -218,7 +214,7 @@ class SessionList(Utils):
             result.add_error(f"Unexpected error scanning archived sessions directory: {e}")
             return result
         
-        self.debug_print(f"Found {len(session_dirs)} archived session directories")
+        self.debugger.debug(f"Found {len(session_dirs)} archived session directories")
         result.add_success(f"Found {len(session_dirs)} archived session directories")
 
         if not session_dirs:
@@ -233,7 +229,7 @@ class SessionList(Utils):
             session_name = session_dir.name
             metadata_file = session_dir / ".archive-metadata.json"
             
-            self.debug_print(f"Processing archived session directory: {session_dir}")
+            self.debugger.debug(f"Processing archived session directory: {session_dir}")
             
             if metadata_file.exists():
                 try:
@@ -249,7 +245,7 @@ class SessionList(Utils):
                     all_files = list(session_dir.iterdir())
                     actual_file_count = len(all_files)
                     
-                    self.debug_print(f"Archived session '{session_name}': originally '{original_name}', archived {archive_timestamp}, {file_count} files")
+                    self.debugger.debug(f"Archived session '{session_name}': originally '{original_name}', archived {archive_timestamp}, {file_count} files")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -263,7 +259,7 @@ class SessionList(Utils):
                     result.add_success(f"Processed archived session '{session_name}': {file_count} files")
 
                 except (OSError, PermissionError) as e:
-                    self.debug_print(f"File system error reading archive metadata file {metadata_file}: {e}")
+                    self.debugger.debug(f"File system error reading archive metadata file {metadata_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -271,7 +267,7 @@ class SessionList(Utils):
                         "error": f"File access error: {e}"
                     })
                 except json.JSONDecodeError as e:
-                    self.debug_print(f"JSON decode error reading archive metadata file {metadata_file}: {e}")
+                    self.debugger.debug(f"JSON decode error reading archive metadata file {metadata_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -279,7 +275,7 @@ class SessionList(Utils):
                         "error": f"JSON decode error: line {e.lineno}"
                     })
                 except Exception as e:
-                    self.debug_print(f"Unexpected error reading archive metadata file {metadata_file}: {e}")
+                    self.debugger.debug(f"Unexpected error reading archive metadata file {metadata_file}: {e}")
                     
                     sessions_data.append({
                         "name": session_name,
@@ -289,7 +285,7 @@ class SessionList(Utils):
                     invalid_sessions += 1
                     result.add_warning(f"Failed to read archived session metadata '{session_name}': {e}")
             else:
-                self.debug_print(f"Archived session directory {session_dir} missing .archive-metadata.json")
+                self.debugger.debug(f"Archived session directory {session_dir} missing .archive-metadata.json")
                 
                 # Try to get some basic info from the directory
                 try:

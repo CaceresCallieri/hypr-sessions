@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Any
 
 from ..shared.utils import Utils
 from ..shared.config import get_config
+from ..shared.debug import CommandDebugger
 from ..shared.session_types import SessionData, WindowInfo
 from ..shared.validation import SessionValidator, SessionAlreadyExistsError, SessionValidationError
 from ..shared.operation_result import OperationResult
@@ -21,7 +22,7 @@ from .browser_handler import BrowserHandler
 class SessionSaver(Utils):
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
-        self.debug: bool = debug
+        self.debugger = CommandDebugger("SessionSaver", debug)
         self.config = get_config()
         self.current_session_name: Optional[str] = None
         self.hyprctl_client: HyprctlClient = HyprctlClient(debug=debug)
@@ -29,11 +30,6 @@ class SessionSaver(Utils):
         self.terminal_handler: TerminalHandler = TerminalHandler(debug=debug)
         self.neovide_handler: NeovideHandler = NeovideHandler(debug=debug)
         self.browser_handler: BrowserHandler = BrowserHandler(debug=debug)
-    
-    def debug_print(self, message: str) -> None:
-        """Print debug message if debug mode is enabled"""
-        if self.debug:
-            print(f"[DEBUG SessionSaver] {message}")
 
     def save_session(self, session_name: str) -> OperationResult:
         """Save current workspace state including groups"""
@@ -60,10 +56,10 @@ class SessionSaver(Utils):
             
             # Store session name for use in other methods
             self.current_session_name = session_name
-            self.debug_print(f"Starting session save for: {session_name}")
+            self.debugger.debug(f"Starting session save for: {session_name}")
             
         except (SessionValidationError, SessionAlreadyExistsError) as e:
-            self.debug_print(f"Validation error: {e}")
+            self.debugger.debug(f"Validation error: {e}")
             result.add_error(str(e))
             return result
 
@@ -79,7 +75,7 @@ class SessionSaver(Utils):
                 result.add_error("Could not determine current workspace")
                 return result
                 
-            self.debug_print(f"Current workspace ID: {current_workspace_id}")
+            self.debugger.debug(f"Current workspace ID: {current_workspace_id}")
 
             # Get clients filtered to current workspace only using jq
             workspace_clients = self.hyprctl_client.get_workspace_clients(current_workspace_id)
@@ -87,7 +83,7 @@ class SessionSaver(Utils):
                 result.add_error("Failed to get workspace clients")
                 return result
 
-            self.debug_print(f"Found {len(workspace_clients)} clients in current workspace")
+            self.debugger.debug(f"Found {len(workspace_clients)} clients in current workspace")
 
             if not workspace_clients:
                 result.add_error(f"No windows found in current workspace ({current_workspace_id})")
@@ -138,7 +134,7 @@ class SessionSaver(Utils):
             client_class = client.get("class", "unknown")
             client_pid = client.get("pid")
 
-            self.debug_print(f"Processing client: {client_class} (PID: {client_pid})")
+            self.debugger.debug(f"Processing client: {client_class} (PID: {client_pid})")
             
             try:
                 window_data = {
@@ -175,14 +171,14 @@ class SessionSaver(Utils):
                         
                         # Detect running program in the terminal
                         try:
-                            self.debug_print(f"Detecting running program for terminal PID {pid}")
+                            self.debugger.debug(f"Detecting running program for terminal PID {pid}")
                             running_program = self.terminal_handler.get_running_program(pid)
                             if running_program:
                                 window_data["running_program"] = running_program
-                                self.debug_print(f"Running program details: {running_program}")
+                                self.debugger.debug(f"Running program details: {running_program}")
                                 result.add_success(f"Captured running program '{running_program['name']}' for {client_class}")
                             else:
-                                self.debug_print("No running program detected (likely just shell)")
+                                self.debugger.debug("No running program detected (likely just shell)")
                         except (OSError, PermissionError) as e:
                             result.add_warning(f"Process access error: Cannot detect running program for {client_class}: {e}")
                         except Exception as e:
@@ -191,23 +187,23 @@ class SessionSaver(Utils):
                 # For Neovide windows, capture session information
                 if self.neovide_handler.is_neovide_window(window_data):
                     pid = window_data.get("pid")
-                    self.debug_print(f"Detected Neovide window with class '{client_class}' and PID {pid}")
+                    self.debugger.debug(f"Detected Neovide window with class '{client_class}' and PID {pid}")
                     try:
                         neovide_session_info = self.neovide_handler.get_neovide_session_info(pid)
-                        self.debug_print(f"Neovide session info: {neovide_session_info}")
+                        self.debugger.debug(f"Neovide session info: {neovide_session_info}")
                         if neovide_session_info:
                             window_data["neovide_session"] = neovide_session_info
                             # Try to create/capture session file in session directory
                             session_dir = str(self.config.get_active_session_directory(self.current_session_name))
                             session_file = self.neovide_handler.create_session_file(pid, session_dir)
-                            self.debug_print(f"Created session file: {session_file}")
+                            self.debugger.debug(f"Created session file: {session_file}")
                             if session_file:
                                 window_data["neovide_session"]["session_file"] = session_file
                                 result.add_success(f"Captured Neovide session file for {client_class}")
                             else:
                                 result.add_warning(f"Could not capture Neovide session for {client_class}, using working directory fallback")
                         else:
-                            self.debug_print(f"Failed to get Neovide session info for PID {pid}")
+                            self.debugger.debug(f"Failed to get Neovide session info for PID {pid}")
                             result.add_warning(f"Could not get Neovide session info for {client_class}")
                     except (OSError, PermissionError) as e:
                         result.add_warning(f"File system error: Cannot capture Neovide session for {client_class}: {e}")
@@ -220,16 +216,16 @@ class SessionSaver(Utils):
                 if self.browser_handler.is_browser_window(window_data):
                     pid = window_data.get("pid")
                     browser_type = self.browser_handler.get_browser_type(window_data)
-                    self.debug_print(f"Detected browser window with class '{client_class}' and PID {pid}")
+                    self.debugger.debug(f"Detected browser window with class '{client_class}' and PID {pid}")
                     try:
                         browser_session_info = self.browser_handler.get_enhanced_browser_session_info(window_data, session_name)
-                        self.debug_print(f"Browser session info: {browser_session_info}")
+                        self.debugger.debug(f"Browser session info: {browser_session_info}")
                         if browser_session_info:
                             window_data["browser_session"] = browser_session_info
                             capture_method = browser_session_info.get("capture_method", "basic")
                             result.add_success(f"Captured {browser_type} browser session using {capture_method} method")
                         else:
-                            self.debug_print(f"Failed to get browser session info for PID {pid}")
+                            self.debugger.debug(f"Failed to get browser session info for PID {pid}")
                             result.add_warning(f"Could not capture browser session for {browser_type}")
                     except (OSError, PermissionError) as e:
                         result.add_warning(f"File system error: Cannot capture browser session for {browser_type}: {e}")
@@ -242,7 +238,7 @@ class SessionSaver(Utils):
                 try:
                     launch_command = self.launch_command_generator.guess_launch_command(window_data)
                     window_data["launch_command"] = launch_command
-                    self.debug_print(f"Generated launch command: {launch_command}")
+                    self.debugger.debug(f"Generated launch command: {launch_command}")
                     result.add_success(f"Generated launch command for {client_class}")
                 except ValueError as e:
                     result.add_warning(f"Invalid data for launch command generation for {client_class}: {e}")
@@ -255,15 +251,15 @@ class SessionSaver(Utils):
                 captured_windows += 1
                 
             except (OSError, PermissionError) as e:
-                self.debug_print(f"File system error processing window {client_class} (PID: {client_pid}): {e}")
+                self.debugger.debug(f"File system error processing window {client_class} (PID: {client_pid}): {e}")
                 result.add_error(f"System access error: Cannot process window {client_class}: {e}")
                 failed_windows += 1
             except ValueError as e:
-                self.debug_print(f"Invalid data processing window {client_class} (PID: {client_pid}): {e}")
+                self.debugger.debug(f"Invalid data processing window {client_class} (PID: {client_pid}): {e}")
                 result.add_error(f"Data validation error: Cannot process window {client_class}: {e}")
                 failed_windows += 1
             except Exception as e:
-                self.debug_print(f"Unexpected error processing window {client_class} (PID: {client_pid}): {e}")
+                self.debugger.debug(f"Unexpected error processing window {client_class} (PID: {client_pid}): {e}")
                 result.add_error(f"Unexpected error processing window {client_class}: {e}")
                 failed_windows += 1
 
@@ -274,9 +270,9 @@ class SessionSaver(Utils):
 
         # Debug: Print group information
         if groups:
-            self.debug_print(f"Found {len(groups)} groups:")
+            self.debugger.debug(f"Found {len(groups)} groups:")
             for group_id, addresses in groups.items():
-                self.debug_print(f"  Group {group_id[:8]}... has {len(addresses)} windows")
+                self.debugger.debug(f"  Group {group_id[:8]}... has {len(addresses)} windows")
             result.add_success(f"Detected {len(groups)} window groups")
 
         # Save session to file in new folder structure
@@ -294,18 +290,18 @@ class SessionSaver(Utils):
             }
             return result
         except (PermissionError, FileNotFoundError, OSError, IOError) as e:
-            self.debug_print(f"Filesystem error saving session file: {e}")
+            self.debugger.debug(f"Filesystem error saving session file: {e}")
             result.add_filesystem_error(e, f"save session '{session_name}'", str(session_file))
             return result
         except json.JSONEncodeError as e:
-            self.debug_print(f"JSON encoding error saving session: {e}")
+            self.debugger.debug(f"JSON encoding error saving session: {e}")
             result.add_error(f"Session data encoding failed: Cannot save session '{session_name}' due to invalid data format. {str(e)}")
             return result
         except (OSError, PermissionError) as e:
-            self.debug_print(f"File system error saving session file: {e}")
+            self.debugger.debug(f"File system error saving session file: {e}")
             result.add_error(f"File system error: Cannot save session '{session_name}': {e}")
             return result
         except Exception as e:
-            self.debug_print(f"Unexpected error saving session file: {e}")
+            self.debugger.debug(f"Unexpected error saving session file: {e}")
             result.add_error(f"Unexpected error: Failed to save session '{session_name}'. {str(e)}")
             return result

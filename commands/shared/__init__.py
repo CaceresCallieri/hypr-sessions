@@ -3,6 +3,7 @@ Shared utilities and core types for hypr-sessions commands
 """
 
 from .config import SessionConfig, get_config
+from .debug import CommandDebugger
 from .operation_result import OperationResult
 from .session_types import *
 from .utils import Utils
@@ -14,6 +15,7 @@ from .validation import (
 
 __all__ = [
     'SessionConfig', 'get_config',
+    'CommandDebugger',
     'OperationResult',
     'Utils',
     'SessionError', 'SessionValidationError', 'SessionNotFoundError',

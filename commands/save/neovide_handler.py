@@ -10,21 +10,18 @@ import subprocess
 import time
 from pathlib import Path
 
+from ..shared.debug import CommandDebugger
+
 
 class NeovideHandler:
     def __init__(self, debug=False):
-        self.debug = debug
-    
-    def debug_print(self, message):
-        """Print debug message if debug mode is enabled"""
-        if self.debug:
-            print(f"[DEBUG NeovideHandler] {message}")
+        self.debugger = CommandDebugger("NeovideHandler", debug)
     
     def _ensure_session_directory(self, session_dir):
         """Ensure session directory exists"""
         session_dir_path = Path(session_dir)
         session_dir_path.mkdir(parents=True, exist_ok=True)
-        self.debug_print(f"Ensured session directory exists: {session_dir_path}")
+        self.debugger.debug(f"Ensured session directory exists: {session_dir_path}")
         return session_dir_path
     
     def _get_working_directory(self, pid):
@@ -32,22 +29,22 @@ class NeovideHandler:
         cwd_path = Path(f"/proc/{pid}/cwd")
         if cwd_path.exists():
             working_dir = str(cwd_path.resolve())
-            self.debug_print(f"Working directory for PID {pid}: {working_dir}")
+            self.debugger.debug(f"Working directory for PID {pid}: {working_dir}")
             return working_dir
         else:
-            self.debug_print(f"Working directory path does not exist: {cwd_path}")
+            self.debugger.debug(f"Working directory path does not exist: {cwd_path}")
             return None
     
     def is_neovide_window(self, window_data):
         """Check if a window is running Neovide"""
         class_name = window_data.get("class", "").lower()
         is_neovide = class_name == "neovide"
-        self.debug_print(f"Checking window class '{class_name}' -> is_neovide: {is_neovide}")
+        self.debugger.debug(f"Checking window class '{class_name}' -> is_neovide: {is_neovide}")
         return is_neovide
 
     def find_nvim_socket_for_pid(self, pid):
         """Find the Neovim server socket associated with a PID"""
-        self.debug_print(f"Looking for Neovim socket for PID {pid}")
+        self.debugger.debug(f"Looking for Neovim socket for PID {pid}")
         
         # Common socket locations
         socket_patterns = [
@@ -60,7 +57,7 @@ class NeovideHandler:
             sockets = glob.glob(pattern)
             if sockets:
                 socket_path = sockets[0]  # Take first match
-                self.debug_print(f"Found Neovim socket: {socket_path}")
+                self.debugger.debug(f"Found Neovim socket: {socket_path}")
                 return socket_path
         
         # Try to find any socket for the process tree
@@ -79,22 +76,22 @@ class NeovideHandler:
                         sockets = glob.glob(child_pattern)
                         if sockets:
                             socket_path = sockets[0]
-                            self.debug_print(f"Found Neovim socket via child PID {child_pid}: {socket_path}")
+                            self.debugger.debug(f"Found Neovim socket via child PID {child_pid}: {socket_path}")
                             return socket_path
         except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
-            self.debug_print(f"Error finding child processes: {e}")
+            self.debugger.debug(f"Error finding child processes: {e}")
         
-        self.debug_print(f"No Neovim socket found for PID {pid}")
+        self.debugger.debug(f"No Neovim socket found for PID {pid}")
         return None
 
     def capture_neovim_session(self, pid, session_dir):
         """Capture Neovim session from running instance via remote API"""
-        self.debug_print(f"Capturing Neovim session for PID {pid}")
+        self.debugger.debug(f"Capturing Neovim session for PID {pid}")
         
         # Find the Neovim socket
         socket_path = self.find_nvim_socket_for_pid(pid)
         if not socket_path:
-            self.debug_print(f"Cannot capture session - no Neovim socket found for PID {pid}")
+            self.debugger.debug(f"Cannot capture session - no Neovim socket found for PID {pid}")
             return None
         
         try:
@@ -104,7 +101,7 @@ class NeovideHandler:
             # Create session filename
             session_filename = f"neovide-session-{pid}.vim"
             session_file = session_dir_path / session_filename
-            self.debug_print(f"Creating session file: {session_file}")
+            self.debugger.debug(f"Creating session file: {session_file}")
             
             # Execute :mksession command via remote API
             # Note: Use backslash escaping for spaces, not shell quoting for Neovim commands
@@ -115,7 +112,7 @@ class NeovideHandler:
             ], capture_output=True, text=True, timeout=10)
             
             if result.returncode != 0:
-                self.debug_print(f"Failed to execute mksession command: {result.stderr}")
+                self.debugger.debug(f"Failed to execute mksession command: {result.stderr}")
                 return None
             
             # Wait for session file to be created
@@ -126,19 +123,19 @@ class NeovideHandler:
                 max_wait -= wait_time
             
             if session_file.exists():
-                self.debug_print(f"Successfully captured session: {session_file}")
+                self.debugger.debug(f"Successfully captured session: {session_file}")
                 return str(session_file)
             else:
-                self.debug_print(f"Session file was not created: {session_file}")
+                self.debugger.debug(f"Session file was not created: {session_file}")
                 return None
                 
         except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
-            self.debug_print(f"Error capturing session for PID {pid}: {e}")
+            self.debugger.debug(f"Error capturing session for PID {pid}: {e}")
             return None
 
     def get_neovide_session_info(self, pid):
         """Extract session information from a running Neovide instance"""
-        self.debug_print(f"Getting session info for Neovide PID {pid}")
+        self.debugger.debug(f"Getting session info for Neovide PID {pid}")
         try:
             # Get the working directory from Neovide process
             working_dir = self._get_working_directory(pid)
@@ -154,18 +151,18 @@ class NeovideHandler:
             socket_path = self.find_nvim_socket_for_pid(pid)
             if socket_path:
                 session_data["nvim_socket"] = socket_path
-                self.debug_print(f"Found Neovim socket: {socket_path}")
+                self.debugger.debug(f"Found Neovim socket: {socket_path}")
             
             return session_data
             
         except (OSError, PermissionError) as e:
-            self.debug_print(f"Error getting session info for PID {pid}: {e}")
+            self.debugger.debug(f"Error getting session info for PID {pid}: {e}")
             pass
         return None
 
     def create_session_file(self, pid, session_dir):
         """Create a session file for a running Neovide instance"""
-        self.debug_print(f"Creating session file for Neovide PID {pid}")
+        self.debugger.debug(f"Creating session file for Neovide PID {pid}")
         
         # First try to capture live session via Neovim remote API
         session_file = self.capture_neovim_session(pid, session_dir)
@@ -173,7 +170,7 @@ class NeovideHandler:
             return session_file
         
         # Fallback to basic session file with working directory
-        self.debug_print(f"Falling back to basic session file for PID {pid}")
+        self.debugger.debug(f"Falling back to basic session file for PID {pid}")
         try:
             # Get working directory
             working_dir = self._get_working_directory(pid)
@@ -186,7 +183,7 @@ class NeovideHandler:
             # Create session filename based on PID to avoid conflicts
             session_filename = f"hypr-session-neovide-{pid}.vim"
             session_file = session_dir_path / session_filename
-            self.debug_print(f"Creating basic session file: {session_file}")
+            self.debugger.debug(f"Creating basic session file: {session_file}")
             
             # Create a basic session file that restores working directory
             basic_session = f'''\" Session file created by hypr-sessions for Neovide
@@ -196,11 +193,11 @@ cd {shlex.quote(working_dir)}
             with open(session_file, "w") as f:
                 f.write(basic_session)
                 
-            self.debug_print(f"Successfully created basic session file: {session_file}")
+            self.debugger.debug(f"Successfully created basic session file: {session_file}")
             return str(session_file)
             
         except Exception as e:
-            self.debug_print(f"Error creating session file for PID {pid}: {e}")
+            self.debugger.debug(f"Error creating session file for PID {pid}: {e}")
             pass
         return None
 
@@ -212,14 +209,14 @@ cd {shlex.quote(working_dir)}
         if session_file and Path(session_file).exists():
             # Launch Neovide with session file using -- to pass args to nvim
             escaped_session = shlex.quote(session_file)
-            self.debug_print(f"Restoring Neovide with session file: {session_file}")
+            self.debugger.debug(f"Restoring Neovide with session file: {session_file}")
             return f"neovide -- -S {escaped_session}"
         elif working_dir:
             # Launch Neovide and change to working directory via nvim command
             escaped_dir = shlex.quote(working_dir)
-            self.debug_print(f"Restoring Neovide with working directory: {working_dir}")
+            self.debugger.debug(f"Restoring Neovide with working directory: {working_dir}")
             return f"neovide -- -c {shlex.quote(f'cd {working_dir}')}"
         else:
             # Basic Neovide launch
-            self.debug_print("Restoring Neovide with default settings")
+            self.debugger.debug("Restoring Neovide with default settings")
             return "neovide"

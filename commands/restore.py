@@ -11,6 +11,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .shared.config import SessionConfig, get_config
+from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
 from .save.browser_handler import BrowserHandler
 from .save.hyprctl_client import HyprctlClient
@@ -22,20 +23,15 @@ from .shared.validation import SessionValidator, SessionNotFoundError, SessionVa
 class SessionRestore(Utils):
     def __init__(self, debug: bool = False) -> None:
         super().__init__()
-        self.debug: bool = debug
+        self.debugger = CommandDebugger("SessionRestore", debug)
         self.config: SessionConfig = get_config()
         self.browser_handler: BrowserHandler = BrowserHandler(debug=debug)
         self.hyprctl_client: HyprctlClient = HyprctlClient()
-
-    def debug_print(self, message: str) -> None:
-        """Print debug message if debug mode is enabled"""
-        if self.debug:
-            print(f"[DEBUG SessionRestore] {message}")
     
     def _launch_window_command_with_timeout(self, command: str, timeout: int = 30) -> bool:
         """Launch window command with timeout protection and startup validation"""
         try:
-            self.debug_print(f"Launching with timeout ({timeout}s): {command}")
+            self.debugger.debug(f"Launching with timeout ({timeout}s): {command}")
             
             # Launch process in new process group for clean termination
             process = subprocess.Popen(
@@ -51,17 +47,17 @@ class SessionRestore(Utils):
                 if return_code != 0:
                     # Process failed to start properly
                     stderr = process.stderr.read().decode() if process.stderr else ""
-                    self.debug_print(f"Command failed to start: {command}, error: {stderr}")
+                    self.debugger.debug(f"Command failed to start: {command}, error: {stderr}")
                     return False
             except subprocess.TimeoutExpired:
                 # Process is still running after 5 seconds - this is expected for GUI applications
                 # The process started successfully and is running
-                self.debug_print(f"Process started successfully and is running: {command}")
+                self.debugger.debug(f"Process started successfully and is running: {command}")
                 return True
                 
         except subprocess.TimeoutExpired:
             # This shouldn't happen with our current logic, but handle it anyway
-            self.debug_print(f"Command timed out after {timeout}s: {command}")
+            self.debugger.debug(f"Command timed out after {timeout}s: {command}")
             try:
                 # Kill the entire process group
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
@@ -69,13 +65,13 @@ class SessionRestore(Utils):
                 pass  # Process already died or PID not available
             return False
         except (FileNotFoundError, PermissionError, OSError) as e:
-            self.debug_print(f"Process error launching command: {command}, error: {e}")
+            self.debugger.debug(f"Process error launching command: {command}, error: {e}")
             return False
         except subprocess.TimeoutExpired as e:
-            self.debug_print(f"Timeout launching command: {command}, error: {e}")
+            self.debugger.debug(f"Timeout launching command: {command}, error: {e}")
             return False
         except Exception as e:
-            self.debug_print(f"Unexpected error launching command: {command}, error: {e}")
+            self.debugger.debug(f"Unexpected error launching command: {command}, error: {e}")
             return False
         
         return True
@@ -87,7 +83,7 @@ class SessionRestore(Utils):
         Detect swallowing relationships from session data using the saved swallowing property.
         Returns dict mapping swallowing_address -> {'swallowing': window, 'swallowed': window}
         """
-        self.debug_print("Detecting swallowing relationships from saved session data")
+        self.debugger.debug("Detecting swallowing relationships from saved session data")
 
         swallowing_relationships = {}
         windows_by_address = {w.get("address"): w for w in windows if w.get("address")}
@@ -101,7 +97,7 @@ class SessionRestore(Utils):
                 swallowed_window = windows_by_address.get(swallowing_address)
 
                 if swallowed_window:
-                    self.debug_print(
+                    self.debugger.debug(
                         f"Found swallowing relationship: {window.get('class')} ({window_address[:10]}...) swallowing {swallowed_window.get('class')} ({swallowing_address[:10]}...)"
                     )
 
@@ -110,11 +106,11 @@ class SessionRestore(Utils):
                         "swallowed": swallowed_window,
                     }
                 else:
-                    self.debug_print(
+                    self.debugger.debug(
                         f"Warning: Window {window_address[:10]}... claims to swallow {swallowing_address[:10]}... but swallowed window not found in session"
                     )
 
-        self.debug_print(
+        self.debugger.debug(
             f"Detected {len(swallowing_relationships)} swallowing relationships from session data"
         )
         return swallowing_relationships
@@ -135,13 +131,13 @@ class SessionRestore(Utils):
         gui_command = swallowing_window.get("launch_command", "")
         gui_class = swallowing_window.get("class", "")
 
-        self.debug_print(f"Creating swallowing command:")
-        self.debug_print(f"  Terminal: {terminal_class} -> {terminal_command}")
-        self.debug_print(f"  GUI App: {gui_class} -> {gui_command}")
+        self.debugger.debug(f"Creating swallowing command:")
+        self.debugger.debug(f"  Terminal: {terminal_class} -> {terminal_command}")
+        self.debugger.debug(f"  GUI App: {gui_class} -> {gui_command}")
 
         # For now, only handle ghostty terminals
         if terminal_class != "com.mitchellh.ghostty":
-            self.debug_print(
+            self.debugger.debug(
                 f"Unsupported terminal class: {terminal_class}, falling back to separate launches"
             )
             return None
@@ -160,7 +156,7 @@ class SessionRestore(Utils):
         else:
             combined_command = f"ghostty -e sh -c {shlex.quote(shell_command)}"
 
-        self.debug_print(f"Created combined swallowing command: {combined_command}")
+        self.debugger.debug(f"Created combined swallowing command: {combined_command}")
         return combined_command
 
     def get_swallowing_delay(self) -> float:
@@ -177,7 +173,7 @@ class SessionRestore(Utils):
             SessionValidator.validate_session_name(session_name)
             result.add_success("Session name validated")
             
-            self.debug_print(f"Starting restoration of session: {session_name}")
+            self.debugger.debug(f"Starting restoration of session: {session_name}")
             
             # Check if session exists BEFORE calling get_active_session_file_path (which creates directory)
             session_dir = self.config.get_active_sessions_dir() / session_name
@@ -185,37 +181,37 @@ class SessionRestore(Utils):
             result.add_success("Session exists and is accessible")
             
             session_file = self.config.get_active_session_file_path(session_name)
-            self.debug_print(f"Session file path: {session_file}")
+            self.debugger.debug(f"Session file path: {session_file}")
             
         except (SessionValidationError, SessionNotFoundError) as e:
-            self.debug_print(f"Validation error: {e}")
+            self.debugger.debug(f"Validation error: {e}")
             result.add_error(str(e))
             return result
 
         try:
             with open(session_file, "r") as f:
                 session_data = json.load(f)
-            self.debug_print(f"Successfully loaded session data")
+            self.debugger.debug(f"Successfully loaded session data")
             result.add_success("Session data loaded successfully")
         except (json.JSONDecodeError, FileNotFoundError, PermissionError, OSError) as e:
-            self.debug_print(f"Error loading session data: {e}")
+            self.debugger.debug(f"Error loading session data: {e}")
             result.add_json_error(e, f"load session '{session_name}'", str(session_file))
             return result
         except (OSError, PermissionError) as e:
-            self.debug_print(f"File system error loading session data: {e}")
+            self.debugger.debug(f"File system error loading session data: {e}")
             result.add_error(f"File system error: Cannot load session '{session_name}': {e}")
             return result
         except Exception as e:
-            self.debug_print(f"Unexpected error loading session data: {e}")
+            self.debugger.debug(f"Unexpected error loading session data: {e}")
             result.add_error(f"Unexpected error: Failed to load session '{session_name}'. {str(e)}")
             return result
 
-        self.debug_print(f"Restoring session: {session_name}")
-        self.debug_print(f"Timestamp: {session_data.get('timestamp')}")
+        self.debugger.debug(f"Restoring session: {session_name}")
+        self.debugger.debug(f"Timestamp: {session_data.get('timestamp')}")
 
         windows = session_data.get("windows", [])
         groups = session_data.get("groups", {})
-        self.debug_print(
+        self.debugger.debug(
             f"Session contains {len(windows)} windows and {len(groups)} groups"
         )
         result.add_success(f"Found {len(windows)} windows and {len(groups)} groups to restore")
@@ -223,26 +219,26 @@ class SessionRestore(Utils):
         # Detect swallowing relationships
         swallowing_relationships = self.detect_swallowing_relationships(windows)
         if swallowing_relationships:
-            self.debug_print(
+            self.debugger.debug(
                 f"Found {len(swallowing_relationships)} swallowing relationships to restore"
             )
             result.add_success(f"Detected {len(swallowing_relationships)} swallowing relationships")
 
         if groups:
-            self.debug_print(f"Found {len(groups)} groups to restore")
+            self.debugger.debug(f"Found {len(groups)} groups to restore")
 
         # Step 1: Launch applications and create groups during launch
         launch_result = None
         try:
             if groups:
-                self.debug_print("Launching applications with groups...")
-                self.debug_print(f"Using grouped launch method")
+                self.debugger.debug("Launching applications with groups...")
+                self.debugger.debug(f"Using grouped launch method")
                 launch_result = self.launch_with_groups(
                     session_data.get("windows", []), groups, swallowing_relationships
                 )
             else:
-                self.debug_print("Launching applications...")
-                self.debug_print(f"Using simple launch method (no groups)")
+                self.debugger.debug("Launching applications...")
+                self.debugger.debug(f"Using simple launch method (no groups)")
                 launch_result = self.launch_windows_simple(
                     session_data.get("windows", []), swallowing_relationships
                 )
@@ -256,19 +252,19 @@ class SessionRestore(Utils):
                 result.add_success("Applications launched successfully")
                 
         except (OSError, PermissionError) as e:
-            self.debug_print(f"System access error during launch: {e}")
+            self.debugger.debug(f"System access error during launch: {e}")
             result.add_error(f"System access error: Cannot launch applications: {e}")
             return result
         except subprocess.TimeoutExpired as e:
-            self.debug_print(f"Timeout during launch: {e}")
+            self.debugger.debug(f"Timeout during launch: {e}")
             result.add_error(f"Application launch timeout: {e}")
             return result
         except Exception as e:
-            self.debug_print(f"Unexpected error during launch: {e}")
+            self.debugger.debug(f"Unexpected error during launch: {e}")
             result.add_error(f"Unexpected error launching applications: {e}")
             return result
 
-        self.debug_print(f"Session restoration completed")
+        self.debugger.debug(f"Session restoration completed")
         result.add_success(f"Restored {len(windows)} applications")
         
         result.data = {
@@ -286,7 +282,7 @@ class SessionRestore(Utils):
         swallowing_relationships: Dict[str, Dict[str, WindowInfo]],
     ) -> None:
         """Launch windows without groups, handling swallowing relationships"""
-        self.debug_print(f"Starting simple launch for {len(windows)} windows")
+        self.debugger.debug(f"Starting simple launch for {len(windows)} windows")
 
         # Keep track of which windows we've already launched via swallowing
         launched_addresses = set()
@@ -296,7 +292,7 @@ class SessionRestore(Utils):
         for relationship in swallowing_relationships.values():
             swallowed_addresses.add(relationship["swallowed"].get("address", ""))
 
-        self.debug_print(
+        self.debugger.debug(
             f"Found {len(swallowed_addresses)} windows that are swallowed and should not be launched separately"
         )
 
@@ -305,14 +301,14 @@ class SessionRestore(Utils):
 
             # Skip if this window was already launched as part of a swallowing relationship
             if window_address in launched_addresses:
-                self.debug_print(
+                self.debugger.debug(
                     f"Skipping {window.get('class')} - already launched via swallowing"
                 )
                 continue
 
             # Skip if this window is being swallowed by another window
             if window_address in swallowed_addresses:
-                self.debug_print(
+                self.debugger.debug(
                     f"Skipping {window.get('class')} - will be launched as part of swallowing relationship"
                 )
                 continue
@@ -328,10 +324,10 @@ class SessionRestore(Utils):
                     swallowing_window, swallowed_window
                 )
                 if combined_command:
-                    self.debug_print(
+                    self.debugger.debug(
                         f"Launching swallowing pair: {swallowing_window.get('class')} + {swallowed_window.get('class')}"
                     )
-                    self.debug_print(f"Combined swallowing command: {combined_command}")
+                    self.debugger.debug(f"Combined swallowing command: {combined_command}")
 
                     # Use timeout-protected launch
                     launch_success = self._launch_window_command_with_timeout(combined_command, timeout=30)
@@ -342,7 +338,7 @@ class SessionRestore(Utils):
                         launched_addresses.add(swallowing_window.get("address", ""))
                         launched_addresses.add(swallowed_window.get("address", ""))
                     else:
-                        self.debug_print(f"Swallowing command launch failed or timed out: {combined_command}")
+                        self.debugger.debug(f"Swallowing command launch failed or timed out: {combined_command}")
                         # Fall back to separate launches
                         self._launch_single_window(swallowing_window)
                         self._launch_single_window(swallowed_window)
@@ -350,7 +346,7 @@ class SessionRestore(Utils):
                         launched_addresses.add(swallowed_window.get("address", ""))
                 else:
                     # Fall back to separate launches
-                    self.debug_print(
+                    self.debugger.debug(
                         f"Could not create swallowing command, launching separately"
                     )
                     self._launch_single_window(swallowing_window)
@@ -366,11 +362,11 @@ class SessionRestore(Utils):
         """Launch a single window with its normal command"""
         command = window.get("launch_command", "")
         if not command:
-            self.debug_print(f"Skipping window with no launch command")
+            self.debugger.debug(f"Skipping window with no launch command")
             return
 
-        self.debug_print(f"Launching: {command}")
-        self.debug_print(f"Executing command: {command}")
+        self.debugger.debug(f"Launching: {command}")
+        self.debugger.debug(f"Executing command: {command}")
         
         # Use timeout-protected launch
         launch_success = self._launch_window_command_with_timeout(command, timeout=30)
@@ -378,15 +374,15 @@ class SessionRestore(Utils):
         if launch_success:
             time.sleep(self.config.delay_between_instructions)
         else:
-            self.debug_print(f"Single window launch failed or timed out: {command}")
+            self.debugger.debug(f"Single window launch failed or timed out: {command}")
 
     def launch_group_with_swallowing(self, group_windows: List[WindowInfo], swallowing_relationships: Dict[str, Dict[str, WindowInfo]]) -> None:
         """Launch a group of windows with swallowing relationship support"""
-        self.debug_print(f"Starting group launch with swallowing support for {len(group_windows)} windows")
+        self.debugger.debug(f"Starting group launch with swallowing support for {len(group_windows)} windows")
         
         if len(group_windows) < 2:
             # Single window group, use simple launch logic
-            self.debug_print("Single window group, using simple launch logic")
+            self.debugger.debug("Single window group, using simple launch logic")
             self.launch_windows_simple(group_windows, swallowing_relationships)
             return
         
@@ -402,15 +398,15 @@ class SessionRestore(Utils):
             if window_address not in swallowed_addresses:
                 effective_group_windows.append(window)
             else:
-                self.debug_print(f"Excluding swallowed window {window.get('class')} from group membership")
+                self.debugger.debug(f"Excluding swallowed window {window.get('class')} from group membership")
         
         if len(effective_group_windows) < 2:
             # After filtering swallowed windows, we don't have enough for a group
-            self.debug_print("After filtering swallowed windows, not enough windows for a group")
+            self.debugger.debug("After filtering swallowed windows, not enough windows for a group")
             self.launch_windows_simple(group_windows, swallowing_relationships)
             return
         
-        self.debug_print(f"Launching group with {len(effective_group_windows)} effective windows (filtered from {len(group_windows)})")
+        self.debugger.debug(f"Launching group with {len(effective_group_windows)} effective windows (filtered from {len(group_windows)})")
         
         # Launch first effective window (group leader)
         first_window = effective_group_windows[0]
@@ -425,8 +421,8 @@ class SessionRestore(Utils):
             
             combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
             if combined_command:
-                self.debug_print(f"Launching group leader (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
-                self.debug_print(f"Group leader swallowing command: {combined_command}")
+                self.debugger.debug(f"Launching group leader (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
+                self.debugger.debug(f"Group leader swallowing command: {combined_command}")
                 command = combined_command
                 use_swallowing_delay = True
             else:
@@ -439,17 +435,17 @@ class SessionRestore(Utils):
             use_swallowing_delay = False
         
         if not command:
-            self.debug_print("No command for group leader, skipping group creation")
+            self.debugger.debug("No command for group leader, skipping group creation")
             return
         
         # Launch group leader
-        self.debug_print(f"Launching group leader: {command}")
+        self.debugger.debug(f"Launching group leader: {command}")
         
         # Use timeout-protected launch for group leader
         launch_success = self._launch_window_command_with_timeout(command, timeout=30)
         
         if not launch_success:
-            self.debug_print(f"Group leader launch failed or timed out: {command}")
+            self.debugger.debug(f"Group leader launch failed or timed out: {command}")
             return
         
         # Use appropriate delay
@@ -477,8 +473,8 @@ class SessionRestore(Utils):
                     
                     combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
                     if combined_command:
-                        self.debug_print(f"Launching group member (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
-                        self.debug_print(f"Group member swallowing command: {combined_command}")
+                        self.debugger.debug(f"Launching group member (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
+                        self.debugger.debug(f"Group member swallowing command: {combined_command}")
                         member_command = combined_command
                         use_member_swallowing_delay = True
                     else:
@@ -491,16 +487,16 @@ class SessionRestore(Utils):
                     use_member_swallowing_delay = False
                 
                 if not member_command:
-                    self.debug_print(f"No command for group member, skipping")
+                    self.debugger.debug(f"No command for group member, skipping")
                     continue
 
-                self.debug_print(f"Launching group member: {member_command}")
+                self.debugger.debug(f"Launching group member: {member_command}")
                 
                 # Use timeout-protected launch for group member
                 member_launch_success = self._launch_window_command_with_timeout(member_command, timeout=30)
                 
                 if not member_launch_success:
-                    self.debug_print(f"Group member launch failed or timed out: {member_command}")
+                    self.debugger.debug(f"Group member launch failed or timed out: {member_command}")
                     continue  # Skip this member but continue with other group members
                 
                 # Use appropriate delay
@@ -512,17 +508,17 @@ class SessionRestore(Utils):
             # Lock the group to prevent other windows from joining
             cmd = ["hyprctl", "dispatch", "lockactivegroup", "lock"]
             subprocess.run(cmd, check=True, capture_output=True)
-            self.debug_print(f"Successfully created and locked group with {len(effective_group_windows)} windows")
+            self.debugger.debug(f"Successfully created and locked group with {len(effective_group_windows)} windows")
 
         except (subprocess.CalledProcessError, FileNotFoundError, PermissionError) as e:
-            self.debug_print(f"Process error creating group: {e}")
+            self.debugger.debug(f"Process error creating group: {e}")
             # Note: We don't add errors to result here as this is a non-critical operation
             # Group creation failure doesn't prevent successful session restoration
         except subprocess.TimeoutExpired as e:
-            self.debug_print(f"Timeout during group creation: {e}")
+            self.debugger.debug(f"Timeout during group creation: {e}")
             # Note: We don't add errors to result here as this is a non-critical operation
         except Exception as e:
-            self.debug_print(f"Unexpected error during group creation: {e}")
+            self.debugger.debug(f"Unexpected error during group creation: {e}")
             # Note: We don't add errors to result here as this is a non-critical operation
 
     def launch_with_groups(
@@ -532,7 +528,7 @@ class SessionRestore(Utils):
         swallowing_relationships: Dict[str, Dict[str, WindowInfo]],
     ) -> None:
         """Launch applications and create groups during the process"""
-        self.debug_print(f"Starting grouped launch with {len(windows)} windows")
+        self.debugger.debug(f"Starting grouped launch with {len(windows)} windows")
         # Group windows by group_id
         windows_by_group: Dict[str, List[WindowInfo]] = {}
         ungrouped_windows: List[WindowInfo] = []
@@ -546,22 +542,22 @@ class SessionRestore(Utils):
             else:
                 ungrouped_windows.append(window)
 
-        self.debug_print(
+        self.debugger.debug(
             f"Organized into {len(windows_by_group)} groups and {len(ungrouped_windows)} ungrouped windows"
         )
 
         # Launch ungrouped windows first (with swallowing support)
-        self.debug_print(f"Launching {len(ungrouped_windows)} ungrouped windows")
+        self.debugger.debug(f"Launching {len(ungrouped_windows)} ungrouped windows")
         if ungrouped_windows:
             self.launch_windows_simple(ungrouped_windows, swallowing_relationships)
 
         # Launch grouped windows with swallowing support
-        self.debug_print(f"Launching {len(windows_by_group)} groups")
+        self.debugger.debug(f"Launching {len(windows_by_group)} groups")
         for group_id, group_windows in windows_by_group.items():
-            self.debug_print(
+            self.debugger.debug(
                 f"Launching group {group_id[:8]}... with {len(group_windows)} windows"
             )
-            self.debug_print(
+            self.debugger.debug(
                 f"Processing group {group_id} with {len(group_windows)} windows"
             )
             
