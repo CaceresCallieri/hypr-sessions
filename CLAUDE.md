@@ -699,6 +699,30 @@ The complete archive system is ready for production use with enterprise-grade:
 - **Performance**: Lazy loading, efficient rendering for large data sets
 - **Thread Safety**: Proper async patterns with UI thread protection
 
+### Component Architecture Patterns
+
+#### Dynamic Property Pattern for Mode Management
+
+**Problem**: Manual synchronization between components creates fragile coupling and multiple failure points.
+
+**Solution**: Use dynamic properties that always fetch current state from authoritative source.
+
+```python
+# Component that needs mode information
+class Operation:
+    def __init__(self, panel, backend_client):
+        super().__init__(panel, backend_client)
+    
+    @property
+    def is_archive_mode(self) -> bool:
+        """Get current mode from panel (single source of truth)"""
+        return getattr(self.panel, 'is_archive_mode', False)
+```
+
+**Benefits**: Eliminates manual sync code, prevents stale state, automatic updates, single source of truth.
+
+**Usage**: Apply to any component that needs to stay synchronized with parent state (archive mode, debug mode, UI themes).
+
 ### Session Management Patterns
 
 - **Validation**: Early input validation with actionable error messages

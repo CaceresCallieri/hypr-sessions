@@ -13,10 +13,14 @@ from constants import RESTORING_STATE
 class RestoreOperation(BaseOperation):
     """Restore operation implementation (supports both active and archive modes)"""
     
-    def __init__(self, panel, backend_client, is_archive_mode=False):
-        """Initialize the restore operation with optional archive mode support"""
-        self.is_archive_mode = is_archive_mode
+    def __init__(self, panel, backend_client):
+        """Initialize the restore operation with dynamic mode from panel"""
         super().__init__(panel, backend_client)
+    
+    @property
+    def is_archive_mode(self) -> bool:
+        """Get current archive mode from panel (dynamic property)"""
+        return getattr(self.panel, 'is_archive_mode', False)
     
     def execute_backend_operation(self, session_name: str) -> Dict[str, Any]:
         """Execute the restore or recovery operation via backend"""

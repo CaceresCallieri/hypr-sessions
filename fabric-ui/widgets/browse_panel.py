@@ -73,9 +73,9 @@ class BrowsePanelWidget(Box):
         # Archive mode state management (Phase 1, Task 1) - initialize before operations
         self.is_archive_mode = False        # Mode toggle (False = active, True = archived)
 
-        # Initialize operation handlers with correct archive mode
+        # Initialize operation handlers (restore operation gets mode dynamically)
         self.delete_operation = DeleteOperation(self, self.backend_client)
-        self.restore_operation = RestoreOperation(self, self.backend_client, self.is_archive_mode)
+        self.restore_operation = RestoreOperation(self, self.backend_client)
 
         # Initialize modular components
         self.widget_pool = SessionWidgetPool(self.debug_logger)
@@ -380,11 +380,8 @@ class BrowsePanelWidget(Box):
         # Preserve current search query
         current_search = self.search_manager.get_search_query() if hasattr(self, 'search_manager') else ""
         
-        # Toggle mode
+        # Toggle mode (RestoreOperation gets mode dynamically)
         self.is_archive_mode = not self.is_archive_mode
-        
-        # Update RestoreOperation mode to match browse panel mode
-        self.restore_operation.is_archive_mode = self.is_archive_mode
         
         # Update visual styling for mode distinction
         self._update_mode_styling()
@@ -452,11 +449,8 @@ class BrowsePanelWidget(Box):
         
         # Handle ESC key in archive mode - only return to active sessions from browsing state
         if event.keyval == Gdk.KEY_Escape and self.is_archive_mode and self.state == BROWSING_STATE:
-            # Return to active sessions mode
+            # Return to active sessions mode (RestoreOperation gets mode dynamically)
             self.is_archive_mode = False
-            
-            # Update RestoreOperation mode to match browse panel mode
-            self.restore_operation.is_archive_mode = self.is_archive_mode
             
             # Update visual styling for mode distinction
             self._update_mode_styling()
