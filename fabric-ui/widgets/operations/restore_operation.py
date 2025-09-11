@@ -56,8 +56,4 @@ class RestoreOperation(BaseOperation):
         """Handle post-operation cleanup based on mode"""
         if self.is_archive_mode:
             # After recovery, refresh to show updated session lists (archive → active)
-            # The base class handles the actual panel refresh
-            pass
-        else:
-            # No cleanup needed for restore - session list unchanged
-            pass
+            self.panel.refresh()
