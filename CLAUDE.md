@@ -1160,6 +1160,9 @@ After every change to this codebase:
 - No `!important` declarations supported
 - No backdrop-filter or advanced web CSS properties
 - Button styling requires targeting both element AND nested labels
+- **Variable System Limitations**: `@define-color` only works with color values, not dimensions, timing, or opacity values
+- **No CSS Custom Properties**: `:root` and `var()` syntax not supported
+- **No Dimensional Variables**: No equivalent to `@define-color` for spacing, border-radius, or other non-color values
 
 **CSS Specificity Issue & Solution**:
 
@@ -1205,6 +1208,21 @@ border: 2px solid alpha(#ffffff, 0.3);
 - **Opacity Levels**: `@opacity_minimal` (0.01) through `@opacity_max` (0.9) for consistent transparency
 
 **Benefits**: Single-location theming adjustments, consistent design rhythm, professional design token pattern, and easy maintenance for future UI modifications.
+
+**GTK3-Compatible Design System Implementation**: Due to GTK3's limitations with dimensional variables, the design system uses comprehensive CSS comments with semantic naming conventions:
+
+```css
+/* Design system documentation as organized comments */
+border-radius: 24px; /* @radius-xlarge */
+padding: 40px; /* @spacing-massive */
+margin: 12px; /* @spacing-medium */
+```
+
+This approach provides:
+- **Consistent Naming**: Semantic variable names in comments for maintainability
+- **Documentation**: Comprehensive design system documentation at the top of CSS file
+- **GTK3 Compatibility**: Uses hardcoded values that GTK3 CSS engine accepts
+- **Design Intent Preservation**: Maintains design system benefits without technical limitations
 
 #### GTK3 CSS Variables Support
 
