@@ -1,42 +1,14 @@
 """
-Session recovery functionality - secure recovery of archived sessions back to active status.
+Session recovery functionality - restore archived sessions back to active status.
 
-This module provides comprehensive session recovery capabilities with production-ready
-security features, atomic operations, and data safety guarantees. The recovery system
-uses a metadata-first pattern to ensure complete success or complete rollback,
-preventing partial recovery corruption.
+Provides secure recovery of archived sessions with atomic operations and data safety.
+Uses metadata-first pattern ensuring complete success or complete rollback.
 
-Key Components:
-- SessionRecovery: Main recovery class with atomic operations
-- Path traversal prevention and input validation
-- Metadata parsing with type validation and safe fallbacks
-- Recovery marker system for health monitoring and cleanup
-- Comprehensive error handling with specific exception types
-
-Security Features:
-- Defense-in-depth validation preventing path traversal attacks
-- Safe name extraction with validated fallbacks
-- Atomic file operations with automatic rollback on failure
-- Complete audit trail through recovery markers and debug logging
-
-Example Usage:
-    from commands.recover import SessionRecovery
-    
-    # Create recoverer instance
-    recoverer = SessionRecovery(debug=True)
-    
-    # Recover session with original name
-    result = recoverer.recover_session("work-session-20250831-143022")
-    
-    # Recover session with custom name
-    result = recoverer.recover_session("work-session-20250831-143022", "new-work")
-    
-    # Check results
-    if result.success:
-        print(f"Recovered {result.data['files_recovered']} files to {result.data['recovered_session_name']}")
-    else:
-        for error in result.errors:
-            print(f"Recovery failed: {error.message}")
+Key features:
+- Path traversal protection and input validation
+- Atomic file operations with automatic rollback
+- Recovery marker system for interrupted operation cleanup
+- Support for original name recovery or custom naming
 """
 
 import json
@@ -48,7 +20,7 @@ from .shared.config import get_config, SessionConfig
 from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
 from .shared.utils import Utils
-from .shared.validation import SessionValidator, SessionNotFoundError, SessionValidationError, SessionAlreadyExistsError
+from .shared.validation import SessionValidator, SessionNotFoundError, SessionValidationError, SessionAlreadyExistsError, InvalidSessionNameError
 from .shared.path_cache import path_cache
 
 
