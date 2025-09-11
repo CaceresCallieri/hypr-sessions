@@ -14,53 +14,53 @@
 /* Status Colors */
 @define-color error_color #ff6b7a;
 
-/* Dimensional Variables - 4px Base Unit System */
-@define-color base_unit 4px;                    /* 4px base unit */
-@define-color spacing_tiny 4px;                 /* 1 * base_unit */
-@define-color spacing_small 6px;                /* 1.5 * base_unit */
-@define-color spacing_xsmall 8px;               /* 2 * base_unit */
-@define-color spacing_small_medium 10px;        /* 2.5 * base_unit */
-@define-color spacing_medium 12px;              /* 3 * base_unit */
-@define-color spacing_medium_large 14px;        /* 3.5 * base_unit */
-@define-color spacing_large 15px;               /* ~3.75 * base_unit */
-@define-color spacing_large_16 16px;            /* 4 * base_unit */
-@define-color spacing_xlarge 18px;              /* 4.5 * base_unit */
-@define-color spacing_xxlarge 20px;             /* 5 * base_unit */
-@define-color spacing_xxlarge_22 22px;          /* 5.5 * base_unit */
-@define-color spacing_xxxlarge 24px;            /* 6 * base_unit */
-@define-color spacing_huge 25px;                /* ~6.25 * base_unit */
-@define-color spacing_huge_28 28px;             /* 7 * base_unit */
-@define-color spacing_massive 40px;             /* 10 * base_unit */
+/*
+==============================================================================
+DESIGN SYSTEM CONSTANTS - Mac Tahoe Aesthetic (GTK3 Compatible)
+==============================================================================
 
-/* Border Radius Variables */
-@define-color radius_small 12px;                /* Button radius */
-@define-color radius_medium 16px;               /* Container radius */
-@define-color radius_large 18px;                /* Toggle button radius */
-@define-color radius_xlarge 24px;               /* Window radius */
+Due to GTK3 CSS limitations, we cannot use CSS variables for dimensions.
+This design system documents the standardized values used throughout the UI.
 
-/* Transition Variables */
-@define-color transition_fast 0.3s;             /* Fast transitions */
-@define-color transition_normal 0.4s;           /* Normal transitions */
+SPACING SYSTEM (4px base unit):
+- 4px   : Tiny spacing (buttons margins, small gaps)
+- 6px   : Small spacing (input padding)  
+- 8px   : XSmall spacing (label margins)
+- 10px  : Small-Medium spacing (button padding)
+- 12px  : Medium spacing (container padding, margins)
+- 14px  : Medium-Large spacing (button padding)
+- 15px  : Large spacing (headers, sections)
+- 16px  : Large-16 spacing (container padding)
+- 18px  : XLarge spacing (button padding)
+- 20px  : XXLarge spacing (container padding)
+- 22px  : XXLarge-22 spacing (button padding)
+- 24px  : XXXLarge spacing (major sections)
+- 25px  : Huge spacing (window margins)
+- 28px  : Huge-28 spacing (special sections)
+- 40px  : Massive spacing (window padding)
 
-/* Opacity Level Variables */
-@define-color opacity_minimal 0.01;             /* Minimal backgrounds */
-@define-color opacity_subtle 0.02;              /* Subtle backgrounds */
-@define-color opacity_subtle_03 0.03;           /* Subtle backgrounds */
-@define-color opacity_subtle_04 0.04;           /* Subtle backgrounds */
-@define-color opacity_light 0.05;               /* Light backgrounds */
-@define-color opacity_light_08 0.08;            /* Light backgrounds */
-@define-color opacity_medium_10 0.1;            /* Medium backgrounds */
-@define-color opacity_medium_12 0.12;           /* Medium backgrounds */
-@define-color opacity_medium 0.15;              /* Medium backgrounds */
-@define-color opacity_medium_20 0.2;            /* Medium backgrounds */
-@define-color opacity_strong 0.25;              /* Strong backgrounds */
-@define-color opacity_strong_30 0.3;            /* Strong backgrounds */
-@define-color opacity_stronger 0.4;             /* Stronger backgrounds */
-@define-color opacity_strongest_50 0.5;         /* Strongest backgrounds */
-@define-color opacity_strongest_60 0.6;         /* Strongest backgrounds */
-@define-color opacity_strong_70 0.7;            /* Strong backgrounds */
-@define-color opacity_strongest_80 0.8;         /* Strongest backgrounds */
-@define-color opacity_max 0.9;                  /* Maximum opacity */
+BORDER RADIUS SYSTEM:
+- 12px  : Small radius (buttons, inputs)
+- 16px  : Medium radius (containers)
+- 18px  : Large radius (toggle buttons)
+- 24px  : XLarge radius (window, major containers)
+
+TRANSITION TIMING:
+- 0.3s  : Fast transitions (buttons, hovers)
+- 0.4s  : Normal transitions (backgrounds)
+
+OPACITY LEVELS:
+- 0.01-0.05  : Minimal/subtle backgrounds
+- 0.08-0.15  : Light backgrounds  
+- 0.2-0.3    : Medium backgrounds
+- 0.4-0.6    : Strong backgrounds
+- 0.7-0.9    : Maximum opacity levels
+
+USAGE: When modifying styles, refer to this design system and use the
+standardized values to maintain consistent spacing and visual rhythm.
+==============================================================================
+*/
+
 
 * {
 	all: unset;
@@ -69,36 +69,36 @@
 }
 
 window {
-	background-color: alpha(@glass_dark_primary, @opacity_medium_10);
+	background-color: alpha(@glass_dark_primary, 0.1);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@glass_dark_secondary, @opacity_strong_30),
-		alpha(@glass_dark_tertiary, @opacity_strongest_50)
+		alpha(@glass_dark_secondary, 0.3),
+		alpha(@glass_dark_tertiary, 0.5)
 	);
-	border: 2px solid alpha(@primary_white, @opacity_strong_30);
-	border-radius: @radius_xlarge;
-	padding: @spacing_massive;
-	margin: @spacing_huge;
+	border: 2px solid alpha(@primary_white, 0.3);
+	border-radius: 24px; /* @radius-xlarge */
+	padding: 40px; /* @spacing-massive */
+	margin: 25px; /* @spacing-huge */
 	min-width: 320px;
 	min-height: 180px;
 	transition:
-		background-color @transition_normal ease-out,
-		border-color @transition_normal ease-out;
+		background-color 0.4s ease-out,
+		border-color 0.4s ease-out;
 }
 
 #hello-label {
 	color: @primary_white;
 	font-weight: bold;
 	font-size: 20px;
-	margin: @spacing_large;
-	padding: @spacing_xsmall;
+	margin: 15px;
+	padding: 8px;
 }
 
 #subtitle-label {
 	color: alpha(@primary_white, 0.7);
 	font-size: 14px;
-	margin: @spacing_xsmall;
-	padding: @spacing_small;
+	margin: 8px;
+	padding: 6px;
 }
 
 label {
@@ -108,66 +108,66 @@ label {
 
 #content-box {
 	background-color: transparent;
-	padding: @spacing_large;
+	padding: 15px;
 }
 
 /* Sessions section */
 #sessions-header {
 	color: @primary_white;
 	font-weight: bold;
-	margin: @spacing_xsmall 0;
+	margin: 8px 0;
 }
 
 #sessions-container {
-	background-color: alpha(@glass_dark_secondary, @opacity_stronger);
+	background-color: alpha(@glass_dark_secondary, 0.4);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_light),
-		alpha(@primary_white, @opacity_subtle)
+		alpha(@primary_white, 0.05),
+		alpha(@primary_white, 0.02)
 	);
-	border: 1px solid alpha(@primary_white, @opacity_medium_10);
-	border-radius: @radius_medium;
-	padding: @spacing_large_16;
+	border: 1px solid alpha(@primary_white, 0.1);
+	border-radius: 16px;
+	padding: 16px;
 	min-height: 100px;
 }
 
 #session-button {
-	background-color: alpha(@primary_white, @opacity_light_08);
+	background-color: alpha(@primary_white, 0.08);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_medium_10),
-		alpha(@primary_white, @opacity_light)
+		alpha(@primary_white, 0.1),
+		alpha(@primary_white, 0.05)
 	);
-	color: alpha(@primary_white, @opacity_strongest_80);
-	border: 1px solid alpha(@primary_white, @opacity_medium);
-	border-radius: @radius_small;
-	padding: @spacing_medium_large @spacing_xlarge;
-	margin: @spacing_tiny 0;
+	color: alpha(@primary_white, 0.8);
+	border: 1px solid alpha(@primary_white, 0.15);
+	border-radius: 12px;
+	padding: 14px 18px;
+	margin: 4px 0;
 	min-width: 260px;
 	transition-property: background-color, border-color, color;
-	transition-duration: @transition_fast;
+	transition-duration: 0.3s;
 	transition-timing-function: ease-out;
 }
 
 #session-button:hover {
-	background-color: alpha(@primary_white, @opacity_medium_12);
+	background-color: alpha(@primary_white, 0.12);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_medium),
-		alpha(@primary_white, @opacity_light_08)
+		alpha(@primary_white, 0.15),
+		alpha(@primary_white, 0.08)
 	);
-	border-color: alpha(@primary_white, @opacity_stronger);
+	border-color: alpha(@primary_white, 0.4);
 }
 
 #session-button.selected {
-	background-color: alpha(@primary_white, @opacity_strong);
+	background-color: alpha(@primary_white, 0.25);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_strong_30),
-		alpha(@primary_white, @opacity_medium_20)
+		alpha(@primary_white, 0.3),
+		alpha(@primary_white, 0.2)
 	);
 	color: @warm_dark;
-	border: 2px solid alpha(@primary_white, @opacity_strongest_60);
+	border: 2px solid alpha(@primary_white, 0.6);
 	font-weight: bold;
 }
 
@@ -176,8 +176,8 @@ label {
 }
 
 #no-sessions-label {
-	color: alpha(@primary_white, @opacity_strongest_50);
-	padding: @spacing_xxxlarge;
+	color: alpha(@primary_white, 0.5);
+	padding: 24px;
 }
 
 /* Scroll indicators */
@@ -189,52 +189,52 @@ label {
 
 /* Toggle switch section */
 #toggle-container {
-	background-color: alpha(@glass_dark_secondary, @opacity_strong_30);
+	background-color: alpha(@glass_dark_secondary, 0.3);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_light),
-		alpha(@primary_white, @opacity_subtle)
+		alpha(@primary_white, 0.05),
+		alpha(@primary_white, 0.02)
 	);
-	border: 1px solid alpha(@primary_white, @opacity_medium_10);
-	border-radius: @radius_medium;
-	padding: @spacing_xxlarge;
-	margin: @spacing_medium;
+	border: 1px solid alpha(@primary_white, 0.1);
+	border-radius: 16px;
+	padding: 20px;
+	margin: 12px;
 }
 
 /* Segmented toggle switch container */
 #segmented-toggle {
-	background-color: alpha(@glass_dark_primary, @opacity_strongest_60);
-	background-image: linear-gradient(to bottom, alpha(@primary_white, @opacity_subtle_03), alpha(#000000, @opacity_medium_10));
-	border-radius: @radius_xlarge;
-	padding: @spacing_small;
-	border: 1px solid alpha(@primary_white, @opacity_medium_20);
+	background-color: alpha(@glass_dark_primary, 0.6);
+	background-image: linear-gradient(to bottom, alpha(@primary_white, 0.03), alpha(#000000, 0.1));
+	border-radius: 24px;
+	padding: 6px;
+	border: 1px solid alpha(@primary_white, 0.2);
 }
 
 /* Toggle button base styles */
 #browse-button,
 #save-button {
-	border-radius: @radius_large;
-	padding: @spacing_small_medium @spacing_medium_large;
+	border-radius: 18px;
+	padding: 10px 14px;
 	font-weight: bold;
 	font-size: 13px;
 	min-width: 130px;
 	background-color: transparent;
 	background-image: none;
-	color: alpha(@primary_white, @opacity_strong_70);
+	color: alpha(@primary_white, 0.7);
 	border: 1px solid transparent;
 }
 
 /* Active toggle button state */
 #browse-button.active,
 #save-button.active {
-	background-color: alpha(@primary_white, @opacity_strongest_80);
+	background-color: alpha(@primary_white, 0.8);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_max),
-		alpha(@secondary_white, @opacity_strongest_80)
+		alpha(@primary_white, 0.9),
+		alpha(@secondary_white, 0.8)
 	);
 	color: @warm_dark;
-	border: 1px solid alpha(@primary_white, @opacity_stronger);
+	border: 1px solid alpha(@primary_white, 0.4);
 }
 
 #browse-button.active label,
@@ -245,13 +245,13 @@ label {
 /* Hover effects for inactive toggle buttons */
 #browse-button:not(.active):hover,
 #save-button:not(.active):hover {
-	background-color: alpha(@primary_white, @opacity_medium);
+	background-color: alpha(@primary_white, 0.15);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_light_08),
-		alpha(@primary_white, @opacity_subtle_04)
+		alpha(@primary_white, 0.08),
+		alpha(@primary_white, 0.04)
 	);
-	border-color: alpha(@primary_white, @opacity_strong_30);
+	border-color: alpha(@primary_white, 0.3);
 }
 
 /* Dynamic content area */
@@ -267,71 +267,71 @@ label {
 
 /* Save panel */
 #save-panel {
-	background-color: alpha(@glass_dark_secondary, @opacity_stronger);
+	background-color: alpha(@glass_dark_secondary, 0.4);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_light),
-		alpha(@primary_white, @opacity_subtle)
+		alpha(@primary_white, 0.05),
+		alpha(@primary_white, 0.02)
 	);
-	border: 1px solid alpha(@primary_white, @opacity_medium_10);
-	border-radius: @radius_medium;
-	padding: @spacing_xxxlarge;
-	margin: @spacing_medium 0;
+	border: 1px solid alpha(@primary_white, 0.1);
+	border-radius: 16px;
+	padding: 24px;
+	margin: 12px 0;
 }
 
 #save-header {
 	color: @primary_white;
 	font-weight: bold;
-	margin-bottom: @spacing_large;
+	margin-bottom: 15px;
 }
 
 #session-name-input {
-	background-color: alpha(@glass_dark_primary, @opacity_strongest_60);
-	background-image: linear-gradient(to bottom, alpha(#000000, @opacity_medium_10), alpha(@primary_white, @opacity_light));
-	border: 2px solid alpha(@primary_white, @opacity_medium_20);
-	border-radius: @radius_small;
-	padding: @spacing_medium @spacing_large_16;
+	background-color: alpha(@glass_dark_primary, 0.6);
+	background-image: linear-gradient(to bottom, alpha(#000000, 0.1), alpha(@primary_white, 0.05));
+	border: 2px solid alpha(@primary_white, 0.2);
+	border-radius: 12px;
+	padding: 12px 16px;
 	color: @primary_white;
 	font-size: 14px;
 	min-width: 270px;
 	transition-property: border-color, background-color;
-	transition-duration: @transition_fast;
+	transition-duration: 0.3s;
 	transition-timing-function: ease-out;
 }
 
 #session-name-input:focus {
-	border-color: alpha(@primary_white, @opacity_strongest_60);
-	background-color: alpha(@glass_dark_primary, @opacity_strongest_80);
+	border-color: alpha(@primary_white, 0.6);
+	background-color: alpha(@glass_dark_primary, 0.8);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_light),
-		alpha(@primary_white, @opacity_light_08)
+		alpha(@primary_white, 0.05),
+		alpha(@primary_white, 0.08)
 	);
 }
 
 /* Search input styling - Mac Tahoe theme */
 #session-search-input {
-	background-color: alpha(@glass_dark_primary, @opacity_strongest_60);
-	background-image: linear-gradient(to bottom, alpha(#000000, @opacity_medium_10), alpha(@primary_white, @opacity_light));
-	border: 2px solid alpha(@primary_white, @opacity_medium_20);
-	border-radius: @radius_small;
-	padding: @spacing_medium @spacing_large_16;
+	background-color: alpha(@glass_dark_primary, 0.6);
+	background-image: linear-gradient(to bottom, alpha(#000000, 0.1), alpha(@primary_white, 0.05));
+	border: 2px solid alpha(@primary_white, 0.2);
+	border-radius: 12px;
+	padding: 12px 16px;
 	color: @primary_white;
 	font-size: 14px;
 	min-width: 270px;
-	margin-bottom: @spacing_medium;
+	margin-bottom: 12px;
 	transition-property: border-color, background-color;
-	transition-duration: @transition_fast;
+	transition-duration: 0.3s;
 	transition-timing-function: ease-out;
 }
 
 #session-search-input:focus {
-	border-color: alpha(@primary_white, @opacity_strongest_60);
-	background-color: alpha(@glass_dark_primary, @opacity_strongest_80);
+	border-color: alpha(@primary_white, 0.6);
+	background-color: alpha(@glass_dark_primary, 0.8);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_light),
-		alpha(@primary_white, @opacity_light_08)
+		alpha(@primary_white, 0.05),
+		alpha(@primary_white, 0.08)
 	);
 }
 
@@ -343,18 +343,18 @@ label {
 #restore-back-button,
 #recovery-retry-button,
 #recovery-back-button {
-	background-color: alpha(@primary_white, @opacity_strongest_80);
+	background-color: alpha(@primary_white, 0.8);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_max),
-		alpha(@secondary_white, @opacity_strongest_80)
+		alpha(@primary_white, 0.9),
+		alpha(@secondary_white, 0.8)
 	);
 	color: @warm_dark;
-	border: 2px solid alpha(@primary_white, @opacity_strong_30);
-	border-radius: @radius_small;
+	border: 2px solid alpha(@primary_white, 0.3);
+	border-radius: 12px;
 	font-weight: bold;
 	font-size: 14px;
-	transition: all @transition_fast ease-out;
+	transition: all 0.3s ease-out;
 }
 
 #save-session-button label,
@@ -374,13 +374,13 @@ label {
 #restore-back-button:hover,
 #recovery-retry-button:hover,
 #recovery-back-button:hover {
-	background-color: alpha(@primary_white, @opacity_max);
+	background-color: alpha(@primary_white, 0.9);
 	background-image: linear-gradient(
 		to bottom,
 		alpha(@tertiary_white, 1),
-		alpha(@primary_white, @opacity_strongest_80)
+		alpha(@primary_white, 0.8)
 	);
-	border-color: alpha(@primary_white, @opacity_strongest_60);
+	border-color: alpha(@primary_white, 0.6);
 }
 
 #save-session-button:active,
@@ -394,13 +394,13 @@ label {
 	background-image: linear-gradient(
 		to bottom,
 		alpha(@secondary_white, 1),
-		alpha(@secondary_white, @opacity_max)
+		alpha(@secondary_white, 0.9)
 	);
 }
 
 /* Button-specific sizing */
 #save-session-button {
-	padding: @spacing_medium_large @spacing_xxxlarge;
+	padding: 14px 24px;
 	min-width: 200px;
 }
 
@@ -413,16 +413,16 @@ label {
 #restore-status-info {
 	color: @primary_white;
 	font-weight: bold;
-	padding: @spacing_medium @spacing_large_16;
-	margin-top: @spacing_large;
-	background-color: alpha(@primary_white, @opacity_medium);
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(@primary_white, 0.15);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_medium_20),
-		alpha(@primary_white, @opacity_medium_10)
+		alpha(@primary_white, 0.2),
+		alpha(@primary_white, 0.1)
 	);
-	border: 1px solid alpha(@primary_white, @opacity_strong_30);
-	border-radius: @radius_small;
+	border: 1px solid alpha(@primary_white, 0.3);
+	border-radius: 12px;
 }
 
 #save-status-error,
@@ -430,16 +430,16 @@ label {
 #restore-status-error {
 	color: @error_color;
 	font-weight: bold;
-	padding: @spacing_medium @spacing_large_16;
-	margin-top: @spacing_large;
-	background-color: alpha(@error_color, @opacity_medium);
+	padding: 12px 16px;
+	margin-top: 15px;
+	background-color: alpha(@error_color, 0.15);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@error_color, @opacity_medium_20),
-		alpha(@error_color, @opacity_medium_10)
+		alpha(@error_color, 0.2),
+		alpha(@error_color, 0.1)
 	);
-	border: 1px solid alpha(@error_color, @opacity_strong_30);
-	border-radius: @radius_small;
+	border: 1px solid alpha(@error_color, 0.3);
+	border-radius: 12px;
 }
 
 /* Operation button-specific sizing */
@@ -449,14 +449,14 @@ label {
 #restore-back-button,
 #recovery-retry-button,
 #recovery-back-button {
-	padding: @spacing_medium_large @spacing_xxlarge_22;
+	padding: 14px 22px;
 	min-width: 180px;
-	margin: @spacing_xsmall;
+	margin: 8px;
 }
 
 /* Confirmation buttons container */
 #confirmation-buttons {
-	padding: @spacing_large;
+	padding: 15px;
 	background-color: transparent;
 }
 
@@ -467,25 +467,25 @@ label {
 #restore-confirm-button,
 #recovery-cancel-button,
 #recovery-confirm-button {
-	border-radius: @radius_small;
-	padding: @spacing_medium @spacing_xxlarge;
+	border-radius: 12px;
+	padding: 12px 20px;
 	font-weight: bold;
 	font-size: 14px;
-	transition: all @transition_fast ease-out;
+	transition: all 0.3s ease-out;
 }
 
 /* Cancel buttons (neutral styling) */
 #delete-cancel-button,
 #restore-cancel-button,
 #recovery-cancel-button {
-	background-color: alpha(@primary_white, @opacity_medium);
+	background-color: alpha(@primary_white, 0.15);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_medium_20),
-		alpha(@primary_white, @opacity_medium_10)
+		alpha(@primary_white, 0.2),
+		alpha(@primary_white, 0.1)
 	);
 	color: @primary_white;
-	border: 1px solid alpha(@primary_white, @opacity_strong_30);
+	border: 1px solid alpha(@primary_white, 0.3);
 	min-width: 120px;
 }
 
@@ -498,25 +498,25 @@ label {
 #delete-cancel-button:hover,
 #restore-cancel-button:hover,
 #recovery-cancel-button:hover {
-	background-color: alpha(@primary_white, @opacity_strong);
+	background-color: alpha(@primary_white, 0.25);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_strong_30),
-		alpha(@primary_white, @opacity_medium)
+		alpha(@primary_white, 0.3),
+		alpha(@primary_white, 0.15)
 	);
-	border-color: alpha(@primary_white, @opacity_strongest_50);
+	border-color: alpha(@primary_white, 0.5);
 }
 
 /* Delete confirm button (destructive action - red theme) */
 #delete-confirm-button {
-	background-color: alpha(@error_color, @opacity_strongest_80);
+	background-color: alpha(@error_color, 0.8);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@error_color, @opacity_max),
-		alpha(@error_color, @opacity_strong_70)
+		alpha(@error_color, 0.9),
+		alpha(@error_color, 0.7)
 	);
 	color: @primary_white;
-	border: 2px solid alpha(@error_color, @opacity_strongest_60);
+	border: 2px solid alpha(@error_color, 0.6);
 	min-width: 140px;
 }
 
@@ -526,21 +526,21 @@ label {
 
 #delete-confirm-button:hover {
 	background-color: alpha(@error_color, 1);
-	background-image: linear-gradient(to bottom, alpha(@error_color, 1), alpha(@error_color, @opacity_strongest_80));
-	border-color: alpha(@error_color, @opacity_strongest_80);
+	background-image: linear-gradient(to bottom, alpha(@error_color, 1), alpha(@error_color, 0.8));
+	border-color: alpha(@error_color, 0.8);
 }
 
 /* Restore and Recovery confirm buttons (positive action - white theme) */
 #restore-confirm-button,
 #recovery-confirm-button {
-	background-color: alpha(@primary_white, @opacity_strongest_80);
+	background-color: alpha(@primary_white, 0.8);
 	background-image: linear-gradient(
 		to bottom,
-		alpha(@primary_white, @opacity_max),
-		alpha(@secondary_white, @opacity_strongest_80)
+		alpha(@primary_white, 0.9),
+		alpha(@secondary_white, 0.8)
 	);
 	color: @warm_dark;
-	border: 2px solid alpha(@primary_white, @opacity_stronger);
+	border: 2px solid alpha(@primary_white, 0.4);
 	min-width: 140px;
 }
 
@@ -551,38 +551,38 @@ label {
 
 #restore-confirm-button:hover,
 #recovery-confirm-button:hover {
-	background-color: alpha(@primary_white, @opacity_max);
+	background-color: alpha(@primary_white, 0.9);
 	background-image: linear-gradient(
 		to bottom,
 		alpha(@tertiary_white, 1),
-		alpha(@primary_white, @opacity_strongest_80)
+		alpha(@primary_white, 0.8)
 	);
-	border-color: alpha(@primary_white, @opacity_strongest_60);
+	border-color: alpha(@primary_white, 0.6);
 }
 
 /* Confirmation title spacing */
 #delete-title,
 #restore-title {
-	margin-top: @spacing_huge_28;
+	margin-top: 28px;
 }
 
 /* Keyboard hint styling */
 #delete-keyboard-hint,
 #restore-keyboard-hint {
-	color: alpha(@primary_white, @opacity_strongest_60);
-	margin-top: @spacing_small_medium;
+	color: alpha(@primary_white, 0.6);
+	margin-top: 10px;
 	font-size: 12px;
 }
 
 /* Archive mode visual indicators */
 .archive-mode {
 	/* Slightly different background tint for subtle distinction */
-	background-color: alpha(#f5f5f5, @opacity_subtle);
+	background-color: alpha(#f5f5f5, 0.02);
 }
 
 
 /* Ensure active mode has clean styling (explicit for clarity) */
 .active-mode {
-	background-color: alpha(#ffffff, @opacity_minimal);
+	background-color: alpha(#ffffff, 0.01);
 }
 
