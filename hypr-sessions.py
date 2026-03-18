@@ -407,6 +407,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Ensure storage directories exist and migrations are applied before any operation.
+    config = get_config()
+    config.initialize_storage()
+
     manager = HyprlandSessionManager(debug=args.debug, json_output=args.json)
 
     if args.action == "save":

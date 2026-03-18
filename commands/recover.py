@@ -212,9 +212,8 @@ class SessionRecovery(Utils):
             
             result.add_success("Target session name is available")
             
-            # Ensure active sessions directory exists
-            active_sessions_dir: Path = self.config.get_active_sessions_dir()
-            active_sessions_dir.mkdir(parents=True, exist_ok=True)
+            # Ensure active sessions directory exists for the recovery write
+            self.config.ensure_active_sessions_dir()
             
         except (SessionValidationError, SessionNotFoundError, SessionAlreadyExistsError) as e:
             self.debugger.debug(f"Validation error: {e}")

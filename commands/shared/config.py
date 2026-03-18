@@ -71,11 +71,9 @@ class SessionConfig:
                 "neovide": "neovide",
             }
 
-        # Ensure sessions directory exists
-        self.sessions_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Perform automatic migration if needed
-        self._ensure_folder_structure()
+        # Note: Directory creation and migration are deferred to initialize_storage()
+        # to avoid side-effects during construction. The CLI entry point calls
+        # initialize_storage() explicitly before any operations.
 
     @staticmethod
     def _safe_int_from_env(env_var: str, default_value: int, min_val: int, max_val: int) -> int:
@@ -154,15 +152,11 @@ class SessionConfig:
 
     def get_session_file_path(self, session_name: str) -> Path:
         """Get the full path for a session file in the new folder structure"""
-        session_dir = self.sessions_dir / session_name
-        session_dir.mkdir(parents=True, exist_ok=True)
-        return session_dir / "session.json"
+        return (self.sessions_dir / session_name) / "session.json"
 
     def get_session_directory(self, session_name: str) -> Path:
         """Get the session directory path"""
-        session_dir = self.sessions_dir / session_name
-        session_dir.mkdir(parents=True, exist_ok=True)
-        return session_dir
+        return self.sessions_dir / session_name
 
     def get_neovide_session_file_path(self, session_name: str, pid: int) -> Path:
         """Get the path for a Neovide session file within a session directory"""
@@ -180,22 +174,28 @@ class SessionConfig:
     # Archive System Methods
     
     def get_active_sessions_dir(self) -> Path:
-        """Get the active sessions directory path (new folder structure)"""
-        active_dir = self.sessions_dir / "sessions"
-        active_dir.mkdir(parents=True, exist_ok=True)
-        return active_dir
+        """Get the active sessions directory path (new folder structure).
+
+        Returns the path without creating the directory. Use ensure_active_sessions_dir()
+        when the directory must exist for write operations.
+        """
+        return self.sessions_dir / "sessions"
     
     def get_archived_sessions_dir(self) -> Path:
-        """Get the archived sessions directory path"""
-        archived_dir = self.sessions_dir / "archived"
-        archived_dir.mkdir(parents=True, exist_ok=True)
-        return archived_dir
+        """Get the archived sessions directory path.
+
+        Returns the path without creating the directory. Use ensure_archived_sessions_dir()
+        when the directory must exist for write operations.
+        """
+        return self.sessions_dir / "archived"
     
     def get_active_session_directory(self, session_name: str) -> Path:
-        """Get an active session directory path (new structure)"""
-        session_dir = self.get_active_sessions_dir() / session_name
-        session_dir.mkdir(parents=True, exist_ok=True)
-        return session_dir
+        """Get an active session directory path (new structure).
+
+        Returns the path without creating the directory. Use ensure_active_session_directory()
+        when the directory must exist for write operations.
+        """
+        return self.get_active_sessions_dir() / session_name
     
     def get_active_session_file_path(self, session_name: str) -> Path:
         """Get the active session file path (new structure)"""
@@ -213,6 +213,37 @@ class SessionConfig:
         """Get the archive metadata file path"""
         return self.get_archived_session_directory(archived_session_name) / ".archive-metadata.json"
     
+    # --- Directory creation methods (ensure_*) ---
+    # Use these when the directory MUST exist for write operations.
+
+    def ensure_active_sessions_dir(self) -> Path:
+        """Return the active sessions directory, creating it if necessary."""
+        active_dir = self.get_active_sessions_dir()
+        active_dir.mkdir(parents=True, exist_ok=True)
+        return active_dir
+
+    def ensure_archived_sessions_dir(self) -> Path:
+        """Return the archived sessions directory, creating it if necessary."""
+        archived_dir = self.get_archived_sessions_dir()
+        archived_dir.mkdir(parents=True, exist_ok=True)
+        return archived_dir
+
+    def ensure_active_session_directory(self, session_name: str) -> Path:
+        """Return an active session directory, creating it if necessary."""
+        session_dir = self.get_active_session_directory(session_name)
+        session_dir.mkdir(parents=True, exist_ok=True)
+        return session_dir
+
+    def initialize_storage(self) -> None:
+        """Create base directories and run any pending migrations.
+
+        Call this once from the CLI entry point before performing operations.
+        Separated from __post_init__ so that constructing a SessionConfig for
+        path queries alone does not trigger filesystem side-effects.
+        """
+        self.sessions_dir.mkdir(parents=True, exist_ok=True)
+        self._ensure_folder_structure()
+
     def _ensure_folder_structure(self) -> None:
         """Ensure proper folder structure and migrate if needed"""
         # Check if we need to migrate from old flat structure to new nested structure
@@ -247,8 +278,8 @@ class SessionConfig:
         print("🔄 Migrating session storage to new archive-enabled structure...")
         
         # Create the new directories
-        active_dir = self.get_active_sessions_dir()
-        archived_dir = self.get_archived_sessions_dir()
+        active_dir = self.ensure_active_sessions_dir()
+        archived_dir = self.ensure_archived_sessions_dir()
         
         # Find all session directories in root
         session_dirs = [d for d in self.sessions_dir.iterdir() 
