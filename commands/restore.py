@@ -276,6 +276,58 @@ class SessionRestore(Utils):
         
         return result
 
+    def _launch_window_pair_with_swallowing_fallback(
+        self,
+        primary_window: WindowInfo,
+        secondary_window: WindowInfo,
+        launched_addresses: set,
+    ) -> None:
+        """Launch a swallowing window pair with fallback to independent launches.
+
+        Attempts to create and launch a combined swallowing command for the
+        primary (swallowing) and secondary (swallowed) windows. If the combined
+        command cannot be created or fails to launch, both windows are launched
+        independently. Both window addresses are tracked in launched_addresses
+        regardless of which path succeeds.
+
+        Args:
+            primary_window: The swallowing window (e.g. GUI app like Neovide).
+            secondary_window: The swallowed window (e.g. terminal).
+            launched_addresses: Set to track launched window addresses.
+        """
+        primary_class = primary_window.get("class", "")
+        secondary_class = secondary_window.get("class", "")
+        primary_address = primary_window.get("address", "")
+        secondary_address = secondary_window.get("address", "")
+
+        combined_command = self.create_swallowing_command(primary_window, secondary_window)
+
+        if combined_command:
+            self.debugger.debug(
+                f"Launching swallowing pair: {primary_class} + {secondary_class}"
+            )
+            self.debugger.debug(f"Combined swallowing command: {combined_command}")
+
+            launch_success = self._launch_window_command_with_timeout(combined_command, timeout=30)
+
+            if launch_success:
+                time.sleep(self.get_swallowing_delay())
+                launched_addresses.add(primary_address)
+                launched_addresses.add(secondary_address)
+                return
+            else:
+                self.debugger.debug(
+                    f"Swallowing command launch failed or timed out: {combined_command}"
+                )
+        else:
+            self.debugger.debug("Could not create swallowing command, launching separately")
+
+        # Fallback: launch both windows independently
+        self._launch_single_window(primary_window)
+        self._launch_single_window(secondary_window)
+        launched_addresses.add(primary_address)
+        launched_addresses.add(secondary_address)
+
     def launch_windows_simple(
         self,
         windows: List[WindowInfo],
@@ -315,44 +367,12 @@ class SessionRestore(Utils):
 
             # Check if this window is swallowing another window
             if window_address in swallowing_relationships:
-                # This window is swallowing another - create combined command
                 relationship = swallowing_relationships[window_address]
-                swallowing_window = relationship["swallowing"]
-                swallowed_window = relationship["swallowed"]
-
-                combined_command = self.create_swallowing_command(
-                    swallowing_window, swallowed_window
+                self._launch_window_pair_with_swallowing_fallback(
+                    relationship["swallowing"],
+                    relationship["swallowed"],
+                    launched_addresses,
                 )
-                if combined_command:
-                    self.debugger.debug(
-                        f"Launching swallowing pair: {swallowing_window.get('class')} + {swallowed_window.get('class')}"
-                    )
-                    self.debugger.debug(f"Combined swallowing command: {combined_command}")
-
-                    # Use timeout-protected launch
-                    launch_success = self._launch_window_command_with_timeout(combined_command, timeout=30)
-                    
-                    if launch_success:
-                        time.sleep(self.get_swallowing_delay())
-                        # Mark both windows as launched
-                        launched_addresses.add(swallowing_window.get("address", ""))
-                        launched_addresses.add(swallowed_window.get("address", ""))
-                    else:
-                        self.debugger.debug(f"Swallowing command launch failed or timed out: {combined_command}")
-                        # Fall back to separate launches
-                        self._launch_single_window(swallowing_window)
-                        self._launch_single_window(swallowed_window)
-                        launched_addresses.add(swallowing_window.get("address", ""))
-                        launched_addresses.add(swallowed_window.get("address", ""))
-                else:
-                    # Fall back to separate launches
-                    self.debugger.debug(
-                        f"Could not create swallowing command, launching separately"
-                    )
-                    self._launch_single_window(swallowing_window)
-                    self._launch_single_window(swallowed_window)
-                    launched_addresses.add(swallowing_window.get("address", ""))
-                    launched_addresses.add(swallowed_window.get("address", ""))
             else:
                 # Regular window launch
                 self._launch_single_window(window)
@@ -411,47 +431,31 @@ class SessionRestore(Utils):
         # Launch first effective window (group leader)
         first_window = effective_group_windows[0]
         first_window_address = first_window.get("address", "")
-        
+        launched_addresses = set()
+
         # Check if the first window is involved in swallowing
         if first_window_address in swallowing_relationships:
-            # Group leader is swallowing another window
             relationship = swallowing_relationships[first_window_address]
-            swallowing_window = relationship["swallowing"]
-            swallowed_window = relationship["swallowed"]
-            
-            combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
-            if combined_command:
-                self.debugger.debug(f"Launching group leader (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
-                self.debugger.debug(f"Group leader swallowing command: {combined_command}")
-                command = combined_command
-                use_swallowing_delay = True
-            else:
-                # Fall back to separate launch
-                command = first_window.get("launch_command", "")
-                use_swallowing_delay = False
+            self.debugger.debug(f"Launching group leader with swallowing fallback")
+            self._launch_window_pair_with_swallowing_fallback(
+                relationship["swallowing"],
+                relationship["swallowed"],
+                launched_addresses,
+            )
+            if first_window_address not in launched_addresses:
+                self.debugger.debug("Group leader swallowing launch failed, skipping group creation")
+                return
         else:
             # Regular group leader
             command = first_window.get("launch_command", "")
-            use_swallowing_delay = False
-        
-        if not command:
-            self.debugger.debug("No command for group leader, skipping group creation")
-            return
-        
-        # Launch group leader
-        self.debugger.debug(f"Launching group leader: {command}")
-        
-        # Use timeout-protected launch for group leader
-        launch_success = self._launch_window_command_with_timeout(command, timeout=30)
-        
-        if not launch_success:
-            self.debugger.debug(f"Group leader launch failed or timed out: {command}")
-            return
-        
-        # Use appropriate delay
-        if use_swallowing_delay:
-            time.sleep(self.get_swallowing_delay())
-        else:
+            if not command:
+                self.debugger.debug("No command for group leader, skipping group creation")
+                return
+            self.debugger.debug(f"Launching group leader: {command}")
+            launch_success = self._launch_window_command_with_timeout(command, timeout=30)
+            if not launch_success:
+                self.debugger.debug(f"Group leader launch failed or timed out: {command}")
+                return
             time.sleep(self.config.delay_between_instructions)
 
         # Make it a group
@@ -463,46 +467,30 @@ class SessionRestore(Utils):
             # Launch remaining effective windows (they will auto-join the group)
             for window in effective_group_windows[1:]:
                 window_address = window.get("address", "")
-                
+
                 # Check if this window is involved in swallowing
                 if window_address in swallowing_relationships:
-                    # This window is swallowing another
                     relationship = swallowing_relationships[window_address]
-                    swallowing_window = relationship["swallowing"]
-                    swallowed_window = relationship["swallowed"]
-                    
-                    combined_command = self.create_swallowing_command(swallowing_window, swallowed_window)
-                    if combined_command:
-                        self.debugger.debug(f"Launching group member (swallowing): {swallowing_window.get('class')} + {swallowed_window.get('class')}")
-                        self.debugger.debug(f"Group member swallowing command: {combined_command}")
-                        member_command = combined_command
-                        use_member_swallowing_delay = True
-                    else:
-                        # Fall back to separate launch
-                        member_command = window.get("launch_command", "")
-                        use_member_swallowing_delay = False
+                    self.debugger.debug(f"Launching group member with swallowing fallback")
+                    self._launch_window_pair_with_swallowing_fallback(
+                        relationship["swallowing"],
+                        relationship["swallowed"],
+                        launched_addresses,
+                    )
                 else:
                     # Regular group member
                     member_command = window.get("launch_command", "")
-                    use_member_swallowing_delay = False
-                
-                if not member_command:
-                    self.debugger.debug(f"No command for group member, skipping")
-                    continue
+                    if not member_command:
+                        self.debugger.debug(f"No command for group member, skipping")
+                        continue
 
-                self.debugger.debug(f"Launching group member: {member_command}")
-                
-                # Use timeout-protected launch for group member
-                member_launch_success = self._launch_window_command_with_timeout(member_command, timeout=30)
-                
-                if not member_launch_success:
-                    self.debugger.debug(f"Group member launch failed or timed out: {member_command}")
-                    continue  # Skip this member but continue with other group members
-                
-                # Use appropriate delay
-                if use_member_swallowing_delay:
-                    time.sleep(self.get_swallowing_delay())
-                else:
+                    self.debugger.debug(f"Launching group member: {member_command}")
+                    member_launch_success = self._launch_window_command_with_timeout(member_command, timeout=30)
+
+                    if not member_launch_success:
+                        self.debugger.debug(f"Group member launch failed or timed out: {member_command}")
+                        continue  # Skip this member but continue with other group members
+
                     time.sleep(self.config.delay_between_instructions)
 
             # Lock the group to prevent other windows from joining
