@@ -61,17 +61,7 @@ class HyprlandSessionManager:
             
             return result.success
         except SessionValidationError as e:
-            if self.json_output:
-                error_result = {
-                    "success": False,
-                    "operation": f"Save session '{session_name}'",
-                    "error": str(e),
-                    "messages": [{"status": "error", "message": str(e), "context": None}]
-                }
-                print(json.dumps(error_result, indent=2))
-                sys.exit(1)
-            else:
-                print(f"Error: {e}")
+            self._handle_validation_error(e, f"Save session '{session_name}'")
             return False
 
     def restore_session(self, session_name: str) -> bool:
@@ -99,17 +89,7 @@ class HyprlandSessionManager:
             
             return result.success
         except SessionValidationError as e:
-            if self.json_output:
-                error_result = {
-                    "success": False,
-                    "operation": f"Restore session '{session_name}'",
-                    "error": str(e),
-                    "messages": [{"status": "error", "message": str(e), "context": None}]
-                }
-                print(json.dumps(error_result, indent=2))
-                sys.exit(1)
-            else:
-                print(f"Error: {e}")
+            self._handle_validation_error(e, f"Restore session '{session_name}'")
             return False
 
     def list_sessions(self, archived: bool = False, show_all: bool = False) -> None:
@@ -192,6 +172,20 @@ class HyprlandSessionManager:
                 print(f"  {session['name']} (Error: {error})")
                 print()
     
+    def _handle_validation_error(self, e: SessionValidationError, operation: str) -> None:
+        """Handle SessionValidationError with consistent JSON/plain output, then exit."""
+        if self.json_output:
+            error_result = {
+                "success": False,
+                "operation": operation,
+                "error": str(e),
+                "messages": [{"status": "error", "message": str(e), "context": None}]
+            }
+            print(json.dumps(error_result, indent=2))
+            sys.exit(1)
+        else:
+            print(f"Error: {e}")
+
     def _output_json_result(self, result) -> None:
         """Output structured JSON result"""
         json_result = {
@@ -238,17 +232,7 @@ class HyprlandSessionManager:
             
             return result.success
         except SessionValidationError as e:
-            if self.json_output:
-                error_result = {
-                    "success": False,
-                    "operation": f"Archive session '{session_name}'",
-                    "error": str(e),
-                    "messages": [{"status": "error", "message": str(e), "context": None}]
-                }
-                print(json.dumps(error_result, indent=2))
-                sys.exit(1)
-            else:
-                print(f"Error: {e}")
+            self._handle_validation_error(e, f"Archive session '{session_name}'")
             return False
 
     def recover_session(self, archived_session_name: str, new_name: Optional[str] = None) -> bool:
@@ -276,17 +260,7 @@ class HyprlandSessionManager:
             
             return result.success
         except SessionValidationError as e:
-            if self.json_output:
-                error_result = {
-                    "success": False,
-                    "operation": f"Recover archived session '{archived_session_name}'",
-                    "error": str(e),
-                    "messages": [{"status": "error", "message": str(e), "context": None}]
-                }
-                print(json.dumps(error_result, indent=2))
-                sys.exit(1)
-            else:
-                print(f"Error: {e}")
+            self._handle_validation_error(e, f"Recover archived session '{archived_session_name}'")
             return False
 
     def health_check(self) -> bool:
