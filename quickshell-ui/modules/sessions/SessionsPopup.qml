@@ -136,11 +136,6 @@ PanelWindow {
                     event.accepted = true;
                     return;
                 }
-                if (SessionService.searchQuery !== "") {
-                    SessionService.searchQuery = "";
-                    event.accepted = true;
-                    return;
-                }
                 Qt.quit();
                 event.accepted = true;
             } else if (event.key === Qt.Key_Q && event.modifiers & Qt.ControlModifier) {

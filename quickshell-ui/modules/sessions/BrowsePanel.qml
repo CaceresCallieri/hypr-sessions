@@ -79,11 +79,8 @@ Item {
         text: {
             if (SessionService.operationState !== "idle")
                 return "Enter confirm  |  Esc cancel";
-            const base = "Up/Down navigate  |  Enter restore  |  d delete";
-            const archiveHint = SessionService.archiveMode
-                ? "  |  Enter recover" : "";
-            const extra = "  |  Ctrl+A archive  |  Ctrl+L clear";
-            return base + archiveHint + extra;
+            const enterAction = SessionService.archiveMode ? "recover" : "restore";
+            return "Up/Down navigate  |  Enter " + enterAction + "  |  d delete  |  Ctrl+A archive  |  Ctrl+L clear";
         }
     }
 
@@ -99,6 +96,17 @@ Item {
 
         Keys.onPressed: event => {
             const hasCtrl = event.modifiers & Qt.ControlModifier;
+
+            // Esc — clear search if active, otherwise let it bubble up
+            if (event.key === Qt.Key_Escape) {
+                if (SessionService.searchQuery !== "") {
+                    searchBar.clear();
+                    event.accepted = true;
+                    return;
+                }
+                // Let it bubble up to SessionsPopup for quit
+                return;
+            }
 
             // Navigation
             if (event.key === Qt.Key_Up) {
@@ -133,8 +141,7 @@ Item {
                         SessionService.requestOperation("delete");
                     event.accepted = true;
                 } else if (event.key === Qt.Key_L) {
-                    SessionService.searchQuery = "";
-                    searchBar.textInput.text = "";
+                    searchBar.clear();
                     event.accepted = true;
                 }
             }

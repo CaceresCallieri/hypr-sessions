@@ -7,6 +7,10 @@ ClippingRect {
 
     property alias textInput: input
 
+    function clear(): void {
+        input.text = "";
+    }
+
     height: 36
     radius: Theme.rounding.small
     color: Theme.layer(Theme.palette.m3surfaceContainer, 1)
@@ -37,7 +41,6 @@ ClippingRect {
             font.family: Theme.font.family.sans
             font.pointSize: Theme.font.size.smaller
 
-            text: SessionService.searchQuery
             onTextChanged: SessionService.searchQuery = text
 
             // Placeholder

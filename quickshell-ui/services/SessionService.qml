@@ -184,12 +184,6 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: root._handleOperationResult(text, _opProc.exitCode)
         }
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0 && root.operationState === "executing") {
-                root.operationError = "Command failed (exit " + exitCode + ")";
-                root.operationState = "error";
-            }
-        }
     }
 
     // Save session
@@ -197,12 +191,6 @@ Singleton {
         id: _saveProc
         stdout: StdioCollector {
             onStreamFinished: root._handleSaveResult(text, _saveProc.exitCode)
-        }
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0 && root.operationState === "executing") {
-                root.operationError = "Save failed (exit " + exitCode + ")";
-                root.operationState = "error";
-            }
         }
     }
 

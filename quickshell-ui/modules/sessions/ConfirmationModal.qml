@@ -34,7 +34,9 @@ ClippingRect {
                 color: Theme.palette.m3primary
             }
         };
-        return configs[SessionService.operationType] ?? configs["restore"];
+        return configs[SessionService.operationType] ?? {
+            icon: "", confirmText: "", executingText: "", successText: "", color: "transparent"
+        };
     }
 
     Column {

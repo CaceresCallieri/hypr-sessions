@@ -45,7 +45,7 @@ ClippingRect {
     StateLayer {
         onClicked: {
             SessionService.selectedSession = root.sessionName;
-            SessionService.requestOperation("restore");
+            SessionService.requestOperation(SessionService.archiveMode ? "recover" : "restore");
         }
     }
 }

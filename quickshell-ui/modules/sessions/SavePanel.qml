@@ -6,7 +6,7 @@ import QtQuick
 Item {
     id: root
 
-    property string savedName: ""
+    property string savedName: "" // preserved for retry — restored on error dismiss
 
     Column {
         anchors.centerIn: parent
@@ -83,6 +83,10 @@ Item {
 
                     Keys.onReturnPressed: _triggerSave()
                     Keys.onEnterPressed: _triggerSave()
+                    Keys.onEscapePressed: {
+                        if (SessionService.operationType === "save" && SessionService.operationState !== "idle")
+                            SessionService.cancelOperation();
+                    }
 
                     // Placeholder
                     StyledText {
