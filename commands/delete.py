@@ -8,7 +8,7 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .shared.config import get_config, SessionConfig
 from .shared.debug import CommandDebugger
 from .shared.operation_result import OperationResult
@@ -23,6 +23,22 @@ class SessionArchive(Utils):
         self.debugger = CommandDebugger("SessionArchive", debug)
         self.config: SessionConfig = get_config()
     
+    def _cleanup_temp_file(self, temp_file: Optional[Path]) -> None:
+        """Remove a temporary metadata file if it exists.
+
+        Handles None input gracefully and catches exceptions during cleanup
+        to prevent masking the original error.
+        """
+        if not temp_file:
+            return
+        if not path_cache.exists(temp_file):
+            return
+        try:
+            temp_file.unlink()
+            self.debugger.debug(f"Cleaned up temporary metadata file: {temp_file}")
+        except Exception as cleanup_error:
+            self.debugger.debug(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
+
     def archive_session(self, session_name: str) -> OperationResult:
         """Archive a saved session to the archived directory"""
         result = OperationResult(operation_name=f"Archive session '{session_name}'")
@@ -112,50 +128,22 @@ class SessionArchive(Utils):
             return result
         except (PermissionError, FileNotFoundError, OSError, IOError) as e:
             self.debugger.debug(f"Filesystem error archiving session directory {session_dir}: {e}")
-            # Clean up temporary metadata file if it exists
-            if temp_metadata_file and path_cache.exists(temp_metadata_file):
-                try:
-                    temp_metadata_file.unlink()
-                    self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
-                except Exception as cleanup_error:
-                    self.debugger.debug(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
-            
+            self._cleanup_temp_file(temp_metadata_file)
             result.add_filesystem_error(e, f"archive session '{session_name}'", str(session_dir))
             return result
         except json.JSONEncodeError as e:
             self.debugger.debug(f"JSON encoding error creating metadata: {e}")
-            # Clean up temporary metadata file if it exists
-            if temp_metadata_file and path_cache.exists(temp_metadata_file):
-                try:
-                    temp_metadata_file.unlink()
-                    self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
-                except Exception as cleanup_error:
-                    self.debugger.debug(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
-            
+            self._cleanup_temp_file(temp_metadata_file)
             result.add_error(f"Archive metadata creation failed: Cannot create archive metadata for session '{session_name}'. {str(e)}")
             return result
         except ValueError as e:
             self.debugger.debug(f"Data validation error archiving session directory {session_dir}: {e}")
-            # Clean up temporary metadata file if it exists
-            if temp_metadata_file and path_cache.exists(temp_metadata_file):
-                try:
-                    temp_metadata_file.unlink()
-                    self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
-                except (OSError, PermissionError) as cleanup_error:
-                    self.debugger.debug(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
-            
+            self._cleanup_temp_file(temp_metadata_file)
             result.add_error(f"Data validation error: Failed to archive session '{session_name}'. {str(e)}")
             return result
         except Exception as e:
             self.debugger.debug(f"Unexpected error archiving session directory {session_dir}: {e}")
-            # Clean up temporary metadata file if it exists
-            if temp_metadata_file and path_cache.exists(temp_metadata_file):
-                try:
-                    temp_metadata_file.unlink()
-                    self.debugger.debug(f"Cleaned up temporary metadata file: {temp_metadata_file}")
-                except Exception as cleanup_error:
-                    self.debugger.debug(f"Warning: Could not clean up temporary metadata file: {cleanup_error}")
-            
+            self._cleanup_temp_file(temp_metadata_file)
             result.add_error(f"Unexpected error: Failed to archive session '{session_name}'. {str(e)}")
             return result
 
