@@ -10,16 +10,13 @@ PanelWindow {
     id: win
 
     color: "transparent"
+    width: Config.sessions.cardWidth
+    height: Config.sessions.cardHeight
 
     WlrLayershell.namespace: "sessions-ui"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-
-    anchors.top: true
-    anchors.bottom: true
-    anchors.left: true
-    anchors.right: true
 
     HyprlandFocusGrab {
         active: true
@@ -34,24 +31,11 @@ PanelWindow {
         anchors.fill: parent
         focus: true
 
-        // Dark scrim background — click to dismiss
-        MouseArea {
-            anchors.fill: parent
-            onClicked: Qt.quit()
-
-            StyledRect {
-                anchors.fill: parent
-                color: Qt.alpha(Theme.palette.m3shadow, 0.5)
-            }
-        }
-
-        // Centered content card
+        // Content card fills the window (window IS the card now)
         ClippingRect {
             id: card
 
-            anchors.centerIn: parent
-            width: Config.sessions.cardWidth
-            height: Config.sessions.cardHeight
+            anchors.fill: parent
             radius: Theme.rounding.large
             color: Theme.layer(Theme.palette.m3surfaceContainerLow, 0)
 
@@ -62,11 +46,6 @@ PanelWindow {
                 radius: card.radius
                 border.width: 1
                 border.color: Qt.alpha(Theme.palette.m3outlineVariant, 0.3)
-            }
-
-            // Stop clicks on card from dismissing
-            MouseArea {
-                anchors.fill: parent
             }
 
             Column {
