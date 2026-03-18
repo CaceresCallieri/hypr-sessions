@@ -42,7 +42,7 @@ def debug_path_operations():
     print(f"  Hit rate: {stats['hit_rate_percent']:.1f}%")
     print(f"  Cache size: {stats['size']}")
     
-    print(f"\nSession count found: {len(result.data.get('sessions', []))}")
+    print(f"\nSession count found: {len(result.data.get('active_sessions', []))}")
     
     # Run again to see cache effectiveness
     print("\n" + "=" * 60)

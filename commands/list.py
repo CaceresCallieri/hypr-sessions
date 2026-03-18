@@ -36,7 +36,7 @@ class SessionList(Utils):
             active_result = self._list_active_sessions()
             if not active_result.success:
                 return active_result
-            active_sessions_data = active_result.data.get("sessions", [])
+            active_sessions_data = active_result.data.get("active_sessions", [])
             # Copy messages from active result
             for message in active_result.messages:
                 result.messages.append(message)
@@ -51,36 +51,18 @@ class SessionList(Utils):
                     for message in archived_result.messages:
                         result.messages.append(message)
             else:
-                archived_sessions_data = archived_result.data.get("sessions", [])
+                archived_sessions_data = archived_result.data.get("archived_sessions", [])
                 # Copy messages from archived result
                 for message in archived_result.messages:
                     result.messages.append(message)
         
-        # Build final result data
-        if show_all:
-            result.data = {
-                "active_sessions": active_sessions_data,
-                "archived_sessions": archived_sessions_data,
-                "active_count": len(active_sessions_data),
-                "archived_count": len(archived_sessions_data),
-                "total_count": len(active_sessions_data) + len(archived_sessions_data)
-            }
-        elif archived:
-            result.data = {
-                "archived_sessions": archived_sessions_data,
-                "session_count": len(archived_sessions_data),
-                "valid_sessions": len([s for s in archived_sessions_data if s.get('valid', False)]),
-                "invalid_sessions": len([s for s in archived_sessions_data if not s.get('valid', False)])
-            }
-        else:
-            # Legacy format for active sessions only
-            result.data = {
-                "sessions": active_sessions_data,  # For backward compatibility
-                "active_sessions": active_sessions_data,
-                "session_count": len(active_sessions_data),
-                "valid_sessions": len([s for s in active_sessions_data if s.get('valid', False)]),
-                "invalid_sessions": len([s for s in active_sessions_data if not s.get('valid', False)])
-            }
+        # Build final result data with consistent schema regardless of mode
+        result.data = {
+            "active_sessions": active_sessions_data,
+            "archived_sessions": archived_sessions_data,
+            "active_count": len(active_sessions_data),
+            "archived_count": len(archived_sessions_data),
+        }
         
         return result
     
@@ -106,7 +88,7 @@ class SessionList(Utils):
         result.add_success(f"Found {len(session_dirs)} active session directories")
 
         if not session_dirs:
-            result.data = {"sessions": [], "session_count": 0}
+            result.data = {"active_sessions": [], "active_count": 0}
             return result
 
         sessions_data = []
@@ -116,9 +98,9 @@ class SessionList(Utils):
         for session_dir in sorted(session_dirs):
             session_name = session_dir.name
             session_file = session_dir / "session.json"
-            
+
             self.debugger.debug(f"Processing active session directory: {session_dir}")
-            
+
             if path_cache.exists(session_file):
                 try:
                     with open(session_file, "r") as f:
@@ -126,13 +108,13 @@ class SessionList(Utils):
 
                     timestamp = session_data.get("timestamp", "Unknown")
                     window_count = len(session_data.get("windows", []))
-                    
+
                     # Count all files in session directory
                     all_files = list(session_dir.iterdir())
                     file_count = len(all_files)
-                    
+
                     self.debugger.debug(f"Active session '{session_name}': {window_count} windows, {file_count} files, saved {timestamp}")
-                    
+
                     sessions_data.append({
                         "name": session_name,
                         "windows": window_count,
@@ -145,7 +127,7 @@ class SessionList(Utils):
 
                 except (OSError, PermissionError) as e:
                     self.debugger.debug(f"File system error reading active session file {session_file}: {e}")
-                    
+
                     sessions_data.append({
                         "name": session_name,
                         "valid": False,
@@ -153,7 +135,7 @@ class SessionList(Utils):
                     })
                 except json.JSONDecodeError as e:
                     self.debugger.debug(f"JSON decode error reading active session file {session_file}: {e}")
-                    
+
                     sessions_data.append({
                         "name": session_name,
                         "valid": False,
@@ -161,7 +143,7 @@ class SessionList(Utils):
                     })
                 except Exception as e:
                     self.debugger.debug(f"Unexpected error reading active session file {session_file}: {e}")
-                    
+
                     sessions_data.append({
                         "name": session_name,
                         "valid": False,
@@ -171,7 +153,7 @@ class SessionList(Utils):
                     result.add_warning(f"Failed to read active session '{session_name}': {e}")
             else:
                 self.debugger.debug(f"Active session directory {session_dir} missing session.json")
-                
+
                 sessions_data.append({
                     "name": session_name,
                     "valid": False,
@@ -179,12 +161,10 @@ class SessionList(Utils):
                 })
                 invalid_sessions += 1
                 result.add_warning(f"Active session '{session_name}' is incomplete: missing session.json")
-        
+
         result.data = {
-            "sessions": sessions_data,
-            "session_count": len(session_dirs),
-            "valid_sessions": valid_sessions,
-            "invalid_sessions": invalid_sessions
+            "active_sessions": sessions_data,
+            "active_count": len(session_dirs),
         }
         
         if invalid_sessions > 0:
@@ -201,9 +181,9 @@ class SessionList(Utils):
         
         if not path_cache.exists(archived_sessions_dir):
             self.debugger.debug("Archived sessions directory does not exist")
-            result.data = {"sessions": [], "session_count": 0}
+            result.data = {"archived_sessions": [], "archived_count": 0}
             return result
-        
+
         try:
             # Find archived session directories (exclude hidden files)
             session_dirs = [d for d in archived_sessions_dir.iterdir() 
@@ -219,7 +199,7 @@ class SessionList(Utils):
         result.add_success(f"Found {len(session_dirs)} archived session directories")
 
         if not session_dirs:
-            result.data = {"sessions": [], "session_count": 0}
+            result.data = {"archived_sessions": [], "archived_count": 0}
             return result
 
         sessions_data = []
@@ -312,10 +292,8 @@ class SessionList(Utils):
                 result.add_warning(f"Archived session '{session_name}' is incomplete: missing .archive-metadata.json")
         
         result.data = {
-            "sessions": sessions_data,
-            "session_count": len(session_dirs),
-            "valid_sessions": valid_sessions,
-            "invalid_sessions": invalid_sessions
+            "archived_sessions": sessions_data,
+            "archived_count": len(session_dirs),
         }
         
         if invalid_sessions > 0:
