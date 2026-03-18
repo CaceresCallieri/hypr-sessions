@@ -195,7 +195,7 @@ class SessionSaver(Utils):
                         if neovide_session_info:
                             window_data["neovide_session"] = neovide_session_info
                             # Try to create/capture session file in session directory
-                            session_dir = str(self.config.get_active_session_directory(self.current_session_name))
+                            session_dir = str(self.config.ensure_active_session_directory(self.current_session_name))
                             session_file = self.neovide_handler.create_session_file(pid, session_dir)
                             self.debugger.debug(f"Created session file: {session_file}")
                             if session_file:
@@ -276,7 +276,8 @@ class SessionSaver(Utils):
                 self.debugger.debug(f"  Group {group_id[:8]}... has {len(addresses)} windows")
             result.add_success(f"Detected {len(groups)} window groups")
 
-        # Save session to file in new folder structure
+        # Save session to file in new folder structure (ensure directory exists)
+        self.config.ensure_active_session_directory(session_name)
         session_file = self.config.get_active_session_file_path(session_name)
         try:
             with open(session_file, "w") as f:

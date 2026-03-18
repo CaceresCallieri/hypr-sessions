@@ -39,12 +39,10 @@ class SessionArchive(Utils):
             SessionValidator.validate_session_exists(session_dir, session_name)
             result.add_success("Session exists and is accessible")
             
-            # Now get the session directory (it won't create since it exists)
-            session_dir = self.config.get_active_session_directory(session_name)
             self.debugger.debug(f"Session directory path: {session_dir}")
             
-            # Validate archived sessions directory is accessible
-            SessionValidator.validate_archived_sessions_dir(self.config.get_archived_sessions_dir())
+            # Validate archived sessions directory is accessible (ensure it exists for writing)
+            SessionValidator.validate_archived_sessions_dir(self.config.ensure_archived_sessions_dir())
             result.add_success("Archived sessions directory accessible")
             
         except (SessionValidationError, SessionNotFoundError) as e:
@@ -67,7 +65,7 @@ class SessionArchive(Utils):
             archived_dir = self.config.get_archived_session_directory(archived_name)
             
             # METADATA-FIRST PATTERN: Create metadata in temporary location first
-            archived_sessions_dir = self.config.get_archived_sessions_dir()
+            archived_sessions_dir = self.config.ensure_archived_sessions_dir()
             temp_metadata_file = archived_sessions_dir / f".archive-metadata-{archived_name}.tmp"
             metadata = self._create_archive_metadata(session_name, archived_name, file_count)
             
