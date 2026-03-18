@@ -112,17 +112,17 @@ class HyprlandSessionManager:
                 print(f"Error: {e}")
             return False
 
-    def list_sessions(self, archived: bool = False, show_all: bool = False) -> None:
+    def list_sessions(self, archived: bool = False, show_all: bool = False) -> bool:
         result = self.lister.list_sessions(archived=archived, show_all=show_all)
-        
+
         if self.json_output:
             self._output_json_result(result)
             sys.exit(0 if result.success else 1)
-        
+
         # Normal output mode - CLI handles all presentation
         if result.success and result.data:
             self._print_session_list(result.data, archived=archived, show_all=show_all)
-        
+
         if self.debug:
             result.print_detailed_result()
         else:
@@ -133,6 +133,8 @@ class HyprlandSessionManager:
                 print(f"✗ {result.error_count} errors occurred")
                 for error in result.errors:
                     print(f"  Error: {error.message}")
+
+        return result.success
     
     def _print_session_list(self, data: dict, archived: bool = False, show_all: bool = False) -> None:
         """Handle session list presentation in CLI"""
@@ -441,43 +443,51 @@ def main() -> None:
         if not args.session_name:
             print("Session name is required for save action")
             sys.exit(1)
-        manager.save_session(args.session_name)
+        success = manager.save_session(args.session_name)
+        if not success:
+            sys.exit(1)
 
     elif args.action == "restore":
         if not args.session_name:
             print("Session name is required for restore action")
             sys.exit(1)
-        manager.restore_session(args.session_name)
+        success = manager.restore_session(args.session_name)
+        if not success:
+            sys.exit(1)
 
     elif args.action == "list":
-        manager.list_sessions(archived=args.archived, show_all=args.all)
+        success = manager.list_sessions(archived=args.archived, show_all=args.all)
+        if not success:
+            sys.exit(1)
 
     elif args.action == "delete":
         if not args.session_name:
             print("Session name is required for delete action")
             sys.exit(1)
-        manager.delete_session(args.session_name)
+        success = manager.delete_session(args.session_name)
+        if not success:
+            sys.exit(1)
 
     elif args.action == "recover":
         if not args.session_name:
             print("Archived session name is required for recover action")
             sys.exit(1)
-        
+
         # Three-layer validation for defense in depth
         try:
             # Layer 1: Format validation - archived names must contain timestamp
             if not re.match(r'^.+-\d{8}-\d{6}$', args.session_name):
                 print("Error: Invalid archived session name format. Expected: session-name-YYYYMMDD-HHMMSS")
                 sys.exit(1)
-            
+
             # Layer 2: Content validation - extract and validate base session name
             base_name = args.session_name.rsplit('-', 2)[0]  # Remove timestamp suffix safely
             validate_session_name(base_name)  # Reuse comprehensive validation
-            
+
             # Layer 3: New name validation if provided
             if args.new_name:
                 validate_session_name(args.new_name)
-                
+
         except SessionValidationError as e:
             print(f"Error: {e}")
             sys.exit(1)
@@ -487,11 +497,15 @@ def main() -> None:
         except Exception as e:
             print(f"Error: Unexpected session name validation error: {e}")
             sys.exit(1)
-        
-        manager.recover_session(args.session_name, args.new_name)
-    
+
+        success = manager.recover_session(args.session_name, args.new_name)
+        if not success:
+            sys.exit(1)
+
     elif args.action == "health":
-        manager.health_check()
+        success = manager.health_check()
+        if not success:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
