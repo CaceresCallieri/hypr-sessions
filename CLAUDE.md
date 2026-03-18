@@ -542,11 +542,12 @@ The project has evolved from permanent deletion to a comprehensive archive syste
 
 #### Configuration System
 
-**Environment Variables**:
+**Environment Variables** (all use `HYPR_` prefix, configured via `from_env()`):
 ```bash
-export ARCHIVE_ENABLED=true              # Enable/disable archive system
-export ARCHIVE_MAX_SESSIONS=20           # Maximum archived sessions to keep
-export ARCHIVE_AUTO_CLEANUP=true         # Automatic cleanup when limit exceeded
+export HYPR_ARCHIVE_ENABLED=true              # Enable/disable archive system
+export HYPR_ARCHIVE_MAX=20                    # Maximum archived sessions to keep
+export HYPR_ARCHIVE_AUTO_CLEANUP=true         # Automatic cleanup when limit exceeded
+export HYPR_ARCHIVE_CLEANUP_STRATEGY=oldest_first  # or largest_first
 ```
 
 **Runtime Configuration** (`commands/shared/config.py`):

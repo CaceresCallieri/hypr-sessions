@@ -47,32 +47,8 @@ class SessionConfig:
     # Debug Configuration
     debug_enabled: bool = False
 
-    def _validate_env_numeric(self, env_var: str, current_value, min_val, max_val, value_type=int):
-        """Validate and set numeric environment variable with bounds checking"""
-        if env_var in os.environ:
-            try:
-                new_value = value_type(os.environ[env_var])
-                if min_val <= new_value <= max_val:
-                    return new_value
-                else:
-                    print(f"Warning: {env_var} value {new_value} out of range ({min_val}-{max_val}), using default {current_value}")
-                    return current_value
-            except ValueError:
-                print(f"Warning: Invalid {env_var} value '{os.environ[env_var]}', using default {current_value}")
-        return current_value
-
     def __post_init__(self) -> None:
-        """Initialize default values and apply environment variable overrides"""
-        # Apply environment variable overrides for archive settings with bounds validation
-        self.archive_max_sessions = self._validate_env_numeric(
-            "ARCHIVE_MAX_SESSIONS", self.archive_max_sessions, 1, 1000
-        )
-        
-        if "ARCHIVE_AUTO_CLEANUP" in os.environ:
-            self.archive_auto_cleanup = os.environ["ARCHIVE_AUTO_CLEANUP"].lower() in ("true", "1", "yes")
-        
-        if "ARCHIVE_ENABLED" in os.environ:
-            self.archive_enabled = os.environ["ARCHIVE_ENABLED"].lower() in ("true", "1", "yes")
+        """Initialize default values for mutable fields and ensure directory structure"""
         if self.supported_browsers is None:
             self.supported_browsers = {
                 "zen-alpha",  # Zen Browser (alpha)
