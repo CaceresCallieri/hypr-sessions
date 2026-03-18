@@ -3,7 +3,7 @@ Type definitions for hypr-sessions
 Provides meaningful type aliases for complex or domain-specific concepts
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TypedDict
 from pathlib import Path
 
 # Time-related types (clarify units)
@@ -11,7 +11,7 @@ TimeoutSeconds = int | float  # Timeout durations in seconds
 
 # Hyprland-specific types
 WindowAddress = str  # Hyprland window address (e.g., "0x55b073d05bf0")
-Position = List[int]  # [x, y] window coordinates  
+Position = List[int]  # [x, y] window coordinates
 Size = List[int]      # [width, height] window dimensions
 
 # Browser integration types
@@ -26,18 +26,30 @@ NeovideSession = Dict[str, str | bool | Path]
 RunningProgram = Dict[str, str | List[str]]
 
 # Window information structure
-WindowInfo = Dict[str, (
-    str |              # address, class, title, etc.
-    int |              # pid, fullscreen
-    bool |             # floating
-    Position |         # window position
-    Size |             # window size  
-    List[str] |        # grouped windows
-    Optional[str] |    # group_id, working_directory
-    BrowserSession |   # browser_session
-    NeovideSession |   # neovide_session
-    RunningProgram     # running_program
-)]
+# Uses functional TypedDict form because "class" is a Python reserved word
+# but is the actual key name in hyprctl JSON output. total=False because
+# fields like browser_session, neovide_session, running_program, and
+# working_directory are only added conditionally during session save.
+WindowInfo = TypedDict("WindowInfo", {
+    "address": str,
+    "class": str,
+    "title": str,
+    "pid": int,
+    "floating": bool,
+    "fullscreen": bool,
+    "at": Position,
+    "size": Size,
+    "grouped": List[str],
+    "group_id": Optional[str],
+    "initialClass": str,
+    "initialTitle": str,
+    "swallowing": str,
+    "working_directory": Optional[str],
+    "browser_session": Optional[BrowserSession],
+    "neovide_session": Optional[NeovideSession],
+    "running_program": Optional[RunningProgram],
+    "launch_command": str,
+}, total=False)
 
 # Session data structures
 GroupMapping = Dict[Optional[str], List[WindowAddress]]  # group_id -> window addresses
