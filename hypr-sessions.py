@@ -121,10 +121,6 @@ class HyprlandSessionManager:
         active_sessions = data.get('active_sessions', [])
         archived_sessions = data.get('archived_sessions', [])
         
-        # Handle legacy format for backward compatibility
-        if 'sessions' in data and not active_sessions and not archived_sessions:
-            active_sessions = data.get('sessions', [])
-        
         if show_all:
             # Show both active and archived
             if active_sessions:
