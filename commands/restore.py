@@ -30,50 +30,43 @@ class SessionRestore(Utils):
     
     def _launch_window_command_with_timeout(self, command: str, timeout: int = 30) -> bool:
         """Launch window command with timeout protection and startup validation"""
+        self.debugger.debug(f"Launching with timeout ({timeout}s): {command}")
+
+        # Launch process in new process group for clean termination
         try:
-            self.debugger.debug(f"Launching with timeout ({timeout}s): {command}")
-            
-            # Launch process in new process group for clean termination
             process = subprocess.Popen(
                 shlex.split(command),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 preexec_fn=os.setsid  # Create new process group
             )
-            
-            # Wait for process to start (brief check for immediate failures)
-            try:
-                return_code = process.wait(timeout=5)  # Quick startup validation
-                if return_code != 0:
-                    # Process failed to start properly
-                    stderr = process.stderr.read().decode() if process.stderr else ""
-                    self.debugger.debug(f"Command failed to start: {command}, error: {stderr}")
-                    return False
-            except subprocess.TimeoutExpired:
-                # Process is still running after 5 seconds - this is expected for GUI applications
-                # The process started successfully and is running
-                self.debugger.debug(f"Process started successfully and is running: {command}")
-                return True
-                
+        except FileNotFoundError as e:
+            self.debugger.debug(f"Command not found: {command}, error: {e}")
+            return False
+        except PermissionError as e:
+            self.debugger.debug(f"Permission denied launching command: {command}, error: {e}")
+            return False
+        except OSError as e:
+            self.debugger.debug(f"OS error launching command: {command}, error: {e}")
+            return False
+
+        # Wait for process to start (brief check for immediate failures)
+        try:
+            return_code = process.wait(timeout=5)  # Quick startup validation
+            if return_code != 0:
+                # Process failed to start properly
+                stderr = process.stderr.read().decode() if process.stderr else ""
+                self.debugger.debug(f"Command failed to start: {command}, error: {stderr}")
+                return False
         except subprocess.TimeoutExpired:
-            # This shouldn't happen with our current logic, but handle it anyway
-            self.debugger.debug(f"Command timed out after {timeout}s: {command}")
-            try:
-                # Kill the entire process group
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            except (ProcessLookupError, AttributeError):
-                pass  # Process already died or PID not available
-            return False
-        except (FileNotFoundError, PermissionError, OSError) as e:
-            self.debugger.debug(f"Process error launching command: {command}, error: {e}")
-            return False
-        except subprocess.TimeoutExpired as e:
-            self.debugger.debug(f"Timeout launching command: {command}, error: {e}")
-            return False
+            # Process is still running after 5 seconds - this is expected for GUI applications
+            # The process started successfully and is running
+            self.debugger.debug(f"Process started successfully and is running: {command}")
+            return True
         except Exception as e:
             self.debugger.debug(f"Unexpected error launching command: {command}, error: {e}")
             return False
-        
+
         return True
 
     def detect_swallowing_relationships(
