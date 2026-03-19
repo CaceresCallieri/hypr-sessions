@@ -82,7 +82,6 @@ Singleton {
     // Matches Hyprland's slightOvershoot bezier — subtle bounce past target then settle
     property list<real> animCurveOvershoot: [0.05, 0.9, 0.1, 1.05, 1, 1]
 
-
     // === Matte system — matching Symmetria's mattePill() aesthetic ===
     readonly property QtObject matteConstants: QtObject {
         readonly property real baseLightness: 0.10
@@ -177,6 +176,7 @@ Singleton {
             if (a?.anim?.duration !== undefined) root.animDuration = a.anim.duration;
             if (a?.anim?.curves?.standard) root.animCurveStandard = a.anim.curves.standard;
             if (a?.anim?.curves?.standardDecel) root.animCurveStandardDecel = a.anim.curves.standardDecel;
+            if (a?.anim?.curves?.overshoot) root.animCurveOvershoot = a.anim.curves.overshoot;
         } catch (e) {
             console.warn("Theme: failed to parse IPC response:", e);
         }

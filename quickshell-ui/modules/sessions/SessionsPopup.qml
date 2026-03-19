@@ -26,11 +26,16 @@ PanelWindow {
 
     // Pop-in/pop-out state — drives card opacity and scale
     property bool showing: false
+    property bool _isClosing: false
 
+    // Guard: ignore if already closing (prevents double animation trigger)
     function close() {
         if (!win.showing) return;
+        win._isClosing = true;
         win.showing = false;
     }
+
+    Component.onCompleted: win.showing = true
 
     // Root focus scope — handles global keys since PanelWindow is not an Item
     FocusScope {
@@ -50,13 +55,15 @@ PanelWindow {
             color: card.surface.background
 
             // Pop-in/pop-out animation (matches Hyprland popin style)
+            readonly property real popAnimDuration: Theme.animDuration * 0.8
+
             opacity: win.showing ? 1 : 0
             scale: win.showing ? 1 : 0.3
             transformOrigin: Item.Center
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: Theme.animDuration * 0.8
+                    duration: card.popAnimDuration
                     easing.type: Easing.BezierSpline
                     easing.bezierCurve: Theme.animCurveStandardDecel
                 }
@@ -65,19 +72,17 @@ PanelWindow {
             Behavior on scale {
                 NumberAnimation {
                     id: scaleAnim
-                    duration: Theme.animDuration * 0.8
+                    duration: card.popAnimDuration
                     easing.type: Easing.BezierSpline
                     easing.bezierCurve: Theme.animCurveOvershoot
                 }
             }
 
-            Component.onCompleted: win.showing = true
-
-            // Quit after the close animation finishes
+            // Quit after pop-out scale animation (Behavior on scale above) finishes
             Connections {
                 target: scaleAnim
                 function onRunningChanged() {
-                    if (!scaleAnim.running && !win.showing)
+                    if (!scaleAnim.running && win._isClosing)
                         Qt.quit();
                 }
             }
