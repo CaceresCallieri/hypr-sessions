@@ -6,9 +6,11 @@ The active UI for hypr-sessions, replacing the legacy Fabric/GTK3 frontend.
 
 - **Framework**: QuickShell (Qt/QML wrapper for desktop shells)
 - **Window**: `PanelWindow` with Wayland layer shell support
-- **Focus**: `HyprlandFocusGrab` for exclusive keyboard control
+- **Focus**: `WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive` for exclusive keyboard
+  capture; `HyprlandFocusGrab` dismisses the window when clicking outside
 - **Theme**: Symmetria M3 palette system (`services/Theme.qml`)
-- **State**: Singleton `SessionService.qml` manages all UI and backend state
+- **State**: `SessionService.qml` (pragma Singleton) manages all UI and backend state;
+  `Paths.qml` (pragma Singleton, also in `services/`) provides CLI path resolution
 
 ## File Structure
 
@@ -27,7 +29,7 @@ quickshell-ui/
   services/
     SessionService.qml             # Singleton: process management, operation orchestration
     Theme.qml                      # M3 palette, typography, spacing design tokens
-    Paths.qml                      # Configuration paths
+    Paths.qml                      # Singleton: CLI path resolution and home directory helpers
   config/
     Config.qml                     # Config wrapper
     SessionsConfig.qml             # Timing and dimension constants
@@ -41,7 +43,7 @@ quickshell-ui/
 ```bash
 cd quickshell-ui && ./run.sh       # Development (clears QML cache)
 qs -c sessions-ui                  # Installed version
-./install.sh                       # Install standalone (symlinks to ~/.config/quickshell/sessions-ui)
+./install.sh                       # Install standalone (symlinks ~/.config/quickshell/sessions-ui -> project dir)
 ```
 
 ## Key Features
@@ -64,9 +66,11 @@ qs -c sessions-ui                  # Installed version
 | d | Delete selected session |
 | Ctrl+A | Toggle archive mode |
 | Ctrl+L | Clear search |
-| Esc / Ctrl+Q | Exit |
+| Esc | Clear search (when search is non-empty), otherwise quit |
+| Ctrl+Q | Quit |
 
 ## Backend Communication
 
 `SessionService.qml` spawns the CLI as a subprocess with `--json` flag and parses
-the structured JSON response. All operations are async with timeout protection.
+the structured JSON response. Operations (restore/delete/recover/save) have a 35s timeout;
+the session list call (`loadSessions`) has no timeout.

@@ -26,10 +26,12 @@ All debug output must use the structured logging systems:
 - **Backend**: `CommandDebugger` from `commands/shared/debug.py`
 - **UI (Fabric legacy)**: `debug_logger` from `fabric-ui/utils/debug_logger.py`
 
-### Never Import fabric-ui Modules Directly
+### Never Import fabric-ui Modules Directly (legacy fabric-ui only)
 
 Fabric UI requires GTK3 + gobject + Fabric venv + Wayland. For validation use only:
 `python -m py_compile fabric-ui/widgets/browse_panel.py`
+
+QuickShell/QML components in `quickshell-ui/` have no such restriction.
 
 ### Other Rules
 
@@ -86,7 +88,7 @@ overrides are bounds-checked (archive limits: 1-1000, delays: 0.0-10.0s, timeout
 
 - `docs/quickshell-ui.md` -- QuickShell/QML frontend architecture and patterns
 - `docs/architecture.md` -- Data formats, archive system, error handling, configuration
-- `docs/gtk3-gotchas.md` -- GTK3 CSS limitations and widget behavior (for fabric-ui work)
-- `docs/development-history.md` -- Historical development notes and decisions
+- `docs/gtk3-gotchas.md` -- GTK3 CSS limitations and widget behavior (for fabric-ui work only)
+- `docs/development-history.md` -- Past decisions and milestones (only needed when investigating history, not for routine work)
 - `TODO.md` -- Improvement roadmap and prioritized tasks
 - `tests/README.md` -- Test suite documentation
