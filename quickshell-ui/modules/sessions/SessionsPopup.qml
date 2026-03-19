@@ -37,20 +37,20 @@ PanelWindow {
 
             anchors.fill: parent
             radius: Theme.rounding.large
-            color: Theme.layer(Theme.palette.m3surfaceContainerLow, 0)
+            color: Theme.matte(Theme.palette.m3surfaceContainerLow, 0.0).background
 
-            // Subtle border
+            // Matte hairline border
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
                 radius: card.radius
                 border.width: 1
-                border.color: Qt.alpha(Theme.palette.m3outlineVariant, 0.3)
+                border.color: Theme.matte(Theme.palette.m3surfaceContainerLow, 0.0).border
             }
 
             Column {
                 anchors.fill: parent
-                anchors.margins: Theme.padding.large
+                anchors.margins: Theme.padding.large + 5
 
                 // Header
                 Row {

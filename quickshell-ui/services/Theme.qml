@@ -80,22 +80,44 @@ Singleton {
     property list<real> animCurveStandard: [0.2, 0, 0, 1, 1, 1]
     property list<real> animCurveStandardDecel: [0, 0, 0, 1, 1, 1]
 
-    // === Transparency ===
+    // === Transparency (legacy — kept for backward compatibility) ===
     property QtObject transparency: QtObject {
         property bool enabled: true
         property real base: 0.3
         property real layers: 0.25
     }
 
-    // Simplified layer function matching Symmetria's approach:
-    // layer 0 = base transparency (window background)
-    // layer 1+ = container transparency (layers value is the target alpha)
     function layer(c: color, depth: int): color {
         if (!transparency.enabled)
             return c;
         return depth === 0
             ? Qt.alpha(c, transparency.base)
             : Qt.alpha(c, transparency.layers);
+    }
+
+    // === Matte system — matching Symmetria's mattePill() aesthetic ===
+    readonly property QtObject matteConstants: QtObject {
+        readonly property real baseLightness: 0.10
+        readonly property real lightnessRange: 0.08
+        readonly property real colorTint: 0.12
+        readonly property color borderColor: "#ffffff"
+        readonly property real borderOpacity: 0.12
+    }
+
+    // Opaque dark surface with subtle hue tint from baseColor.
+    // intensity: 0 (deepest charcoal) to 1 (slightly lighter).
+    // Returns { background: color, border: color }
+    function matte(baseColor: color, intensity: real): var {
+        const clamped = Math.max(0, Math.min(1, intensity));
+        const lightness = matteConstants.baseLightness + clamped * matteConstants.lightnessRange;
+        const background = Qt.hsla(
+            baseColor.hslHue,
+            baseColor.hslSaturation * matteConstants.colorTint,
+            lightness,
+            1.0
+        );
+        const border = Qt.alpha(matteConstants.borderColor, matteConstants.borderOpacity);
+        return { background: background, border: border };
     }
 
     // === Misc ===

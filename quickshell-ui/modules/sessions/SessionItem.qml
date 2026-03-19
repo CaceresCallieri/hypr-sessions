@@ -10,7 +10,7 @@ ClippingRect {
 
     height: 40
     radius: Theme.rounding.small
-    color: isSelected ? Theme.layer(Theme.palette.m3secondaryContainer, 1) : "transparent"
+    color: isSelected ? Theme.matte(Theme.palette.m3secondaryContainer, 0.5).background : "transparent"
 
     Row {
         anchors.fill: parent

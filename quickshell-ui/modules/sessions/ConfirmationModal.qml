@@ -7,7 +7,7 @@ ClippingRect {
     id: root
 
     radius: Theme.rounding.small
-    color: Theme.layer(Theme.palette.m3surfaceContainer, 1)
+    color: Theme.matte(Theme.palette.m3surfaceContainer, 0.2).background
 
     // Operation configuration
     readonly property var opConfig: {
@@ -121,7 +121,7 @@ ClippingRect {
                     color: "transparent"
                     radius: Theme.rounding.full
                     border.width: 1
-                    border.color: Theme.palette.m3outline
+                    border.color: Qt.alpha("#ffffff", Theme.matteConstants.borderOpacity)
                 }
 
                 StyledText {
@@ -174,7 +174,7 @@ ClippingRect {
                 color: "transparent"
                 radius: Theme.rounding.full
                 border.width: 1
-                border.color: Theme.palette.m3outline
+                border.color: Qt.alpha("#ffffff", Theme.matteConstants.borderOpacity)
             }
 
             StyledText {

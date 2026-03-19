@@ -64,7 +64,7 @@ Item {
                 width: parent.width
                 height: 40
                 radius: Theme.rounding.small
-                color: Theme.layer(Theme.palette.m3surfaceContainer, 1)
+                color: Theme.matte(Theme.palette.m3surfaceContainer, 0.4).background
 
                 TextInput {
                     id: nameInput
@@ -104,7 +104,7 @@ Item {
                 width: parent.width
                 height: 36
                 radius: Theme.rounding.full
-                color: nameInput.text.trim() ? Theme.palette.m3primary : Theme.layer(Theme.palette.m3surfaceContainerHigh, 1)
+                color: nameInput.text.trim() ? Theme.palette.m3primary : Theme.matte(Theme.palette.m3surfaceContainerHigh, 0.3).background
 
                 StyledText {
                     anchors.centerIn: parent
@@ -158,7 +158,7 @@ Item {
                     color: "transparent"
                     radius: Theme.rounding.full
                     border.width: 1
-                    border.color: Theme.palette.m3outline
+                    border.color: Qt.alpha("#ffffff", Theme.matteConstants.borderOpacity)
                 }
 
                 StyledText {

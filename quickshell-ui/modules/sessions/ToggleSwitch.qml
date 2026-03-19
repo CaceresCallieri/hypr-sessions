@@ -21,14 +21,14 @@ Row {
             width: 65
             height: 28
             radius: Theme.rounding.full
-            color: active ? Theme.layer(Theme.palette.m3primary, 1) : "transparent"
+            color: active ? Theme.matte(Theme.palette.m3primary, 0.6).background : "transparent"
 
             StyledText {
                 anchors.centerIn: parent
                 text: toggleItem.modelData
                 font.pointSize: Theme.font.size.small
                 font.weight: toggleItem.active ? Font.Medium : Font.Normal
-                color: toggleItem.active ? Theme.palette.m3onPrimary : Theme.palette.m3onSurfaceVariant
+                color: toggleItem.active ? Theme.palette.m3onSurface : Theme.palette.m3onSurfaceVariant
             }
 
             StateLayer {

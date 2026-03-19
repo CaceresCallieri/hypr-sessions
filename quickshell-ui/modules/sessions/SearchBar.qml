@@ -13,7 +13,7 @@ ClippingRect {
 
     height: 36
     radius: Theme.rounding.small
-    color: Theme.layer(Theme.palette.m3surfaceContainer, 1)
+    color: Theme.matte(Theme.palette.m3surfaceContainer, 0.4).background
 
     Row {
         anchors.fill: parent
