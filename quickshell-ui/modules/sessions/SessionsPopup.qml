@@ -21,7 +21,15 @@ PanelWindow {
     HyprlandFocusGrab {
         active: true
         windows: [win]
-        onCleared: Qt.quit()
+        onCleared: win.close()
+    }
+
+    // Pop-in/pop-out state — drives card opacity and scale
+    property bool showing: false
+
+    function close() {
+        if (!win.showing) return;
+        win.showing = false;
     }
 
     // Root focus scope — handles global keys since PanelWindow is not an Item
@@ -40,6 +48,39 @@ PanelWindow {
             anchors.fill: parent
             radius: Theme.rounding.large
             color: card.surface.background
+
+            // Pop-in/pop-out animation (matches Hyprland popin style)
+            opacity: win.showing ? 1 : 0
+            scale: win.showing ? 1 : 0.3
+            transformOrigin: Item.Center
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animDuration * 0.8
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Theme.animCurveStandardDecel
+                }
+            }
+
+            Behavior on scale {
+                NumberAnimation {
+                    id: scaleAnim
+                    duration: Theme.animDuration * 0.8
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Theme.animCurveOvershoot
+                }
+            }
+
+            Component.onCompleted: win.showing = true
+
+            // Quit after the close animation finishes
+            Connections {
+                target: scaleAnim
+                function onRunningChanged() {
+                    if (!scaleAnim.running && !win.showing)
+                        Qt.quit();
+                }
+            }
 
             // Matte hairline border
             Rectangle {
@@ -117,10 +158,10 @@ PanelWindow {
                     event.accepted = true;
                     return;
                 }
-                Qt.quit();
+                win.close();
                 event.accepted = true;
             } else if (event.key === Qt.Key_Q && event.modifiers & Qt.ControlModifier) {
-                Qt.quit();
+                win.close();
                 event.accepted = true;
             } else if (event.key === Qt.Key_Tab) {
                 SessionService.saveMode = !SessionService.saveMode;

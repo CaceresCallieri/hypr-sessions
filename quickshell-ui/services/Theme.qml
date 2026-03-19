@@ -79,6 +79,8 @@ Singleton {
     property int animDuration: 400
     property list<real> animCurveStandard: [0.2, 0, 0, 1, 1, 1]
     property list<real> animCurveStandardDecel: [0, 0, 0, 1, 1, 1]
+    // Matches Hyprland's slightOvershoot bezier — subtle bounce past target then settle
+    property list<real> animCurveOvershoot: [0.05, 0.9, 0.1, 1.05, 1, 1]
 
 
     // === Matte system — matching Symmetria's mattePill() aesthetic ===
