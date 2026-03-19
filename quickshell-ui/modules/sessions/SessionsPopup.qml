@@ -35,9 +35,11 @@ PanelWindow {
         ClippingRect {
             id: card
 
+            readonly property var surface: Theme.matte(Theme.palette.m3surfaceContainerLow, 0.0)
+
             anchors.fill: parent
             radius: Theme.rounding.large
-            color: Theme.matte(Theme.palette.m3surfaceContainerLow, 0.0).background
+            color: card.surface.background
 
             // Matte hairline border
             Rectangle {
@@ -45,12 +47,12 @@ PanelWindow {
                 color: "transparent"
                 radius: card.radius
                 border.width: 1
-                border.color: Theme.matte(Theme.palette.m3surfaceContainerLow, 0.0).border
+                border.color: card.surface.border
             }
 
             Column {
                 anchors.fill: parent
-                anchors.margins: Theme.padding.large + 5
+                anchors.margins: Theme.spacing.large
 
                 // Header
                 Row {

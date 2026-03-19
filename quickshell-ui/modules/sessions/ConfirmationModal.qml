@@ -148,9 +148,7 @@ ClippingRect {
                     text: root.opConfig.confirmText
                     font.pointSize: Theme.font.size.smaller
                     font.weight: Font.Medium
-                    color: SessionService.operationType === "delete"
-                        ? Theme.palette.m3onSurface
-                        : Theme.palette.m3onPrimary
+                    color: Theme.palette.m3onPrimary
                 }
 
                 StateLayer {
@@ -216,7 +214,7 @@ ClippingRect {
                 Rectangle {
                     width: 12
                     height: 12
-                    color: Theme.layer(Theme.palette.m3surfaceContainer, 1)
+                    color: Theme.matte(Theme.palette.m3surfaceContainer, 0.2).background
                     anchors.right: parent.right
                     anchors.top: parent.top
                 }

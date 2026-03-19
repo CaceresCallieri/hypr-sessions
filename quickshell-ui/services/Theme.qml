@@ -80,20 +80,6 @@ Singleton {
     property list<real> animCurveStandard: [0.2, 0, 0, 1, 1, 1]
     property list<real> animCurveStandardDecel: [0, 0, 0, 1, 1, 1]
 
-    // === Transparency (legacy — kept for backward compatibility) ===
-    property QtObject transparency: QtObject {
-        property bool enabled: true
-        property real base: 0.3
-        property real layers: 0.25
-    }
-
-    function layer(c: color, depth: int): color {
-        if (!transparency.enabled)
-            return c;
-        return depth === 0
-            ? Qt.alpha(c, transparency.base)
-            : Qt.alpha(c, transparency.layers);
-    }
 
     // === Matte system — matching Symmetria's mattePill() aesthetic ===
     readonly property QtObject matteConstants: QtObject {
@@ -189,7 +175,6 @@ Singleton {
             if (a?.anim?.duration !== undefined) root.animDuration = a.anim.duration;
             if (a?.anim?.curves?.standard) root.animCurveStandard = a.anim.curves.standard;
             if (a?.anim?.curves?.standardDecel) root.animCurveStandardDecel = a.anim.curves.standardDecel;
-            if (a?.transparency) _applyObject(root.transparency, a.transparency);
         } catch (e) {
             console.warn("Theme: failed to parse IPC response:", e);
         }
